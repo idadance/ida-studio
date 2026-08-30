@@ -1,0 +1,4 @@
+CREATE TYPE "WaitlistType" AS ENUM ('SOLD_OUT', 'EXTRA_TICKETS');
+
+ALTER TABLE "WaitlistEntry"
+ADD COLUMN "type" "WaitlistType" NOT NULL DEFAULT 'SOLD_OUT';

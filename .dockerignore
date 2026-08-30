@@ -1,0 +1,16 @@
+.cache
+build
+node_modules
+.cache
+build
+node_modules
+
+.git
+.gitignore
+
+.env
+.env.*
+
+*.zip
+
+README.md

@@ -1,0 +1,2 @@
+ALTER TABLE "Show"
+ADD COLUMN "checkInOpen" BOOLEAN NOT NULL DEFAULT false;
