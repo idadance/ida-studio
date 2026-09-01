@@ -4,6 +4,29 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type",
+};
+
+export async function loader({ request }) {
+  if (request.method === "OPTIONS") {
+    return new Response(null, {
+      status: 204,
+      headers: corsHeaders,
+    });
+  }
+
+  return Response.json(
+    { error: "Method not allowed." },
+    {
+      status: 405,
+      headers: corsHeaders,
+    },
+  );
+}
+
 export async function action({ request }) {
   try {
     const { image } = await request.json();
@@ -11,7 +34,10 @@ export async function action({ request }) {
     if (!image) {
       return Response.json(
         { error: "No image was provided." },
-        { status: 400 },
+        {
+          status: 400,
+          headers: corsHeaders,
+        },
       );
     }
 
@@ -29,6 +55,7 @@ You are helping identify merchandise in a dance studio boutique.
 Look carefully at the photographed item.
 
 Your job is NOT to describe the item in detail.
+
 Your job is to create a simple search phrase that is
 likely to match a product in a Shopify catalog.
 
@@ -64,6 +91,7 @@ IMPORTANT:
 - Prefer a broad dance-store search term over a detailed description.
 
 For example:
+
 Instead of "black and white Adidas athletic sneakers"
 return "dance sneakers".
 
@@ -90,25 +118,35 @@ Keep the answer between 1 and 4 words.
     if (!searchPhrase) {
       return Response.json(
         { error: "No description was returned." },
-        { status: 500 },
+        {
+          status: 500,
+          headers: corsHeaders,
+        },
       );
     }
 
     console.log("Photo identified as:", searchPhrase);
 
-    return Response.json({
-      success: true,
-      searchPhrase,
-    });
+    return Response.json(
+      {
+        success: true,
+        searchPhrase,
+      },
+      {
+        headers: corsHeaders,
+      },
+    );
   } catch (error) {
     console.error("Photo identification error:", error);
 
     return Response.json(
       {
-        error:
-          "We couldn't identify that item. Please try again.",
+        error: "We couldn't identify that item. Please try again.",
       },
-      { status: 500 },
+      {
+        status: 500,
+        headers: corsHeaders,
+      },
     );
   }
 }

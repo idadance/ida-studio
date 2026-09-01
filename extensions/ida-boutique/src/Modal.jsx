@@ -341,7 +341,7 @@ function Extension() {
     };base64,${photo.base64}`;
 
     const response = await fetch(
-      "https://quantity-obvious-assigned-cologne.trycloudflare.com/identify-product",
+      "https://whale-app-moapa.ondigitalocean.app/api/identify-product",
       {
         method: "POST",
         headers: {
