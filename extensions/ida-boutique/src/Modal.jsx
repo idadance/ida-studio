@@ -341,7 +341,7 @@ function Extension() {
     };base64,${photo.base64}`;
 
     const response = await fetch(
-      "https://whale-app-moapa.ondigitalocean.app/api/identify-product",
+      "/api/identify-product",
       {
         method: "POST",
         headers: {
@@ -396,8 +396,8 @@ setStatus("Is this your item?");
     );
 
     setStatus(
-      "We couldn't identify that item. Please try again.",
-    );
+  `PHOTO ERROR: ${String(error)}`,
+);
   } finally {
     setBusy(false);
   }
