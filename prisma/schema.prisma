@@ -27,6 +27,180 @@ model Session {
   refreshTokenExpires DateTime?
 }
 
+model Studio {
+  id           String        @id @default(cuid())
+  name         String        @unique
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  code         String?       @unique
+  performances Performance[] @relation("PerformanceToStudio")
+}
+
+model Performance {
+  id                         String            @id @default(cuid())
+  name                       String
+  description                String?
+  coverImage                 String?
+  status                     PerformanceStatus @default(DRAFT)
+  createdAt                  DateTime          @default(now())
+  updatedAt                  DateTime          @updatedAt
+  driveCustomersFolderId     String?
+  driveFolderId              String?
+  driveVideosFolderId        String?
+  fwCheckVideoVariantId      String?
+  fwCreditVideoVariantId     String?
+  pmCheckVideoVariantId      String?
+  pmCreditVideoVariantId     String?
+  rosterSheetGid             String?
+  extraTicketRequestsEnabled Boolean           @default(false)
+  programUrl                 String?
+  reservations               Reservation[]
+  shows                      Show[]
+  orders                     TicketOrder[]
+  studios                    Studio[]          @relation("PerformanceToStudio")
+}
+
+model Show {
+  id                           String             @id @default(cuid())
+  name                         String
+  date                         DateTime?
+  capacity                     Int                @default(250)
+  performanceId                String
+  shopifyCheckTicketVariantId  String?
+  shopifyCreditTicketVariantId String?
+  shopifyCheckVideoVariantId   String?
+  shopifyCreditVideoVariantId  String?
+  createdAt                    DateTime           @default(now())
+  updatedAt                    DateTime           @updatedAt
+  fwCheckTicketVariantId       String?
+  fwCreditTicketVariantId      String?
+  pmCheckTicketVariantId       String?
+  pmCreditTicketVariantId      String?
+  checkInOpen                  Boolean            @default(false)
+  boxOffice                    BoxOfficeSettings?
+  performance                  Performance        @relation(fields: [performanceId], references: [id], onDelete: Cascade)
+  ticketOrders                 TicketOrder[]
+  waitlistEntries              WaitlistEntry[]
+}
+
+model BoxOfficeSettings {
+  id                   String   @id @default(cuid())
+  ticketPrice          Float    @default(15.00)
+  digitalVideo         Boolean  @default(false)
+  digitalVideoPrice    Float    @default(15.00)
+  creditCardFeePercent Float    @default(2.6)
+  creditCardEnabled    Boolean  @default(true)
+  checkEnabled         Boolean  @default(true)
+  ticketLimitEnabled   Boolean  @default(false)
+  ticketLimit          Int      @default(4)
+  salesOpen            Boolean  @default(false)
+  showId               String   @unique
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  show                 Show     @relation(fields: [showId], references: [id], onDelete: Cascade)
+}
+
+model Reservation {
+  id                   String              @id @default(cuid())
+  customerName         String
+  customerEmail        String
+  paymentMethod        TicketPaymentMethod
+  status               ReservationStatus   @default(PENDING)
+  digitalVideo         Boolean             @default(false)
+  totalAmount          Float               @default(0)
+  shopifyOrderId       String?
+  shopifyOrderNumber   String?
+  performanceId        String
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+  driveFolderId        String?
+  driveFolderLink      String?
+  checkNumber          String?
+  checkReceivedAt      DateTime?
+  depositedAt          DateTime?
+  notes                String?
+  ticketsSentAt        DateTime?
+  account              String?
+  digitalVideoPaid     Boolean             @default(false)
+  extraTicketRequestId String?             @unique
+  performance          Performance         @relation(fields: [performanceId], references: [id], onDelete: Cascade)
+  ticketOrders         TicketOrder[]
+
+  @@index([customerEmail])
+  @@index([status])
+  @@index([shopifyOrderId])
+}
+
+model TicketOrder {
+  id                 String              @id @default(cuid())
+  customerName       String
+  customerEmail      String
+  quantity           Int
+  digitalVideo       Boolean             @default(false)
+  paymentMethod      TicketPaymentMethod
+  status             TicketOrderStatus   @default(PENDING)
+  ticketSubtotal     Float               @default(0)
+  videoSubtotal      Float               @default(0)
+  totalAmount        Float               @default(0)
+  shopifyOrderId     String?
+  shopifyOrderNumber String?
+  checkedInCount     Int                 @default(0)
+  reservationId      String?
+  showId             String
+  performanceId      String
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  ticketCode         String?             @unique
+  checkReceivedAt    DateTime?
+  checkNumber        String?
+  performance        Performance         @relation(fields: [performanceId], references: [id], onDelete: Cascade)
+  reservation        Reservation?        @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  show               Show                @relation(fields: [showId], references: [id], onDelete: Cascade)
+
+  @@index([showId])
+  @@index([performanceId])
+  @@index([customerEmail])
+  @@index([status])
+  @@index([shopifyOrderId])
+  @@index([reservationId])
+}
+
+model AppSetting {
+  key       String   @id
+  value     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model WaitlistEntry {
+  id             String         @id @default(cuid())
+  customerName   String
+  customerEmail  String
+  customerPhone  String?
+  account        String
+  quantity       Int
+  status         WaitlistStatus @default(WAITING)
+  showId         String
+  offeredAt      DateTime?
+  offerExpiresAt DateTime?
+  claimedAt      DateTime?
+  declinedAt     DateTime?
+  cancelledAt    DateTime?
+  notes          String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  requestedAt    DateTime       @default(now())
+  type           WaitlistType   @default(SOLD_OUT)
+  show           Show           @relation(fields: [showId], references: [id], onDelete: Cascade)
+
+  @@index([showId])
+  @@index([status])
+  @@index([customerEmail])
+  @@index([account])
+  @@index([requestedAt])
+  @@index([createdAt])
+}
+
 enum PerformanceStatus {
   DRAFT
   PUBLISHED
@@ -61,276 +235,23 @@ enum WaitlistStatus {
   CANCELLED
 }
 
-model Studio {
-  id   String @id @default(cuid())
-
-  name String @unique
-  code String? @unique
-
-  performances Performance[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model Performance {
-  id          String  @id @default(cuid())
-  name        String
-  description String?
-  coverImage  String?
-
-  rosterSheetGid String?
-  programUrl String?
-
-  // Extra ticket request settings
-  extraTicketRequestsEnabled Boolean @default(false)
-
-  // Fort Washington Video Product
-  fwCheckVideoVariantId  String?
-  fwCreditVideoVariantId String?
-
-  // Plymouth Meeting Video Product
-  pmCheckVideoVariantId  String?
-  pmCreditVideoVariantId String?
-
-  status PerformanceStatus @default(DRAFT)
-
-  studios Studio[]
-
-  shows        Show[]
-  orders       TicketOrder[]
-  reservations Reservation[]
-
-  driveFolderId          String?
-  driveCustomersFolderId String?
-  driveVideosFolderId    String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model Show {
-  id String @id @default(cuid())
-
-  name     String
-  date     DateTime?
-  capacity Int @default(250)
-
-  checkInOpen Boolean @default(false)
-
-  performanceId String
-  performance   Performance @relation(fields: [performanceId], references: [id], onDelete: Cascade)
-
-  boxOffice       BoxOfficeSettings?
-ticketOrders    TicketOrder[]
-waitlistEntries WaitlistEntry[]
-
-  // ======================================
-  // Legacy Shopify Products (temporary)
-  // ======================================
-
-  shopifyCheckTicketVariantId  String?
-  shopifyCreditTicketVariantId String?
-
-  shopifyCheckVideoVariantId   String?
-  shopifyCreditVideoVariantId  String?
-
-  // ======================================
-  // Fort Washington Shopify Ticket Products
-  // ======================================
-
-  fwCheckTicketVariantId  String?
-  fwCreditTicketVariantId String?
-
-  // ======================================
-  // Plymouth Meeting Shopify Ticket Products
-  // ======================================
-
-  pmCheckTicketVariantId  String?
-  pmCreditTicketVariantId String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model BoxOfficeSettings {
-  id String @id @default(cuid())
-
-  ticketPrice       Float   @default(15.00)
-  digitalVideo      Boolean @default(false)
-  digitalVideoPrice Float   @default(15.00)
-
-  creditCardFeePercent Float @default(2.6)
-
-  creditCardEnabled Boolean @default(true)
-  checkEnabled      Boolean @default(true)
-
-  ticketLimitEnabled Boolean @default(false)
-  ticketLimit        Int     @default(4)
-
-  salesOpen Boolean @default(false)
-
-  showId String @unique
-  show   Show   @relation(fields: [showId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model Reservation {
-  id String @id @default(cuid())
-
-  customerName  String
-  customerEmail String
-
-  account String?
-
-  paymentMethod TicketPaymentMethod
-  status        ReservationStatus   @default(PENDING)
-
-  digitalVideo     Boolean @default(false)
-digitalVideoPaid Boolean @default(false)
-
-totalAmount Float @default(0)
-
-  shopifyOrderId     String?
-  shopifyOrderNumber String?
-
-  extraTicketRequestId String? @unique
-
-    // ==========================
-  // Production Workflow
-  // ==========================
-
-  checkReceivedAt DateTime?
-  checkNumber     String?
-
-  ticketsSentAt DateTime?
-
-  depositedAt DateTime?
-
-  notes String? @db.Text
-
-  performanceId String
-  performance   Performance @relation(fields: [performanceId], references: [id], onDelete: Cascade)
-
-  ticketOrders TicketOrder[]
-
-  driveFolderId String?
-  driveFolderLink String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([customerEmail])
-  @@index([status])
-  @@index([shopifyOrderId])
-}
-
-model TicketOrder {
-  id String @id @default(cuid())
-
-  ticketCode String? @unique
-
-  customerName  String
-  customerEmail String
-
-  quantity Int
-
-  digitalVideo Boolean @default(false)
-
-  paymentMethod TicketPaymentMethod
-  status        TicketOrderStatus   @default(PENDING)
-
-  ticketSubtotal Float @default(0)
-  videoSubtotal  Float @default(0)
-  totalAmount    Float @default(0)
-
-  shopifyOrderId     String?
-  shopifyOrderNumber String?
-
-  checkedInCount Int @default(0)
-
-  // Show-level payment tracking
-checkReceivedAt DateTime?
-checkNumber     String?
-
-  reservationId String?
-  reservation   Reservation? @relation(fields: [reservationId], references: [id], onDelete: Cascade)
-
-  showId String
-  show   Show   @relation(fields: [showId], references: [id], onDelete: Cascade)
-
-  performanceId String
-  performance   Performance @relation(fields: [performanceId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([showId])
-  @@index([performanceId])
-  @@index([customerEmail])
-  @@index([status])
-  @@index([shopifyOrderId])
-  @@index([reservationId])
-}
-
-model AppSetting {
-  key       String   @id
-  value     String   @db.Text
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
 enum WaitlistType {
   SOLD_OUT
   EXTRA_TICKETS
 }
 
-model WaitlistEntry {
+model Teacher {
   id String @id @default(cuid())
 
-  // Customer
-  customerName  String
-  customerEmail String
-  customerPhone String?
+  firstName String
+  lastName  String?
 
-  // Which studio/store they came from
-  account String
+  active Boolean @default(true)
 
-  // Number of tickets they want
-  quantity Int
+  maxSoloDuets Int @default(10)
 
-  status WaitlistStatus @default(WAITING)
-  type WaitlistType @default(SOLD_OUT)
-
-  // Specific show they want
- showId String
-show   Show @relation(fields: [showId], references: [id], onDelete: Cascade)
-
-  // Future ticket-offer workflow
-  offeredAt      DateTime?
-  offerExpiresAt DateTime?
-  claimedAt      DateTime?
-  declinedAt     DateTime?
-  cancelledAt    DateTime?
-
-  // Optional admin note
   notes String? @db.Text
 
-  // When the customer originally requested
-// waitlist tickets.
-// Admin can backdate this for emailed requests.
-requestedAt DateTime @default(now())
-
-createdAt DateTime @default(now())
-updatedAt DateTime @updatedAt
-
-  @@index([showId])
-  @@index([status])
-  @@index([customerEmail])
-  @@index([account])
-  @@index([requestedAt])
-  @@index([createdAt])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
