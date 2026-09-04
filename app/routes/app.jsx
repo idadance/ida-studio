@@ -40,8 +40,12 @@ export default function App() {
   </s-link>
 
   <s-link href="/app/rehearsals">
-    Rehearsals
-  </s-link>
+  Rehearsals
+</s-link>
+
+<s-link href="/app/rehearsals/teachers">
+  Teachers
+</s-link>
 
   <s-link href="/app/live-checkin">
     Live Check-In
