@@ -1,14 +1,9 @@
 import { useLoaderData } from "react-router";
 
 import { authenticate } from "../shopify.server";
+import { getTeachers } from "../services/teacher.server";
 
-import {
-  getTeachers,
-} from "../services/teacher.server";
-
-export const loader = async ({
-  request,
-}) => {
+export const loader = async ({ request }) => {
   await authenticate.admin(request);
 
   return {
@@ -17,30 +12,44 @@ export const loader = async ({
 };
 
 export default function TeachersPage() {
-  const { teachers } =
-    useLoaderData();
+  const { teachers } = useLoaderData();
 
   return (
     <s-page heading="Teachers">
       <s-section>
-
         {teachers.length === 0 ? (
           <div
             style={{
-              padding: "40px",
               textAlign: "center",
+              padding: "80px 20px",
             }}
           >
-            <h2>No teachers yet</h2>
+            <div
+              style={{
+                fontSize: "60px",
+                marginBottom: "20px",
+              }}
+            >
+              👩‍🏫
+            </div>
 
-            <p>
-              Add your first rehearsal
-              teacher.
+            <h2>No Teachers Yet</h2>
+
+            <p
+              style={{
+                maxWidth: "450px",
+                margin: "0 auto 24px",
+              }}
+            >
+              Add your rehearsal teachers before accepting Solo &amp; Duet
+              entries.
             </p>
 
-            <s-button variant="primary">
-              Add Teacher
-            </s-button>
+            <a href="/app/rehearsals/teachers/new">
+  <s-button variant="primary">
+    + Add Teacher
+  </s-button>
+</a>
           </div>
         ) : (
           <div
@@ -49,53 +58,42 @@ export default function TeachersPage() {
               gap: "12px",
             }}
           >
-            {teachers.map(
-              (teacher) => (
-                <div
-                  key={teacher.id}
+            {teachers.map((teacher) => (
+              <div
+                key={teacher.id}
+                style={{
+                  border: "1px solid #ddd",
+                  borderRadius: "12px",
+                  padding: "18px",
+                }}
+              >
+                <strong
                   style={{
-                    border:
-                      "1px solid #ddd",
-                    borderRadius:
-                      "12px",
-                    padding: "18px",
+                    fontSize: "18px",
                   }}
                 >
-                  <strong
-                    style={{
-                      fontSize: "18px",
-                    }}
-                  >
-                    {teacher.firstName}
-                    {" "}
-                    {teacher.lastName}
-                  </strong>
+                  {teacher.firstName} {teacher.lastName}
+                </strong>
 
-                  <div
-                    style={{
-                      marginTop: "8px",
-                    }}
-                  >
-                    Maximum Solo/Duets:
-                    {" "}
-                    {teacher.maxSoloDuets}
-                  </div>
-
-                  <div
-                    style={{
-                      marginTop: "4px",
-                    }}
-                  >
-                    {teacher.active
-                      ? "✅ Active"
-                      : "⚪ Inactive"}
-                  </div>
+                <div
+                  style={{
+                    marginTop: "8px",
+                  }}
+                >
+                  Maximum Solo/Duets: {teacher.maxSoloDuets}
                 </div>
-              ),
-            )}
+
+                <div
+                  style={{
+                    marginTop: "4px",
+                  }}
+                >
+                  {teacher.active ? "✅ Active" : "⚪ Inactive"}
+                </div>
+              </div>
+            ))}
           </div>
         )}
-
       </s-section>
     </s-page>
   );
