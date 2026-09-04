@@ -2,7 +2,7 @@
 
 client_id = "ff61a6fe4b488f276fd7375d1052796c"
 name = "IDA Black Box Tickets"
-application_url = "https://ida-tickets-app-tb5bj.ondigitalocean.app"
+application_url = "https://whale-app-moapa.ondigitalocean.app"
 embedded = true
 
 [webhooks]
@@ -27,8 +27,8 @@ use_legacy_install_flow = false
 
 [auth]
 redirect_urls = [
-  "https://ida-tickets-app-tb5bj.ondigitalocean.app/auth/callback"
+  "https://whale-app-moapa.ondigitalocean.app/auth/callback"
 ]
 
 [app_preferences]
-url = "https://ida-tickets-app-tb5bj.ondigitalocean.app"
+url = "https://whale-app-moapa.ondigitalocean.app"

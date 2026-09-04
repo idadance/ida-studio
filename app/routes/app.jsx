@@ -27,28 +27,30 @@ export default function App() {
       apiKey={apiKey}
     >
       <s-app-nav>
-        <s-link href="/app">
-          Production Center
-        </s-link>
+  <s-link href="/app">
+    Production Center
+  </s-link>
 
-        <s-link href="/app/performances">
-          Performances
-        </s-link>
+  <s-link href="/app/performances">
+    Performances
+  </s-link>
 
-        <s-link href="/app/ticket-sales">
-  Ticket Sales
-</s-link>
+  <s-link href="/app/ticket-sales">
+    Ticket Sales
+  </s-link>
 
+  <s-link href="/app/rehearsals">
+    Rehearsals
+  </s-link>
 
-<s-link href="/app/live-checkin">
-  Live Check-In
-</s-link>
+  <s-link href="/app/live-checkin">
+    Live Check-In
+  </s-link>
 
-
-<s-link href="/app/queue">
-  Waiting for Check
-</s-link>
-      </s-app-nav>
+  <s-link href="/app/queue">
+    Waiting for Check
+  </s-link>
+</s-app-nav>
 
       <Outlet />
     </AppProvider>

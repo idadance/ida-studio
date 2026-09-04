@@ -2,7 +2,7 @@
 
 client_id = "b1947d104334ad6d12f1649fe995c76e"
 name = "IDA Black Box Tickets PM"
-application_url = "https://ida-tickets-pm-kb57u.ondigitalocean.app"
+application_url = "https://ida-pm-studio-3itrv.ondigitalocean.app"
 embedded = true
 
 [webhooks]
@@ -28,8 +28,8 @@ use_legacy_install_flow = false
 
 [auth]
 redirect_urls = [
-  "https://ida-tickets-pm-kb57u.ondigitalocean.app/auth/callback"
+  "https://ida-pm-studio-3itrv.ondigitalocean.app/auth/callback"
 ]
 
 [app_preferences]
-url = "https://ida-tickets-pm-kb57u.ondigitalocean.app"
+url = "https://ida-pm-studio-3itrv.ondigitalocean.app"

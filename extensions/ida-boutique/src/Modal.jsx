@@ -21,6 +21,7 @@ function Extension() {
   const [variants, setVariants] = useState([]);
 
   const lastScan = useRef("");
+  const searchFieldRef = useRef(null);
 
   useEffect(() => {
     const unsubscribeCart = shopify.cart.current.subscribe(
@@ -116,35 +117,61 @@ function Extension() {
     }
   }
 
-  async function searchProducts(event) {
-    const searchText =
-      event.currentTarget.value.trim();
+  async function searchFromButton() {
+  const value = searchFieldRef.current?.value?.trim() || "";
 
-    if (!searchText) {
+  setStatus(`BUTTON READ: ${value}`);
+
+  if (!value) {
+    setSearchResults([]);
+    return;
+  }
+
+  setSearching(true);
+
+  try {
+    const response = await fetch(
+      "shopify:admin/api/graphql.json",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          query: `
+            query SearchProducts($query: String!) {
+              products(first: 10, query: $query) {
+                nodes {
+                  id
+                  title
+                }
+              }
+            }
+          `,
+          variables: {
+  query: `tag:boutique ${value}`,
+},
+        }),
+      },
+    );
+
+    const result = await response.json();
+
+    if (result.errors) {
+      console.error(result.errors);
       setSearchResults([]);
+      setStatus("We couldn't search for products.");
       return;
     }
 
-    setSearching(true);
-    setStatus("");
-
-    try {
-      const results =
-        await shopify.productSearch.searchProducts({
-          queryString: searchText,
-          first: 10,
-        });
-
-      setSearchResults(results.items ?? []);
-    } catch (error) {
-      console.error(error);
-
-      setSearchResults([]);
-      setStatus("We couldn't search for products.");
-    } finally {
-      setSearching(false);
-    }
+    setSearchResults(
+      result?.data?.products?.nodes ?? [],
+    );
+  } catch (error) {
+    console.error(error);
+    setSearchResults([]);
+    setStatus("We couldn't search for products.");
+  } finally {
+    setSearching(false);
   }
+}
 
   async function chooseProduct(product) {
     setSearching(true);
@@ -369,13 +396,37 @@ function Extension() {
 
 setStatus("Searching our Boutique...");
 
-const matches =
-  await shopify.productSearch.searchProducts({
-    queryString: result.searchPhrase,
-    first: 5,
-  });
+const searchResponse = await fetch(
+  "shopify:admin/api/graphql.json",
+  {
+    method: "POST",
+    body: JSON.stringify({
+      query: `
+        query SearchProducts($query: String!) {
+          products(first: 10, query: $query) {
+            nodes {
+              id
+              title
+            }
+          }
+        }
+      `,
+      variables: {
+        query: `tag:boutique ${result.searchPhrase}`,
+      },
+    }),
+  },
+);
 
-const matchedProducts = matches.items ?? [];
+const searchResult = await searchResponse.json();
+
+if (searchResult.errors) {
+  console.error(searchResult.errors);
+  throw new Error("Boutique product search failed.");
+}
+
+const matchedProducts =
+  searchResult?.data?.products?.nodes ?? [];
 
 if (matchedProducts.length === 0) {
   setStatus(
@@ -396,7 +447,7 @@ setStatus("Is this your item?");
     );
 
     setStatus(
-  `PHOTO ERROR: ${String(error)}`,
+  "We couldn't identify that item. Please try again.",
 );
   } finally {
     setBusy(false);
@@ -509,10 +560,21 @@ setStatus("Is this your item?");
               </s-text>
             </s-box>
 
-            <s-search-field
-              placeholder="Search products"
-              onInput={searchProducts}
-            />
+            <s-text-field
+  ref={searchFieldRef}
+  label="Search products"
+  placeholder="Type ballet"
+/>
+
+<s-box paddingBlock="small">
+  <s-button
+    variant="primary"
+    disabled={searching}
+    onClick={searchFromButton}
+  >
+    SEARCH
+  </s-button>
+</s-box>
 
             {searching ? (
               <s-box paddingBlock="base">
