@@ -1,16 +1,3 @@
-return (
-  <div
-    style={{
-      background: "red",
-      color: "white",
-      fontSize: "48px",
-      padding: "40px",
-    }}
-  >
-    THIS IS THE TEACHERS PAGE
-  </div>
-);
-
 import { useLoaderData } from "react-router";
 
 import { authenticate } from "../shopify.server";
