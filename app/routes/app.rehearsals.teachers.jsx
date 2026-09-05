@@ -96,6 +96,15 @@ export default function TeachersPage() {
                 >
                   {teacher.active ? "✅ Active" : "⚪ Inactive"}
                 </div>
+                <div
+  style={{
+    marginTop: "16px",
+  }}
+>
+  <s-link href={`/app/rehearsals/edit-teacher?id=${teacher.id}`}>
+  ✏️ Edit
+</s-link>
+</div>
               </div>
             ))}
           </div>
