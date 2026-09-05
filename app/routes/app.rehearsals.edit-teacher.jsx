@@ -13,7 +13,6 @@ import {
   updateTeacher,
 } from "../services/teacher.server";
 
-import { Form } from "react-router";
 import TeacherForm from "../components/TeacherForm";
 
 export const loader = async ({
