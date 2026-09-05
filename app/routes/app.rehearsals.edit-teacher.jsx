@@ -30,7 +30,13 @@ export default function EditTeacherPage() {
     useLoaderData();
 
   return (
-    <s-page heading="Edit Teacher">
+    <s-page
+  heading="Edit Teacher"
+  backAction={{
+    content: "Teachers",
+    url: "/app/rehearsals/teachers",
+  }}
+>
       <h2>
         {teacher.firstName}{" "}
         {teacher.lastName}

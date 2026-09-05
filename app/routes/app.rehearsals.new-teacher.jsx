@@ -1,5 +1,7 @@
 import { Form, redirect } from "react-router";
 
+import TeacherForm from "../components/TeacherForm";
+
 import { authenticate } from "../shopify.server";
 import { createTeacher } from "../services/teacher.server";
 
@@ -37,49 +39,7 @@ export default function NewTeacherPage() {
 
         <s-section>
 
-          <s-text-field
-            label="First Name"
-            name="firstName"
-            required
-          />
-
-          <br />
-
-          <s-text-field
-            label="Last Name"
-            name="lastName"
-          />
-
-          <br />
-
-          <s-number-field
-            label="Maximum Solo/Duets"
-            name="maxSoloDuets"
-            value="10"
-            min="0"
-          />
-
-          <br />
-
-          <s-checkbox
-            name="active"
-            checked
-          >
-            Active Teacher
-          </s-checkbox>
-
-          <br />
-
-          <s-text-area
-            label="Notes"
-            name="notes"
-          />
-
-          <br />
-
-          <button type="submit">
-  Save Teacher
-</button>
+          <TeacherForm />
 
         </s-section>
 
