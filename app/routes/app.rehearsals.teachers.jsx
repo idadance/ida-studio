@@ -46,13 +46,9 @@ export default function TeachersPage() {
               entries.
             </p>
 
-            <a href="/app/rehearsals/teachers/new">
-  <Link to="/app/rehearsals/teachers/new">
-  <s-button variant="primary">
-    + Add Teacher
-  </s-button>
-</Link>
-</a>
+            <s-link href="/app/rehearsals/teachers/new">
+  + Add Teacher
+</s-link>
           </div>
         ) : (
           <div
