@@ -79,12 +79,9 @@ export default function NewTeacherPage() {
 
           <br />
 
-          <s-button
-            variant="primary"
-            submit
-          >
-            Save Teacher
-          </s-button>
+          <button type="submit">
+  Save Teacher
+</button>
 
         </s-section>
 
