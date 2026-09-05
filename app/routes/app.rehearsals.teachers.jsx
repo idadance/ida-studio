@@ -90,6 +90,24 @@ export default function TeachersPage() {
                 </div>
 
                 <div
+  style={{
+    marginTop: "12px",
+  }}
+>
+  <strong>Availability Sheet</strong>
+</div>
+
+<div
+  style={{
+    marginTop: "4px",
+  }}
+>
+  {teacher.availabilitySheetUrl
+    ? "✅ Connected"
+    : "⚪ Not Connected"}
+</div>
+
+                <div
                   style={{
                     marginTop: "4px",
                   }}
