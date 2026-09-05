@@ -1,4 +1,4 @@
-import { useLoaderData } from "react-router";
+import { Outlet, useLoaderData } from "react-router";
 import { Link } from "react-router";
 
 import { authenticate } from "../shopify.server";
@@ -93,7 +93,9 @@ export default function TeachersPage() {
             ))}
           </div>
         )}
-      </s-section>
+            </s-section>
+
+      <Outlet />
     </s-page>
   );
 }
