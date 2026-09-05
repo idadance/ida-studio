@@ -1,7 +1,7 @@
 import { Form, redirect } from "react-router";
 
 import { authenticate } from "../shopify.server";
-import prisma from "../db.server";
+import { createTeacher } from "../services/teacher.server";
 
 export const loader = async ({ request }) => {
   await authenticate.admin(request);
@@ -13,15 +13,13 @@ export const action = async ({ request }) => {
 
   const formData = await request.formData();
 
-  await prisma.teacher.create({
-    data: {
-      firstName: formData.get("firstName"),
-      lastName: formData.get("lastName"),
-      maxSoloDuets: Number(formData.get("maxSoloDuets")),
-      active: formData.get("active") === "on",
-      notes: formData.get("notes"),
-    },
-  });
+  await createTeacher({
+  firstName: formData.get("firstName"),
+  lastName: formData.get("lastName"),
+  maxSoloDuets: Number(formData.get("maxSoloDuets")),
+  active: formData.get("active") === "on",
+  notes: formData.get("notes"),
+});
 
   return redirect("/app/rehearsals/teachers");
 };
