@@ -42,6 +42,7 @@ export const action = async ({ request }) => {
     firstName: formData.get("firstName"),
     lastName: formData.get("lastName"),
     maxSoloDuets: Number(formData.get("maxSoloDuets")),
+    availabilitySheetUrl: formData.get("availabilitySheetUrl"),
     active: formData.get("active") === "on",
     notes: formData.get("notes"),
   });

@@ -32,6 +32,17 @@ export default function TeacherForm({
 
       <br />
 
+      <s-text-field
+  label="Availability Sheet URL"
+  name="availabilitySheetUrl"
+  value={
+    teacher.availabilitySheetUrl ?? ""
+  }
+  helpText="Paste the Google Sheets URL to this teacher's Rehearsal Availability tab."
+/>
+
+<br />
+
       <s-checkbox
         name="active"
         checked={teacher.active ?? true}
