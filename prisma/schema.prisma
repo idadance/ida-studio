@@ -250,6 +250,8 @@ model Teacher {
 
   maxSoloDuets Int @default(10)
 
+  availabilitySheetUrl String?
+
   notes String? @db.Text
 
   createdAt DateTime @default(now())
