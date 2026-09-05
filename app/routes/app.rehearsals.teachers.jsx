@@ -102,9 +102,21 @@ export default function TeachersPage() {
     marginTop: "4px",
   }}
 >
-  {teacher.availabilitySheetUrl
-    ? "✅ Connected"
-    : "⚪ Not Connected"}
+  {teacher.availabilitySheetUrl ? (
+    <>
+      <div>✅ Connected</div>
+
+      <a
+        href={teacher.availabilitySheetUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        🔗 Open Sheet
+      </a>
+    </>
+  ) : (
+    "⚪ Not Connected"
+  )}
 </div>
 
                 <div
