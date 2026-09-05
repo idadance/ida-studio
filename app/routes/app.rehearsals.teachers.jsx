@@ -1,5 +1,4 @@
-import { Outlet, useLoaderData } from "react-router";
-import { Link } from "react-router";
+import { useLoaderData } from "react-router";
 
 import { authenticate } from "../shopify.server";
 import { getTeachers } from "../services/teacher.server";
@@ -17,6 +16,18 @@ export default function TeachersPage() {
 
   return (
     <s-page heading="Teachers">
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "flex-end",
+          marginBottom: "20px",
+        }}
+      >
+        <s-link href="/app/rehearsals/new-teacher">
+          + Add Teacher
+        </s-link>
+      </div>
+
       <s-section>
         {teachers.length === 0 ? (
           <div
@@ -39,16 +50,12 @@ export default function TeachersPage() {
             <p
               style={{
                 maxWidth: "450px",
-                margin: "0 auto 24px",
+                margin: "0 auto",
               }}
             >
               Add your rehearsal teachers before accepting Solo &amp; Duet
               entries.
             </p>
-
-            <s-link href="/app/rehearsals/teachers/new">
-  + Add Teacher
-</s-link>
           </div>
         ) : (
           <div
@@ -93,9 +100,8 @@ export default function TeachersPage() {
             ))}
           </div>
         )}
-            </s-section>
+      </s-section>
 
-      <Outlet />
     </s-page>
   );
 }
