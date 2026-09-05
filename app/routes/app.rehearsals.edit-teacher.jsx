@@ -10,6 +10,9 @@ import {
   getTeacher,
 } from "../services/teacher.server";
 
+import { Form } from "react-router";
+import TeacherForm from "../components/TeacherForm";
+
 export const loader = async ({
   request,
 }) => {
@@ -37,21 +40,14 @@ export default function EditTeacherPage() {
     url: "/app/rehearsals/teachers",
   }}
 >
-      <h2>
-        {teacher.firstName}{" "}
-        {teacher.lastName}
-      </h2>
-
-      <p>
-        Maximum Solo/Duets:{" "}
-        {teacher.maxSoloDuets}
-      </p>
-
-      <p>
-        {teacher.active
-          ? "✅ Active"
-          : "⚪ Inactive"}
-      </p>
-    </s-page>
+  <Form method="post">
+    <s-section>
+      <TeacherForm
+        teacher={teacher}
+        submitLabel="Save Changes"
+      />
+    </s-section>
+  </Form>
+</s-page>
   );
 }
