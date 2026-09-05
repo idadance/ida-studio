@@ -1,4 +1,5 @@
 import { useLoaderData } from "react-router";
+import { Link } from "react-router";
 
 import { authenticate } from "../shopify.server";
 import { getTeachers } from "../services/teacher.server";
@@ -46,9 +47,11 @@ export default function TeachersPage() {
             </p>
 
             <a href="/app/rehearsals/teachers/new">
+  <Link to="/app/rehearsals/teachers/new">
   <s-button variant="primary">
     + Add Teacher
   </s-button>
+</Link>
 </a>
           </div>
         ) : (
