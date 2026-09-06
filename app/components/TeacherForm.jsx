@@ -1,5 +1,6 @@
 export default function TeacherForm({
   teacher = {},
+  genres = [],
   submitLabel = "Save Teacher",
 }) {
   return (
@@ -31,6 +32,32 @@ export default function TeacherForm({
       />
 
       <br />
+
+      <h3>Genres Taught</h3>
+
+<div
+  style={{
+    display: "grid",
+    gridTemplateColumns: "repeat(2, 1fr)",
+    gap: "8px",
+    marginBottom: "16px",
+  }}
+>
+  {genres.map((genre) => (
+    <s-checkbox
+      key={genre.id}
+      name="genres"
+      value={genre.id}
+      checked={teacher.genres?.some(
+        (g) => g.id === genre.id,
+      )}
+    >
+      {genre.name}
+    </s-checkbox>
+  ))}
+</div>
+
+<br />
 
       <s-text-field
   label="Availability Sheet URL"

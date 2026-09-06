@@ -10,11 +10,23 @@ export async function getTeachers() {
 }
 
 export async function getTeacher(id) {
+
   return prisma.teacher.findUnique({
+
     where: {
+
       id,
+
     },
+
+    include: {
+
+      genres: true,
+
+    },
+
   });
+
 }
 
 export async function createTeacher(data) {

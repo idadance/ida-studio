@@ -15,6 +15,8 @@ import {
 
 import TeacherForm from "../components/TeacherForm";
 
+import { getGenres } from "../services/genre.server";
+
 export const loader = async ({
   request,
 }) => {
@@ -26,8 +28,9 @@ export const loader = async ({
     url.searchParams.get("id");
 
   return {
-    teacher: await getTeacher(id),
-  };
+  teacher: await getTeacher(id),
+  genres: await getGenres(),
+};
 };
 
 export const action = async ({ request }) => {
@@ -51,8 +54,7 @@ export const action = async ({ request }) => {
 };
 
 export default function EditTeacherPage() {
-  const { teacher } =
-    useLoaderData();
+  const { teacher, genres } = useLoaderData();
 
   return (
     <s-page
@@ -65,9 +67,10 @@ export default function EditTeacherPage() {
   <Form method="post">
     <s-section>
       <TeacherForm
-        teacher={teacher}
-        submitLabel="Save Changes"
-      />
+  teacher={teacher}
+  genres={genres}
+  submitLabel="Save Changes"
+/>
     </s-section>
   </Form>
 </s-page>
