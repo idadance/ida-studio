@@ -45,15 +45,14 @@ export default function TeacherForm({
 >
   {genres.map((genre) => (
     <s-checkbox
-      key={genre.id}
-      name="genres"
-      value={genre.id}
-      checked={teacher.genres?.some(
-        (g) => g.id === genre.id,
-      )}
-    >
-      {genre.name}
-    </s-checkbox>
+  key={genre.id}
+  label={genre.name}
+  name="genres"
+  value={genre.id}
+  checked={teacher.genres?.some(
+    (g) => g.id === genre.id,
+  )}
+/>
   ))}
 </div>
 
@@ -71,11 +70,10 @@ export default function TeacherForm({
 <br />
 
       <s-checkbox
-        name="active"
-        checked={teacher.active ?? true}
-      >
-        Active Teacher
-      </s-checkbox>
+  label="Active Teacher"
+  name="active"
+  checked={teacher.active ?? true}
+/>
 
       <br />
 
