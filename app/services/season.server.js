@@ -17,8 +17,18 @@ export async function getSeason(id) {
 }
 
 export async function createSeason(data) {
-  return prisma.season.create({
-    data,
+  return prisma.$transaction(async (tx) => {
+    if (data.active) {
+      await tx.season.updateMany({
+        data: {
+          active: false,
+        },
+      });
+    }
+
+    return tx.season.create({
+      data,
+    });
   });
 }
 
