@@ -37,7 +37,7 @@ export default function GenresPage() {
             Create the genres available for Solo &amp; Duet rehearsals.
           </p>
 
-          <s-link href="/app/rehearsals/genres/new">
+          <s-link href="/app/rehearsals/new-genre">
             + Add Genre
           </s-link>
 
