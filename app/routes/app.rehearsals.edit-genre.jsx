@@ -62,12 +62,9 @@ export default function EditGenrePage() {
 
           <br />
 
-          <s-button
-            variant="primary"
-            submit
-          >
-            Save Changes
-          </s-button>
+          <button type="submit">
+  Save Changes
+</button>
 
         </s-section>
       </Form>
