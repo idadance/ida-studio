@@ -1,7 +1,7 @@
 import { Form, redirect } from "react-router";
 
 import { authenticate } from "../shopify.server";
-import prisma from "../db.server";
+import { createGenre } from "../services/genre.server";
 
 export const loader = async ({ request }) => {
   await authenticate.admin(request);
@@ -13,11 +13,9 @@ export const action = async ({ request }) => {
 
   const formData = await request.formData();
 
-  await prisma.genre.create({
-    data: {
-      name: formData.get("name"),
-    },
-  });
+  await createGenre({
+  name: formData.get("name"),
+});
 
   return redirect("/app/rehearsals/genres");
 };
