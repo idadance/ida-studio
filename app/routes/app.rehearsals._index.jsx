@@ -25,6 +25,21 @@ export default function RehearsalsPage() {
         </s-card>
 
         <s-card>
+  <h2>Genres</h2>
+
+  <p>
+    Manage rehearsal genres.
+  </p>
+
+  <s-link href="/app/rehearsals/genres">
+    <s-button variant="primary">
+      Open Genres
+    </s-button>
+  </s-link>
+
+</s-card>
+
+        <s-card>
           <h2>Entries</h2>
 
           <p>
