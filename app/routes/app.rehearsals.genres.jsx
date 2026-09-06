@@ -1,17 +1,13 @@
 import { useLoaderData } from "react-router";
 
 import { authenticate } from "../shopify.server";
-import prisma from "../db.server";
+import { getGenres } from "../services/genre.server";
 
 export const loader = async ({ request }) => {
   await authenticate.admin(request);
 
   return {
-    genres: await prisma.genre.findMany({
-      orderBy: {
-        name: "asc",
-      },
-    }),
+    genres: await getGenres(),
   };
 };
 
@@ -64,23 +60,32 @@ export default function GenresPage() {
     </s-link>
 
     {genres.map((genre) => (
-      <div
-        key={genre.id}
-        style={{
-          border: "1px solid #ddd",
-          borderRadius: "12px",
-          padding: "18px",
-        }}
-      >
-        <strong
-          style={{
-            fontSize: "18px",
-          }}
-        >
-          {genre.name}
-        </strong>
-      </div>
-    ))}
+  <div
+    key={genre.id}
+    style={{
+      border: "1px solid #ddd",
+      borderRadius: "12px",
+      padding: "18px",
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+    }}
+  >
+    <strong
+      style={{
+        fontSize: "18px",
+      }}
+    >
+      {genre.name}
+    </strong>
+
+    <s-link
+      href={`/app/rehearsals/edit-genre?id=${genre.id}`}
+    >
+      ✏️ Edit
+    </s-link>
+  </div>
+))}
   </div>
 )}
 
