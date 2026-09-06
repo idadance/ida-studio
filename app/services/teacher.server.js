@@ -1,12 +1,23 @@
 import prisma from "../db.server";
 
 export async function getTeachers() {
+
   return prisma.teacher.findMany({
+
+    include: {
+      genres: true,
+    },
+
     orderBy: [
+
       { firstName: "asc" },
+
       { lastName: "asc" },
+
     ],
+
   });
+
 }
 
 export async function getTeacher(id) {

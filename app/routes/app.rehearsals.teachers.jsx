@@ -81,6 +81,20 @@ export default function TeachersPage() {
                   {teacher.firstName} {teacher.lastName}
                 </strong>
 
+                {teacher.genres.length > 0 && (
+  <div
+    style={{
+      marginTop: "8px",
+      color: "#666",
+      fontSize: "14px",
+    }}
+  >
+    🎭 {teacher.genres
+      .map((genre) => genre.name)
+      .join(" • ")}
+  </div>
+)}
+
                 <div
                   style={{
                     marginTop: "8px",
@@ -126,6 +140,18 @@ export default function TeachersPage() {
                 >
                   {teacher.active ? "✅ Active" : "⚪ Inactive"}
                 </div>
+
+                <div
+  style={{
+    marginTop: "12px",
+  }}
+>
+  <s-link
+    href={`/app/rehearsals/edit-teacher?id=${teacher.id}`}
+  >
+    ✏️ Edit
+  </s-link>
+</div>
                 <div
   style={{
     marginTop: "16px",
