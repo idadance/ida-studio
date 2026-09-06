@@ -74,10 +74,10 @@ export default function SeasonsPage() {
 
               <div style={{ marginTop: "12px" }}>
                 <s-link
-                  href={`/app/rehearsals/edit-season?id=${season.id}`}
-                >
-                  ✏️ Edit
-                </s-link>
+  href={`/app/rehearsals/dates?seasonId=${season.id}`}
+>
+  📅 Rehearsal Dates
+</s-link>
               </div>
             </div>
           ))

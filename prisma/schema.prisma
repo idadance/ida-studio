@@ -274,6 +274,20 @@ model Season {
 
   active    Boolean  @default(false)
 
+  rehearsalDates RehearsalDate[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model RehearsalDate {
+  id        String   @id @default(cuid())
+
+  seasonId  String
+  season    Season   @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+
+  date      DateTime
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
