@@ -36,11 +36,22 @@ export async function createTeacher(data) {
 }
 
 export async function updateTeacher(id, data) {
+  const { genres, ...teacherData } = data;
+
   return prisma.teacher.update({
     where: {
       id,
     },
-    data,
+
+    data: {
+      ...teacherData,
+
+      genres: {
+        set: genres.map((genreId) => ({
+          id: genreId,
+        })),
+      },
+    },
   });
 }
 

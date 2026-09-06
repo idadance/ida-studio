@@ -42,13 +42,15 @@ export const action = async ({ request }) => {
   const formData = await request.formData();
 
   await updateTeacher(id, {
-    firstName: formData.get("firstName"),
-    lastName: formData.get("lastName"),
-    maxSoloDuets: Number(formData.get("maxSoloDuets")),
-    availabilitySheetUrl: formData.get("availabilitySheetUrl"),
-    active: formData.get("active") === "on",
-    notes: formData.get("notes"),
-  });
+  firstName: formData.get("firstName"),
+  lastName: formData.get("lastName"),
+  maxSoloDuets: Number(formData.get("maxSoloDuets")),
+  availabilitySheetUrl: formData.get("availabilitySheetUrl"),
+  active: formData.get("active") === "on",
+  notes: formData.get("notes"),
+
+  genres: formData.getAll("genres"),
+});
 
   return redirect("/app/rehearsals/teachers");
 };
