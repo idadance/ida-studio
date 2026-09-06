@@ -146,11 +146,7 @@ export default function TeachersPage() {
     marginTop: "12px",
   }}
 >
-  <s-link
-    href={`/app/rehearsals/edit-teacher?id=${teacher.id}`}
-  >
-    ✏️ Edit
-  </s-link>
+
 </div>
                 <div
   style={{

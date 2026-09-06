@@ -11,6 +11,19 @@ export default function RehearsalsPage() {
         }}
       >
         <s-card>
+  <h2>Seasons</h2>
+
+  <p>
+    Create and manage solo & duet rehearsal seasons.
+  </p>
+
+  <Link to="/app/rehearsals/seasons">
+    <s-button variant="primary">
+      Open Seasons
+    </s-button>
+  </Link>
+</s-card>
+        <s-card>
           <h2>Teachers</h2>
 
           <p>
