@@ -4,6 +4,8 @@ export async function getTeachers() {
   return prisma.teacher.findMany({
     include: {
       genres: true,
+
+      availability: true,
     },
 
     orderBy: [

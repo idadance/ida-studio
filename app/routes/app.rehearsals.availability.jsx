@@ -99,6 +99,19 @@ export default function TeacherAvailabilityPage() {
               ) : (
                 <>⚠️ No Google Sheet Connected</>
               )}
+              {teacher.lastAvailabilityImport && (
+  <div style={{ marginTop: "8px" }}>
+    🕒 Last Import:{" "}
+    {new Date(
+      teacher.lastAvailabilityImport,
+    ).toLocaleString()}
+  </div>
+)}
+
+<div style={{ marginTop: "8px" }}>
+  📅 Imported Slots:{" "}
+  {teacher.availability.length}
+</div>
             </div>
 
             <div style={{ marginTop: "8px" }}>
