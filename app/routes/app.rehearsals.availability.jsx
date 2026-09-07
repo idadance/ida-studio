@@ -1,4 +1,17 @@
-import { useLoaderData } from "react-router";
+import {
+  Form,
+  redirect,
+  useLoaderData,
+} from "react-router";
+
+import {
+  readAvailabilitySheet,
+  parseAvailabilityRows,
+} from "../services/googlesheets.server";
+
+import {
+  importTeacherAvailability,
+} from "../services/teacherAvailability.server";
 
 import { authenticate } from "../shopify.server";
 
@@ -12,6 +25,44 @@ export const loader = async ({ request }) => {
   };
 };
 
+export const action = async ({ request }) => {
+  await authenticate.admin(request);
+
+  const teachers = await getTeachers();
+
+  let importedTeachers = 0;
+  let importedSlots = 0;
+
+  for (const teacher of teachers) {
+    if (!teacher.availabilitySheetUrl) {
+      continue;
+    }
+
+    const rows = await readAvailabilitySheet(
+      teacher.availabilitySheetUrl,
+    );
+
+    const availability =
+      parseAvailabilityRows(rows);
+
+    await importTeacherAvailability(
+      teacher.id,
+      availability,
+    );
+
+    importedTeachers++;
+    importedSlots += availability.length;
+  }
+
+  console.log(
+    `Imported ${importedTeachers} teachers (${importedSlots} slots).`,
+  );
+
+  return redirect(
+    "/app/rehearsals/availability",
+  );
+};
+
 export default function TeacherAvailabilityPage() {
   const { teachers } = useLoaderData();
 
@@ -20,11 +71,13 @@ export default function TeacherAvailabilityPage() {
 
       <s-section>
 
-        <div style={{ marginBottom: "24px" }}>
-          <button>
-            Import All Teachers
-          </button>
-        </div>
+        <Form method="post">
+  <div style={{ marginBottom: "24px" }}>
+    <button type="submit">
+      Import All Teachers
+    </button>
+  </div>
+</Form>
 
         {teachers.map((teacher) => (
           <div
