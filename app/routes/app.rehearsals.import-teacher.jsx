@@ -1,19 +1,49 @@
-import { useLoaderData } from "react-router";
+import {
+  Form,
+  redirect,
+  useLoaderData,
+} from "react-router";
 
 import { authenticate } from "../shopify.server";
 
 import { getTeacher } from "../services/teacher.server";
 
+import {
+  readAvailabilitySheet,
+} from "../services/googlesheets.server";
+
 export const loader = async ({ request }) => {
   await authenticate.admin(request);
 
   const url = new URL(request.url);
-
   const id = url.searchParams.get("id");
 
   return {
     teacher: await getTeacher(id),
   };
+};
+
+export const action = async ({ request }) => {
+  await authenticate.admin(request);
+
+  const url = new URL(request.url);
+  const id = url.searchParams.get("id");
+
+  const teacher = await getTeacher(id);
+
+  if (!teacher.availabilitySheetUrl) {
+    throw new Error("Teacher does not have a Google Sheet.");
+  }
+
+  const rows = await readAvailabilitySheet(
+    teacher.availabilitySheetUrl,
+  );
+
+  console.log(rows);
+
+  return redirect(
+    `/app/rehearsals/import-teacher?id=${id}`,
+  );
 };
 
 export default function ImportTeacherPage() {
@@ -27,25 +57,25 @@ export default function ImportTeacherPage() {
         url: "/app/rehearsals/availability",
       }}
     >
-      <s-section>
+      <Form method="post">
+        <s-section>
 
-        <p>
-          Google Sheet
-        </p>
+          <p>Google Sheet</p>
 
-        <p>
-          {teacher.availabilitySheetUrl
-            ? "✅ Connected"
-            : "❌ Not Connected"}
-        </p>
+          <p>
+            {teacher.availabilitySheetUrl
+              ? "✅ Connected"
+              : "❌ Not Connected"}
+          </p>
 
-        <br />
+          <br />
 
-        <button>
-          Read Google Sheet
-        </button>
+          <button type="submit">
+            Read Google Sheet
+          </button>
 
-      </s-section>
+        </s-section>
+      </Form>
     </s-page>
   );
 }
