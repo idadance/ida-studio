@@ -43,7 +43,7 @@ export async function readAvailabilitySheet(sheetUrl) {
     getSpreadsheetId(sheetUrl);
 
   return readSheet(
-    spreadsheetId,
-    "SoloDuet Rehearsal Availability!A1:Z200",
-  );
+  spreadsheetId,
+  "'Solo/Duet Rehearsal Availability'!A1:Z200",
+);
 }
