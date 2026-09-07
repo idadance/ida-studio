@@ -52,6 +52,20 @@ export default function RehearsalsPage() {
 
 </s-card>
 
+<s-card>
+  <h2>Teacher Availability</h2>
+
+  <p>
+    Import teacher availability from Google Sheets.
+  </p>
+
+  <Link to="/app/rehearsals/availability">
+    <s-button variant="primary">
+      Open Teacher Availability
+    </s-button>
+  </Link>
+</s-card>
+
         <s-card>
           <h2>Entries</h2>
 

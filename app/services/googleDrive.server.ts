@@ -1,6 +1,7 @@
 import { google } from "googleapis";
-import prisma from "../db.server";
 import { Readable } from "node:stream";
+import prisma from "../db.server";
+import { getGoogleAuth } from "./google.server";
 
 import type {
   Performance,
@@ -8,26 +9,7 @@ import type {
 } from "@prisma/client";
 
 async function getDrive() {
-  const setting = await prisma.appSetting.findUnique({
-    where: {
-      key: "google_refresh_token",
-    },
-  });
-
-  if (!setting) {
-    throw new Error(
-      "Google Drive has not been connected.",
-    );
-  }
-
-  const auth = new google.auth.OAuth2(
-    process.env.GOOGLE_CLIENT_ID,
-    process.env.GOOGLE_CLIENT_SECRET,
-  );
-
-  auth.setCredentials({
-    refresh_token: setting.value,
-  });
+  const auth = await getGoogleAuth();
 
   return google.drive({
     version: "v3",
