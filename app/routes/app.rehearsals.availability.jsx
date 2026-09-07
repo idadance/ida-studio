@@ -58,10 +58,12 @@ export default function TeacherAvailabilityPage() {
 
             <div style={{ marginTop: "16px" }}>
               {teacher.availabilitySheetUrl ? (
-                <button>
-                  Import
-                </button>
-              ) : (
+  <s-link
+    href={`/app/rehearsals/import-teacher?id=${teacher.id}`}
+  >
+    Import
+  </s-link>
+) : (
                 <s-link
                   href={`/app/rehearsals/edit-teacher?id=${teacher.id}`}
                 >
