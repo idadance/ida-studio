@@ -252,6 +252,8 @@ model Teacher {
 
   availabilitySheetUrl String?
 
+  availability TeacherAvailability[]
+
   notes String? @db.Text
 
   genres Genre[]
@@ -290,4 +292,22 @@ model RehearsalDate {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model TeacherAvailability {
+  id                 String   @id @default(cuid())
+
+  teacherId          String
+  teacher            Teacher  @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+
+  day                String
+  date               String
+  timeSlot           String
+
+  preferredLocation  String
+  notes              String?
+
+  createdAt          DateTime @default(now())
+
+  @@index([teacherId])
 }

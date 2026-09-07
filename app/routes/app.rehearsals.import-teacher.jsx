@@ -13,6 +13,10 @@ import {
   parseAvailabilityRows,
 } from "../services/googlesheets.server";
 
+import {
+  importTeacherAvailability,
+} from "../services/teacherAvailability.server";
+
 export const loader = async ({ request }) => {
   await authenticate.admin(request);
 
@@ -43,7 +47,15 @@ const rows = await readAvailabilitySheet(
 const availability =
   parseAvailabilityRows(rows);
 
-console.log(availability);
+const imported =
+  await importTeacherAvailability(
+    teacher.id,
+    availability,
+  );
+
+console.log(
+  `Imported ${imported} availability slots.`,
+);
 
   return redirect(
     `/app/rehearsals/import-teacher?id=${id}`,
