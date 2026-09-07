@@ -1,5 +1,4 @@
 import { google } from "googleapis";
-
 import { getGoogleAuth } from "./google.server";
 
 async function getSheets() {
@@ -43,7 +42,56 @@ export async function readAvailabilitySheet(sheetUrl) {
     getSpreadsheetId(sheetUrl);
 
   return readSheet(
-  spreadsheetId,
-  "'Solo/Duet Rehearsal Availability'!A1:Z200",
-);
+    spreadsheetId,
+    "'Solo/Duet Rehearsal Availability'!A1:Z200",
+  );
+}
+
+export function parseAvailabilityRows(rows) {
+  const availability = [];
+
+  let startIndex = rows.findIndex(
+    (row) => row[0] === "Rehearsal Availability",
+  );
+
+  if (startIndex === -1) {
+    throw new Error(
+      "Could not find Rehearsal Availability section.",
+    );
+  }
+
+  // Skip the section title and header row
+  startIndex += 2;
+
+  for (let i = startIndex; i < rows.length; i++) {
+    const row = rows[i];
+
+    if (!row.length) {
+      continue;
+    }
+
+    const [
+      day,
+      date,
+      available,
+      timeSlot,
+      preferredLocation,
+      notes,
+    ] = row;
+
+    if (available !== "TRUE") {
+      continue;
+    }
+
+    availability.push({
+      day,
+      date,
+      timeSlot,
+      preferredLocation:
+        preferredLocation || "Either",
+      notes: notes || "",
+    });
+  }
+
+  return availability;
 }

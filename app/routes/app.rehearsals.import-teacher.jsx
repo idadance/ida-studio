@@ -10,6 +10,7 @@ import { getTeacher } from "../services/teacher.server";
 
 import {
   readAvailabilitySheet,
+  parseAvailabilityRows,
 } from "../services/googlesheets.server";
 
 export const loader = async ({ request }) => {
@@ -35,11 +36,14 @@ export const action = async ({ request }) => {
     throw new Error("Teacher does not have a Google Sheet.");
   }
 
-  const rows = await readAvailabilitySheet(
-    teacher.availabilitySheetUrl,
-  );
+const rows = await readAvailabilitySheet(
+  teacher.availabilitySheetUrl,
+);
 
-  console.log(rows);
+const availability =
+  parseAvailabilityRows(rows);
+
+console.log(availability);
 
   return redirect(
     `/app/rehearsals/import-teacher?id=${id}`,
