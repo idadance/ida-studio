@@ -1,43 +1,35 @@
 import prisma from "../db.server";
 
 export async function getTeachers() {
-
   return prisma.teacher.findMany({
-
     include: {
       genres: true,
     },
 
     orderBy: [
-
       { firstName: "asc" },
-
       { lastName: "asc" },
-
     ],
-
   });
-
 }
 
 export async function getTeacher(id) {
-
   return prisma.teacher.findUnique({
-
     where: {
-
       id,
-
     },
 
     include: {
-
       genres: true,
 
+      availability: {
+        orderBy: [
+          { day: "asc" },
+          { timeSlot: "asc" },
+        ],
+      },
     },
-
   });
-
 }
 
 export async function createTeacher(data) {

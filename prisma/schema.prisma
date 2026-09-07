@@ -254,6 +254,8 @@ model Teacher {
 
   availability TeacherAvailability[]
 
+  lastAvailabilityImport DateTime?
+
   notes String? @db.Text
 
   genres Genre[]

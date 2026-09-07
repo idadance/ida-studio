@@ -27,5 +27,14 @@ export async function importTeacherAvailability(
     })),
   });
 
+  await prisma.teacher.update({
+  where: {
+    id: teacherId,
+  },
+  data: {
+    lastAvailabilityImport: new Date(),
+  },
+});
+
   return availability.length;
 }
