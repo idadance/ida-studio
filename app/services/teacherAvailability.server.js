@@ -38,3 +38,7 @@ export async function importTeacherAvailability(
 
   return availability.length;
 }
+
+export async function getAvailabilityCount() {
+  return prisma.teacherAvailability.count();
+}

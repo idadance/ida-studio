@@ -67,3 +67,7 @@ export async function deleteTeacher(id) {
     },
   });
 }
+
+export async function getTeacherCount() {
+  return prisma.teacher.count();
+}

@@ -3,26 +3,26 @@ import { useLoaderData } from "react-router";
 import { authenticate } from "../shopify.server";
 
 import {
-  getRehearsalEntries,
-} from "../services/rehearsalEntry.server";
+  getRegistrations,
+} from "../services/registration.server";
 
 export const loader = async ({ request }) => {
   await authenticate.admin(request);
 
   return {
-    entries: await getRehearsalEntries(),
+    registrations: await getRegistrations(),
   };
 };
 
-export default function RehearsalEntriesPage() {
-  const { entries } = useLoaderData();
+export default function RegistrationsPage() {
+  const { registrations } = useLoaderData();
 
   return (
-    <s-page heading="Rehearsal Entries">
+    <s-page heading="Solo & Duet Registrations">
 
       <s-section>
 
-        {entries.length === 0 ? (
+        {registrations.length === 0 ? (
           <div
             style={{
               padding: "40px",
@@ -30,18 +30,18 @@ export default function RehearsalEntriesPage() {
             }}
           >
             <h2>
-              No rehearsal entries yet
+              No registrations yet
             </h2>
 
             <p>
-              Entries will appear here after
-              parents register.
+              Parent registrations will
+              appear here.
             </p>
           </div>
         ) : (
-          entries.map((entry) => (
+          registrations.map((registration) => (
             <div
-              key={entry.id}
+              key={registration.id}
               style={{
                 border: "1px solid #ddd",
                 borderRadius: "12px",
@@ -50,26 +50,32 @@ export default function RehearsalEntriesPage() {
               }}
             >
               <h3>
-                {entry.studentFirstName}{" "}
-                {entry.studentLastName}
+                {registration.studentFirstName}{" "}
+                {registration.studentLastName}
               </h3>
 
               <div>
+                {registration.entryType}
+              </div>
+
+              <div>
                 Teacher:{" "}
-                {entry.teacher.firstName}
+                {registration.teacher.firstName}
               </div>
 
               <div>
-                Genre: {entry.genre.name}
+                Genre:{" "}
+                {registration.genre.name}
               </div>
 
               <div>
-                Needs{" "}
-                {entry.rehearsalsNeeded} rehearsals
+                Payment:{" "}
+                {registration.paymentStatus}
               </div>
 
               <div>
-                Status: {entry.status}
+                Status:{" "}
+                {registration.status}
               </div>
 
             </div>
