@@ -81,6 +81,47 @@ export default function RehearsalDashboardPage() {
 
       </div>
 
+      <s-section>
+
+        <h2>Quick Actions</h2>
+
+        <div
+          style={{
+            display: "flex",
+            gap: "16px",
+            flexWrap: "wrap",
+            marginTop: "16px",
+          }}
+        >
+
+          <s-link href="/app/rehearsals/availability">
+            <button>
+              Import Availability
+            </button>
+          </s-link>
+
+          <s-link href="/app/rehearsals/teachers">
+            <button>
+              Teachers
+            </button>
+          </s-link>
+
+          <s-link href="/app/rehearsals/registrations">
+            <button>
+              Registrations
+            </button>
+          </s-link>
+
+          <s-link href="/app/rehearsals/schedule">
+            <button>
+              Schedule
+            </button>
+          </s-link>
+
+        </div>
+
+      </s-section>
+
     </s-page>
   );
 }
