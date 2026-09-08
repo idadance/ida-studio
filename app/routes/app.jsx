@@ -32,12 +32,16 @@ export default function App() {
   </s-link>
 
   <s-link href="/app/performances">
-    Performances
-  </s-link>
+  Performances
+</s-link>
 
-  <s-link href="/app/ticket-sales">
-    Ticket Sales
-  </s-link>
+<s-link href="/app/events">
+  Events
+</s-link>
+
+<s-link href="/app/ticket-sales">
+  Ticket Sales
+</s-link>
 
   <s-link href="/app/rehearsals">
   Rehearsals

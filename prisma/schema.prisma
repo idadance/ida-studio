@@ -369,3 +369,72 @@ model SoloDuetRegistration {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 }
+
+model Event {
+  id          String      @id @default(cuid())
+  name        String
+  description String?     @db.Text
+
+  date        DateTime?
+  location    String?
+
+  capacity    Int
+  price       Float
+
+  status      EventStatus @default(DRAFT)
+
+  creditCardEnabled Boolean @default(true)
+  checkEnabled      Boolean @default(true)
+
+  reservations EventReservation[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model EventReservation {
+  id String @id @default(cuid())
+
+  eventId String
+  event   Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  customerName  String
+  customerEmail String
+
+  quantity Int
+
+  paymentMethod TicketPaymentMethod
+  status        EventReservationStatus @default(PENDING)
+
+  totalAmount Float @default(0)
+
+  shopifyOrderId     String?
+  shopifyOrderNumber String?
+
+  checkNumber     String?
+  checkReceivedAt DateTime?
+
+  notes String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([eventId])
+  @@index([customerEmail])
+  @@index([status])
+  @@index([shopifyOrderId])
+}
+
+enum EventStatus {
+  DRAFT
+  PUBLISHED
+  CLOSED
+  ARCHIVED
+}
+
+enum EventReservationStatus {
+  PENDING
+  CONFIRMED
+  CANCELED
+  REFUNDED
+}
