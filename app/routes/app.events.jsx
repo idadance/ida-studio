@@ -3,8 +3,7 @@ import { Outlet, useLoaderData } from "react-router";
 import { authenticate } from "../shopify.server";
 import {
   getEvents,
-  getReservedQuantity,
-  getRemainingCapacity,
+  getEventCapacitySummary,
 } from "../services/event.server";
 
 export const loader = async ({ request }) => {
@@ -15,8 +14,7 @@ export const loader = async ({ request }) => {
   return {
     events: events.map((event) => ({
       ...event,
-      reservedQuantity: getReservedQuantity(event),
-      remainingCapacity: getRemainingCapacity(event),
+      capacitySummary: getEventCapacitySummary(event),
     })),
   };
 };
@@ -70,7 +68,7 @@ export default function EventsPage() {
           <div
             style={{
               display: "grid",
-              gap: "12px",
+              gap: "16px",
             }}
           >
             {events.map((event) => (
@@ -79,12 +77,12 @@ export default function EventsPage() {
                 style={{
                   border: "1px solid #ddd",
                   borderRadius: "12px",
-                  padding: "18px",
+                  padding: "20px",
                 }}
               >
                 <strong
                   style={{
-                    fontSize: "18px",
+                    fontSize: "20px",
                   }}
                 >
                   {event.name}
@@ -102,54 +100,101 @@ export default function EventsPage() {
                   </div>
                 )}
 
-                {event.location && (
-                  <div
-                    style={{
-                      marginTop: "6px",
-                    }}
-                  >
-                    📍 {event.location}
-                  </div>
-                )}
-
                 <div
                   style={{
-                    marginTop: "12px",
-                  }}
-                >
-                  <strong>
-                    {event.reservedQuantity} / {event.capacity}
-                  </strong>{" "}
-                  spots reserved
-                </div>
-
-                <div
-                  style={{
-                    marginTop: "4px",
-                  }}
-                >
-                  {event.remainingCapacity} spots remaining
-                </div>
-
-                <div
-                  style={{
-                    marginTop: "8px",
-                  }}
-                >
-                  ${Number(event.price).toFixed(2)} per spot
-                </div>
-
-                <div
-                  style={{
-                    marginTop: "8px",
+                    marginTop: "10px",
                   }}
                 >
                   Status: {event.status}
                 </div>
 
+                {event.locations.length === 0 ? (
+                  <div
+                    style={{
+                      marginTop: "16px",
+                      padding: "14px",
+                      border: "1px solid #ddd",
+                      borderRadius: "10px",
+                      color: "#666",
+                    }}
+                  >
+                    No studio locations have been added to this event.
+                  </div>
+                ) : (
+                  <div
+                    style={{
+                      display: "grid",
+                      gap: "12px",
+                      marginTop: "18px",
+                    }}
+                  >
+                    {event.capacitySummary.locations.map((location) => (
+                      <div
+                        key={location.id}
+                        style={{
+                          border: "1px solid #ddd",
+                          borderRadius: "10px",
+                          padding: "14px",
+                        }}
+                      >
+                        <strong>
+                          {location.studioCode === "FW"
+                            ? "Fort Washington"
+                            : location.studioCode === "PM"
+                              ? "Plymouth Meeting"
+                              : location.name}
+                        </strong>
+
+                        <div
+                          style={{
+                            marginTop: "8px",
+                          }}
+                        >
+                          <strong>
+                            {location.reservedQuantity} / {location.capacity}
+                          </strong>{" "}
+                          spots reserved
+                        </div>
+
+                        <div
+                          style={{
+                            marginTop: "4px",
+                          }}
+                        >
+                          {location.remainingCapacity} spots remaining
+                        </div>
+
+                        <div
+                          style={{
+                            marginTop: "4px",
+                          }}
+                        >
+                          ${Number(location.price).toFixed(2)} per spot
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {event.locations.length > 1 && (
+                  <div
+                    style={{
+                      marginTop: "14px",
+                      color: "#666",
+                    }}
+                  >
+                    Total:{" "}
+                    <strong>
+                      {event.capacitySummary.totalReserved} /{" "}
+                      {event.capacitySummary.totalCapacity}
+                    </strong>{" "}
+                    spots reserved across all locations
+                  </div>
+                )}
+
                 <div
                   style={{
-                    marginTop: "16px",
+                    marginTop: "18px",
                   }}
                 >
                   <s-link href={`/app/events/${event.id}`}>
@@ -160,7 +205,7 @@ export default function EventsPage() {
             ))}
           </div>
         )}
-            </s-section>
+      </s-section>
 
       <Outlet />
     </s-page>
