@@ -1,4 +1,4 @@
-import { useLoaderData } from "react-router";
+import { Outlet, useLoaderData } from "react-router";
 
 import { authenticate } from "../shopify.server";
 import {
@@ -160,7 +160,9 @@ export default function EventsPage() {
             ))}
           </div>
         )}
-      </s-section>
+            </s-section>
+
+      <Outlet />
     </s-page>
   );
 }
