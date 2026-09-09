@@ -400,6 +400,9 @@ model EventLocation {
   capacity Int
   price    Float
 
+    checkVariantId  String?
+  creditVariantId String?
+
   reservations EventReservation[]
 
   createdAt DateTime @default(now())

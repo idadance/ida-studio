@@ -5,6 +5,7 @@ import {
   getEvent,
   getEventCapacitySummary,
   updateEvent,
+  updateEventLocation,
 } from "../services/event.server";
 
 export const loader = async ({ request, params }) => {
@@ -29,6 +30,29 @@ export const action = async ({ request, params }) => {
 
   const formData = await request.formData();
   const intent = formData.get("intent");
+
+  if (intent === "updateLocationVariants") {
+  const locationId = String(
+    formData.get("locationId") || "",
+  ).trim();
+
+  const creditVariantId = String(
+    formData.get("creditVariantId") || "",
+  ).trim();
+
+  const checkVariantId = String(
+    formData.get("checkVariantId") || "",
+  ).trim();
+
+  if (locationId) {
+    await updateEventLocation(locationId, {
+      creditVariantId,
+      checkVariantId,
+    });
+  }
+
+  return { success: true };
+}
 
   if (intent === "publish") {
     await updateEvent(params.id, {
@@ -202,6 +226,84 @@ export default function ManageEventPage() {
                   {Number(location.price).toFixed(2)} per
                   spot
                 </div>
+
+                <Form
+  method="post"
+  style={{
+    marginTop: "18px",
+    paddingTop: "16px",
+    borderTop: "1px solid #ddd",
+  }}
+>
+  <input
+    type="hidden"
+    name="intent"
+    value="updateLocationVariants"
+  />
+
+  <input
+    type="hidden"
+    name="locationId"
+    value={location.id}
+  />
+
+  <div
+    style={{
+      fontWeight: "600",
+      marginBottom: "12px",
+    }}
+  >
+    Shopify Checkout Setup
+  </div>
+
+  <label
+    style={{
+      display: "block",
+      marginBottom: "12px",
+    }}
+  >
+    <div style={{ marginBottom: "5px" }}>
+      Credit Variant ID
+    </div>
+
+    <input
+      type="text"
+      name="creditVariantId"
+      defaultValue={location.creditVariantId ?? ""}
+      style={{
+        width: "100%",
+        padding: "8px",
+        boxSizing: "border-box",
+      }}
+    />
+  </label>
+
+  <label
+    style={{
+      display: "block",
+      marginBottom: "12px",
+    }}
+  >
+    <div style={{ marginBottom: "5px" }}>
+      Check Variant ID
+    </div>
+
+    <input
+      type="text"
+      name="checkVariantId"
+      defaultValue={location.checkVariantId ?? ""}
+      style={{
+        width: "100%",
+        padding: "8px",
+        boxSizing: "border-box",
+      }}
+    />
+  </label>
+
+  <button type="submit" disabled={isSubmitting}>
+    {isSubmitting ? "Saving..." : "Save Shopify IDs"}
+  </button>
+</Form>
               </div>
             ),
           )}

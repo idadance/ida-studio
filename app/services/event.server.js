@@ -116,6 +116,14 @@ export async function updateEventLocation(id, data) {
       ...(data.price !== undefined && {
         price: Number(data.price),
       }),
+
+      ...(data.checkVariantId !== undefined && {
+        checkVariantId: data.checkVariantId || null,
+      }),
+
+      ...(data.creditVariantId !== undefined && {
+        creditVariantId: data.creditVariantId || null,
+      }),
     },
   });
 }
@@ -152,14 +160,16 @@ export function getEventCapacitySummary(event) {
     );
 
     return {
-      id: location.id,
-      studioCode: location.studioCode,
-      name: location.name,
-      capacity: location.capacity,
-      price: location.price,
-      reservedQuantity,
-      remainingCapacity,
-    };
+  id: location.id,
+  studioCode: location.studioCode,
+  name: location.name,
+  capacity: location.capacity,
+  price: location.price,
+  checkVariantId: location.checkVariantId,
+  creditVariantId: location.creditVariantId,
+  reservedQuantity,
+  remainingCapacity,
+};
   });
 
   return {
