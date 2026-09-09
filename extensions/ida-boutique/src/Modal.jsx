@@ -174,56 +174,80 @@ function Extension() {
 }
 
   async function chooseProduct(product) {
-    setSearching(true);
-    setStatus("");
+  setSearching(true);
+  setStatus("");
 
-    try {
-      const result =
-        await shopify.productSearch
-          .fetchPaginatedProductVariantsWithProductId(
-            product.id,
-            {first: 50},
-          );
+  try {
+    const response = await fetch(
+      "shopify:admin/api/graphql.json",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          query: `
+            query ProductVariants($id: ID!) {
+              product(id: $id) {
+                variants(first: 50) {
+                  nodes {
+                    id
+                    title
+                  }
+                }
+              }
+            }
+          `,
+          variables: {
+            id: product.id,
+          },
+        }),
+      },
+    );
 
-      const productVariants = result.items ?? [];
+    const result = await response.json();
 
-      if (productVariants.length === 0) {
-        setStatus(
-          "No available options were found for this item.",
-        );
-        return;
-      }
-
-      // Only one option: add it immediately.
-      if (productVariants.length === 1) {
-        await shopify.cart.addLineItem(
-          productVariants[0].id,
-          1,
-        );
-
-        setSearchMode(false);
-        setSearchResults([]);
-        setSelectedProduct(null);
-        setVariants([]);
-
-        setStatus(`✓ ${product.title} added!`);
-        return;
-      }
-
-      // Multiple sizes/colors/etc.
-      setSelectedProduct(product);
-      setVariants(productVariants);
-
-    } catch (error) {
-      console.error(error);
-
-      setStatus(
-        "We couldn't open that product. Please try again.",
-      );
-    } finally {
-      setSearching(false);
+    if (result.errors) {
+      console.error(result.errors);
+      throw new Error("Product variant lookup failed.");
     }
+
+    const productVariants =
+      result?.data?.product?.variants?.nodes ?? [];
+
+    if (productVariants.length === 0) {
+      setStatus(
+        "No available options were found for this item.",
+      );
+      return;
+    }
+
+    // Only one option: add it immediately.
+    if (productVariants.length === 1) {
+      await shopify.cart.addLineItem(
+        productVariants[0].id,
+        1,
+      );
+
+      setSearchMode(false);
+      setSearchResults([]);
+      setSelectedProduct(null);
+      setVariants([]);
+
+      setStatus(`✓ ${product.title} added!`);
+      return;
+    }
+
+    // Multiple sizes/colors/etc.
+    setSelectedProduct(product);
+    setVariants(productVariants);
+  } catch (error) {
+    console.error(error);
+
+    setStatus(
+      "We couldn't open that product. Please try again.",
+    );
+  } finally {
+    setSearching(false);
   }
+}
 
   async function chooseVariant(variant) {
     setBusy(true);
