@@ -48,15 +48,15 @@ export async function loader() {
       );
 
       return {
-        id: location.id,
-        studioCode: location.studioCode,
-        name: location.name,
-
-        capacity: location.capacity,
-        remainingSpots,
-
-        price: location.price,
-      };
+  id: location.id,
+  studioCode: location.studioCode,
+  name: location.name,
+  capacity: location.capacity,
+  remainingSpots,
+  price: location.price,
+  checkVariantId: location.checkVariantId,
+  creditVariantId: location.creditVariantId,
+};
     }),
   }));
 
