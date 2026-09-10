@@ -1,5 +1,6 @@
 import { authenticate } from "../shopify.server";
 import { findShowByVariantId } from "../services/showLookup.server";
+import { findEventLocationByVariantId } from "../services/eventLookup.server";
 import {
   createReservation,
   createTicketOrders,
@@ -516,6 +517,94 @@ const pendingTickets =
       : "PM";
 
   console.log("IDA Account:", account);
+
+// ======================================
+// EVENT ORDER DETECTION
+// ======================================
+
+const matchedEventItems = [];
+
+for (const item of payload.line_items) {
+  const eventResult =
+    await findEventLocationByVariantId(
+      item.variant_id?.toString(),
+    );
+
+  if (!eventResult) {
+    continue;
+  }
+
+  matchedEventItems.push({
+    event: eventResult.event,
+    location: eventResult.location,
+    paymentMethod: eventResult.paymentMethod,
+    quantity: item.quantity,
+  });
+}
+
+// ======================================
+// PROCESS PAID EVENT ORDER
+// ======================================
+
+if (matchedEventItems.length > 0) {
+  const existingEventReservation =
+    await prisma.eventReservation.findFirst({
+      where: {
+        shopifyOrderId: payload.id.toString(),
+      },
+    });
+
+  if (existingEventReservation) {
+    console.log(
+      `⏭️ Event order ${payload.name} has already been processed.`,
+    );
+
+    return new Response();
+  }
+
+  const customerName = [
+  payload.customer?.first_name,
+  payload.customer?.last_name,
+]
+  .filter(Boolean)
+  .join(" ")
+  .trim() || "Customer";
+
+const customerEmail =
+  payload.customer?.email ??
+  payload.email ??
+  "";
+
+for (const item of matchedEventItems) {
+  await prisma.eventReservation.create({
+    data: {
+      eventLocationId: item.location.id,
+      customerName,
+      customerEmail,
+      quantity: item.quantity,
+      paymentMethod: "CREDIT_CARD",
+      status: "CONFIRMED",
+      totalAmount: Number(
+  (
+    item.quantity *
+    item.location.price *
+    1.026
+  ).toFixed(2),
+),
+      shopifyOrderId:
+        payload.id.toString(),
+      shopifyOrderNumber:
+        payload.name,
+    },
+  });
+}
+
+console.log(
+  `✅ Event reservation created for ${payload.name}`,
+);
+
+return new Response();
+}
 
   const matchedShows = [];
 
