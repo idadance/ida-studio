@@ -254,10 +254,14 @@ function Extension() {
     setStatus("");
 
     try {
-      await shopify.cart.addLineItem(
-        variant.id,
-        1,
-      );
+      const variantId = Number(
+  variant.id.split("/").pop(),
+);
+
+await shopify.cart.addLineItem(
+  variantId,
+  1,
+);
 
       const productTitle =
         selectedProduct?.title || "Item";
