@@ -204,8 +204,6 @@ Institute of Dance Artistry
 PO Box 114
 Fort Washington, PA 19034
 
-Your reservation will be confirmed once your check payment has been received.
-
 Thank you!
 ${studioName}`,
 
@@ -257,11 +255,6 @@ ${studioName}`,
         PO Box 114<br>
         Fort Washington, PA 19034
       </div>
-
-      <p>
-        Your reservation will be confirmed once
-        your check payment has been received.
-      </p>
 
       <p>
         Thank you!<br>
