@@ -141,6 +141,140 @@ ${studioName}`,
   );
 }
 
+export async function sendEventCheckReservationConfirmation({
+  order,
+  eventName,
+  locationName,
+  totalAmount,
+  draftOrderName,
+}: {
+  order: any;
+  eventName: string;
+  locationName: string;
+  totalAmount: number;
+  draftOrderName: string;
+}) {
+  setupSendGrid();
+
+  const isFW = order.account === "FW";
+
+  const fromEmail = isFW
+    ? "fwstudio@idadancer.com"
+    : "pmstudio@idadancer.com";
+
+  const studioName = isFW
+    ? "IDA Fort Washington"
+    : "IDA Plymouth Meeting";
+
+  const quantity = Number(
+    order.eventQuantity,
+  );
+
+  const spotLabel =
+    quantity === 1 ? "spot" : "spots";
+
+  await sgMail.send({
+    to: order.email,
+
+    from: {
+      email: fromEmail,
+      name: studioName,
+    },
+
+    replyTo: fromEmail,
+
+    subject:
+      `IDA – ${eventName} Reservation Confirmation`,
+
+    text: `Hi ${order.firstName},
+
+We received your reservation for ${eventName}.
+
+Reservation Number: ${draftOrderName}
+Location: ${locationName}
+Reserved: ${quantity} ${spotLabel}
+Payment Method: Check
+Amount Due: $${totalAmount.toFixed(2)}
+
+Your reservation has been saved and your payment is currently pending.
+
+Please drop your check at the studio or mail your payment to:
+
+Institute of Dance Artistry
+PO Box 114
+Fort Washington, PA 19034
+
+Your reservation will be confirmed once your check payment has been received.
+
+Thank you!
+${studioName}`,
+
+    html: `
+      <p>Hi ${order.firstName},</p>
+
+      <p>
+        We received your reservation for
+        <strong>${eventName}</strong>.
+      </p>
+
+      <p>
+        <strong>Reservation Number:</strong>
+        ${draftOrderName}<br>
+
+        <strong>Location:</strong>
+        ${locationName}<br>
+
+        <strong>Reserved:</strong>
+        ${quantity} ${spotLabel}<br>
+
+        <strong>Payment Method:</strong>
+        Check<br>
+
+        <strong>Amount Due:</strong>
+        $${totalAmount.toFixed(2)}
+      </p>
+
+      <p>
+        Your reservation has been saved and your
+        payment is currently pending.
+      </p>
+
+      <p>
+        Please drop your check at the studio or
+        mail your payment to:
+      </p>
+
+      <div
+        style="
+          padding: 16px;
+          background: #fdf2f8;
+          border-radius: 12px;
+        "
+      >
+        <strong>
+          Institute of Dance Artistry
+        </strong><br>
+        PO Box 114<br>
+        Fort Washington, PA 19034
+      </div>
+
+      <p>
+        Your reservation will be confirmed once
+        your check payment has been received.
+      </p>
+
+      <p>
+        Thank you!<br>
+        ${studioName}
+      </p>
+    `,
+  });
+
+  console.log(
+    `📧 Event check reservation confirmation sent to ${order.email}`,
+  );
+}
+
 export async function sendPaidTicketConfirmation({
   order,
   driveFolderLink,

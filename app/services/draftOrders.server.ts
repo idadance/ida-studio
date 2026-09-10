@@ -5,7 +5,10 @@ import {
 } from "./ticketOrders.server";
 import { ensureSeatsAvailable } from "./showValidation.server";
 import { prepareCustomerFolder } from "./googleDrive.server";
-import { sendCheckReservationConfirmation } from "./email.server";
+import {
+  sendCheckReservationConfirmation,
+  sendEventCheckReservationConfirmation,
+} from "./email.server";
 
 export async function createDraftOrder(
   admin: any,
@@ -958,6 +961,18 @@ const reservation =
 
 console.log(
   `✅ Pending Event reservation created: ${reservation.id}`,
+);
+
+await sendEventCheckReservationConfirmation({
+  order,
+  eventName: location.event.name,
+  locationName: location.name,
+  totalAmount: reservation.totalAmount,
+  draftOrderName: result.draftOrder.name,
+});
+
+console.log(
+  `📧 Event check confirmation email sent to ${order.email}`,
 );
 
 return {
