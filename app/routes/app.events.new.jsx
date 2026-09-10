@@ -10,7 +10,11 @@ export const action = async ({ request }) => {
 
   const name = formData.get("name")?.trim();
   const description = formData.get("description")?.trim();
-  const date = formData.get("date");
+  const dateValue = formData.get("date");
+
+const date = dateValue
+  ? `${dateValue}:00-04:00`
+  : null;
 
   const creditCardEnabled =
     formData.get("creditCardEnabled") === "on";

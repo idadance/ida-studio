@@ -31,6 +31,20 @@ export const action = async ({ request, params }) => {
   const formData = await request.formData();
   const intent = formData.get("intent");
 
+  if (intent === "updateDate") {
+  const dateValue = formData.get("date");
+
+  const date = dateValue
+    ? `${dateValue}:00-04:00`
+    : null;
+
+  await updateEvent(params.id, {
+    date,
+  });
+
+  return { success: true };
+}
+
   if (intent === "updateImage") {
   const imageUrl = String(
     formData.get("imageUrl") || "",
@@ -141,12 +155,54 @@ export default function ManageEventPage() {
             </Form>
           </div>
 
-          {event.date && (
-            <div>
-              <strong>Date &amp; Time:</strong>{" "}
-              {new Date(event.date).toLocaleString()}
-            </div>
-          )}
+          <div>
+  <strong>Date &amp; Time:</strong>
+
+  <Form
+    method="post"
+    style={{
+      marginTop: "8px",
+      display: "flex",
+      gap: "10px",
+      alignItems: "center",
+      flexWrap: "wrap",
+    }}
+  >
+    <input
+      type="hidden"
+      name="intent"
+      value="updateDate"
+    />
+
+    <input
+      type="datetime-local"
+      name="date"
+      required
+      defaultValue={
+        event.date
+          ? new Intl.DateTimeFormat("sv-SE", {
+              timeZone: "America/New_York",
+              year: "numeric",
+              month: "2-digit",
+              day: "2-digit",
+              hour: "2-digit",
+              minute: "2-digit",
+              hour12: false,
+            })
+              .format(new Date(event.date))
+              .replace(" ", "T")
+          : ""
+      }
+    />
+
+    <button
+      type="submit"
+      disabled={isSubmitting}
+    >
+      {isSubmitting ? "Saving..." : "Save Date & Time"}
+    </button>
+  </Form>
+</div>
 
           {event.description && (
             <div>
