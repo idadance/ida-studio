@@ -31,6 +31,18 @@ export const action = async ({ request, params }) => {
   const formData = await request.formData();
   const intent = formData.get("intent");
 
+  if (intent === "updateImage") {
+  const imageUrl = String(
+    formData.get("imageUrl") || "",
+  ).trim();
+
+  await updateEvent(params.id, {
+    imageUrl,
+  });
+
+  return { success: true };
+}
+
   if (intent === "updateLocationVariants") {
   const locationId = String(
     formData.get("locationId") || "",
@@ -166,6 +178,79 @@ export default function ManageEventPage() {
           </div>
         </div>
       </s-section>
+
+      <s-section heading="Event Photo">
+  <Form method="post">
+    <input
+      type="hidden"
+      name="intent"
+      value="updateImage"
+    />
+
+    {event.imageUrl && (
+      <div style={{ marginBottom: "16px" }}>
+        <img
+          src={event.imageUrl}
+          alt={event.name}
+          style={{
+            display: "block",
+            width: "100%",
+            maxWidth: "500px",
+            height: "260px",
+            objectFit: "cover",
+            borderRadius: "12px",
+          }}
+        />
+      </div>
+    )}
+
+    <label
+      style={{
+        display: "block",
+        maxWidth: "600px",
+      }}
+    >
+      <div
+        style={{
+          fontWeight: "600",
+          marginBottom: "6px",
+        }}
+      >
+        Photo URL
+      </div>
+
+      <input
+        type="url"
+        name="imageUrl"
+        defaultValue={event.imageUrl ?? ""}
+        placeholder="https://..."
+        style={{
+          width: "100%",
+          padding: "10px",
+          boxSizing: "border-box",
+        }}
+      />
+    </label>
+
+    <div
+      style={{
+        marginTop: "12px",
+        color: "#666",
+        fontSize: "14px",
+      }}
+    >
+      This photo will appear on the public Event page.
+    </div>
+
+    <button
+      type="submit"
+      disabled={isSubmitting}
+      style={{ marginTop: "14px" }}
+    >
+      {isSubmitting ? "Saving..." : "Save Photo"}
+    </button>
+  </Form>
+</s-section>
 
       <s-section heading="Studio Locations">
         <div

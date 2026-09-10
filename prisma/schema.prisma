@@ -374,6 +374,7 @@ model Event {
   id          String      @id @default(cuid())
   name        String
   description String?     @db.Text
+  imageUrl    String?
 
   date        DateTime?
 

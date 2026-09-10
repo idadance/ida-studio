@@ -28,9 +28,10 @@ export async function loader() {
 
   const result = events.map((event) => ({
     id: event.id,
-    name: event.name,
-    description: event.description,
-    date: event.date,
+name: event.name,
+description: event.description,
+imageUrl: event.imageUrl,
+date: event.date,
 
     creditCardEnabled: event.creditCardEnabled,
     checkEnabled: event.checkEnabled,

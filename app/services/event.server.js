@@ -82,12 +82,16 @@ export async function updateEvent(id, data) {
       }),
 
       ...(data.description !== undefined && {
-        description: data.description || null,
-      }),
+  description: data.description || null,
+}),
 
-      ...(data.date !== undefined && {
-        date: data.date ? new Date(data.date) : null,
-      }),
+...(data.imageUrl !== undefined && {
+  imageUrl: data.imageUrl || null,
+}),
+
+...(data.date !== undefined && {
+  date: data.date ? new Date(data.date) : null,
+}),
 
       ...(data.status !== undefined && {
         status: data.status,
