@@ -12,6 +12,13 @@ export async function createDraftOrder(
   order: any,
 ) {
 
+  if (order.orderType === "event") {
+  return createEventDraftOrder(
+    admin,
+    order,
+  );
+}
+
   await ensureSeatsAvailable(order);
   console.log("✅ Seats validated");
   const lineItems = [];
@@ -684,4 +691,280 @@ export async function sendUnpaidInvoice(
       updateResult.draftOrder
         ?.invoiceUrl,
   };
+}
+
+async function createEventDraftOrder(
+  admin: any,
+  order: any,
+) {
+  console.log(
+    "🎃 Creating Event check reservation",
+  );
+
+  console.log(
+    JSON.stringify(order, null, 2),
+  );
+
+  const location =
+  await prisma.eventLocation.findUnique({
+    where: {
+      id: order.eventLocationId,
+    },
+
+    include: {
+      event: true,
+
+      reservations: {
+        where: {
+          status: {
+            in: [
+              "PENDING",
+              "CONFIRMED",
+            ],
+          },
+        },
+      },
+    },
+  });
+
+if (!location) {
+  throw new Error(
+    "Event location not found.",
+  );
+}
+
+if (location.event.status !== "PUBLISHED") {
+  throw new Error(
+    "This event is not currently available.",
+  );
+}
+
+if (location.studioCode !== order.account) {
+  throw new Error(
+    "The selected event location does not match the selected studio.",
+  );
+}
+
+if (!location.event.checkEnabled) {
+  throw new Error(
+    "Check payment is not available for this event.",
+  );
+}
+
+const reservedSpots =
+  location.reservations.reduce(
+    (total: number, reservation: any) =>
+      total + reservation.quantity,
+    0,
+  );
+
+const remainingSpots =
+  Math.max(
+    0,
+    location.capacity - reservedSpots,
+  );
+
+if (
+  !order.eventQuantity ||
+  order.eventQuantity < 1
+) {
+  throw new Error(
+    "Please select at least one spot.",
+  );
+}
+
+if (order.eventQuantity > remainingSpots) {
+  throw new Error(
+    `Only ${remainingSpots} spot${
+      remainingSpots === 1 ? "" : "s"
+    } remaining for ${location.name}.`,
+  );
+}
+
+console.log(
+  `✅ Event capacity validated: ${order.eventQuantity} requested, ${remainingSpots} remaining`,
+);
+
+const variantId =
+  location.checkVariantId;
+
+if (!variantId) {
+  throw new Error(
+    `No check payment product is configured for ${location.name}.`,
+  );
+}
+
+const lineItems = [
+  {
+    variantId:
+      `gid://shopify/ProductVariant/${variantId}`,
+    quantity: order.eventQuantity,
+  },
+];
+
+console.log(
+  "EVENT LINE ITEMS:",
+  JSON.stringify(lineItems, null, 2),
+);
+
+const response = await admin.graphql(
+  `#graphql
+    mutation DraftOrderCreate($input: DraftOrderInput!) {
+      draftOrderCreate(input: $input) {
+        draftOrder {
+          id
+          name
+          invoiceUrl
+        }
+
+        userErrors {
+          field
+          message
+        }
+      }
+    }
+  `,
+  {
+    variables: {
+      input: {
+        lineItems,
+
+        email: order.email,
+
+        tags: [
+          "IDA Events",
+          "Event Reservation",
+          order.account === "FW"
+            ? "Fort Washington"
+            : "Plymouth Meeting",
+          "Check Payment",
+          location.event.name,
+        ],
+
+        customAttributes: [
+          {
+            key: "Customer Name",
+            value:
+              `${order.firstName} ${order.lastName}`,
+          },
+          {
+            key: "Customer Email",
+            value: order.email,
+          },
+          {
+            key: "Payment Method",
+            value: "Check",
+          },
+          {
+            key: "Event",
+            value: location.event.name,
+          },
+          {
+            key: "Location",
+            value: location.name,
+          },
+          {
+            key: "Spots",
+            value:
+              order.eventQuantity.toString(),
+          },
+        ],
+
+        note: `
+Customer: ${order.firstName} ${order.lastName}
+Email: ${order.email}
+Event: ${location.event.name}
+Location: ${location.name}
+Spots: ${order.eventQuantity}
+Payment Method: Check
+`,
+      },
+    },
+  },
+);
+
+const json = await response.json();
+
+if (json.errors) {
+  throw new Error(
+    JSON.stringify(
+      json.errors,
+      null,
+      2,
+    ),
+  );
+}
+
+const result =
+  json.data?.draftOrderCreate;
+
+if (!result) {
+  throw new Error(
+    "Shopify returned no draft order result.",
+  );
+}
+
+if (result.userErrors?.length > 0) {
+  throw new Error(
+    result.userErrors
+      .map(
+        (error: any) =>
+          error.message,
+      )
+      .join(", "),
+  );
+}
+
+if (!result.draftOrder) {
+  throw new Error(
+    "Shopify did not create the draft order.",
+  );
+}
+
+console.log(
+  `✅ Event Shopify draft order created: ${result.draftOrder.name}`,
+);
+
+const reservation =
+  await prisma.eventReservation.create({
+    data: {
+      eventLocationId: location.id,
+
+      customerName:
+        `${order.firstName} ${order.lastName}`.trim(),
+
+      customerEmail: order.email,
+
+      quantity: order.eventQuantity,
+
+      paymentMethod: "CHECK",
+
+      status: "PENDING",
+
+      totalAmount: Number(
+        (
+          order.eventQuantity *
+          location.price
+        ).toFixed(2),
+      ),
+
+      shopifyOrderId:
+        result.draftOrder.id,
+
+      shopifyOrderNumber:
+        result.draftOrder.name,
+    },
+  });
+
+console.log(
+  `✅ Pending Event reservation created: ${reservation.id}`,
+);
+
+return {
+  success: true,
+  reservationId: reservation.id,
+  draftOrderId: result.draftOrder.id,
+  draftOrderName: result.draftOrder.name,
+  invoiceUrl: result.draftOrder.invoiceUrl,
+};
 }
