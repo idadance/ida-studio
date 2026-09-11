@@ -776,6 +776,26 @@ if (
   );
 }
 
+if (
+  !Array.isArray(order.eventAttendees) ||
+  order.eventAttendees.length !== order.eventQuantity
+) {
+  throw new Error(
+    "Please provide a dancer name and grade for each spot.",
+  );
+}
+
+for (const attendee of order.eventAttendees) {
+  if (
+    !attendee?.name?.trim() ||
+    !attendee?.grade?.trim()
+  ) {
+    throw new Error(
+      "Please provide a dancer name and grade for each spot.",
+    );
+  }
+}
+
 if (order.eventQuantity > remainingSpots) {
   throw new Error(
     `Only ${remainingSpots} spot${
@@ -871,6 +891,18 @@ const response = await admin.graphql(
             value:
               order.eventQuantity.toString(),
           },
+          ...order.eventAttendees.flatMap(
+  (attendee: any, index: number) => [
+    {
+      key: `Dancer ${index + 1}`,
+      value: attendee.name.trim(),
+    },
+    {
+      key: `Dancer ${index + 1} Grade`,
+      value: attendee.grade.trim(),
+    },
+  ],
+),
         ],
 
         note: `
@@ -879,6 +911,15 @@ Email: ${order.email}
 Event: ${location.event.name}
 Location: ${location.name}
 Spots: ${order.eventQuantity}
+
+Dancers:
+${order.eventAttendees
+  .map(
+    (attendee: any, index: number) =>
+      `${index + 1}. ${attendee.name.trim()} — ${attendee.grade.trim()}`,
+  )
+  .join("\n")}
+
 Payment Method: Check
 `,
       },
@@ -956,6 +997,15 @@ const reservation =
 
       shopifyOrderNumber:
         result.draftOrder.name,
+
+        attendees: {
+  create: order.eventAttendees.map(
+    (attendee: any) => ({
+      name: attendee.name.trim(),
+      grade: attendee.grade.trim(),
+    }),
+  ),
+},
     },
   });
 

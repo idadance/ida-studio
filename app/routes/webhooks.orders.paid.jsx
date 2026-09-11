@@ -575,6 +575,48 @@ const customerEmail =
   payload.email ??
   "";
 
+  const noteAttributes =
+  Array.isArray(payload.note_attributes)
+    ? payload.note_attributes
+    : [];
+
+const getOrderAttribute = (name) =>
+  noteAttributes.find(
+    (attribute) => attribute.name === name,
+  )?.value ?? "";
+
+const eventAttendees = [];
+
+for (let i = 1; i <= matchedEventItems[0].quantity; i++) {
+  const name =
+    getOrderAttribute(`Dancer ${i}`).trim();
+
+  const grade =
+    getOrderAttribute(
+      `Dancer ${i} Grade`,
+    ).trim();
+
+  if (name && grade) {
+    eventAttendees.push({
+      name,
+      grade,
+    });
+  }
+}
+
+if (
+  eventAttendees.length !==
+  matchedEventItems[0].quantity
+) {
+  console.error(
+    `❌ Event attendee mismatch for ${payload.name}: expected ${matchedEventItems[0].quantity}, received ${eventAttendees.length}`,
+  );
+
+  throw new Error(
+    "Paid Event order is missing dancer information.",
+  );
+}
+
 for (const item of matchedEventItems) {
   await prisma.eventReservation.create({
     data: {
@@ -595,6 +637,14 @@ for (const item of matchedEventItems) {
         payload.id.toString(),
       shopifyOrderNumber:
         payload.name,
+        attendees: {
+  create: eventAttendees.map(
+    (attendee) => ({
+      name: attendee.name,
+      grade: attendee.grade,
+    }),
+  ),
+},
     },
   });
 }

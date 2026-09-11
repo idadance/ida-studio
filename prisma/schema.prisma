@@ -437,13 +437,29 @@ model EventReservation {
 
   notes String? @db.Text
 
-  createdAt DateTime @default(now())
+attendees EventAttendee[]
+
+createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([eventLocationId])
   @@index([customerEmail])
   @@index([status])
   @@index([shopifyOrderId])
+}
+
+model EventAttendee {
+  id String @id @default(cuid())
+
+  reservationId String
+  reservation   EventReservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+
+  name  String
+  grade String
+
+  createdAt DateTime @default(now())
+
+  @@index([reservationId])
 }
 
 enum EventStatus {
