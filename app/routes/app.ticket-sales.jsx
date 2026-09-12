@@ -61,6 +61,11 @@ export const loader = async ({
       "performance",
     );
 
+    const requestedEventId =
+  url.searchParams.get(
+    "event",
+  );
+
     // ======================================
 // TEMPORARY JAMIE CHECK DEBUG
 // Read-only lookup of the ticket that
@@ -147,6 +152,23 @@ console.log(
       },
     });
 
+    const events =
+  await prisma.event.findMany({
+    where: {
+      status: "PUBLISHED",
+    },
+
+    select: {
+      id: true,
+      name: true,
+      date: true,
+    },
+
+    orderBy: {
+      date: "desc",
+    },
+  });
+
   // ======================================
   // SELECTED PERFORMANCE
   //
@@ -157,6 +179,16 @@ console.log(
   // performance.
   // ======================================
 
+
+  const selectedEventId =
+  requestedEventId &&
+  events.some(
+    (event) =>
+      event.id === requestedEventId,
+  )
+    ? requestedEventId
+    : null;
+
   const selectedPerformanceId =
     requestedPerformanceId &&
     performances.some(
@@ -164,22 +196,29 @@ console.log(
         performance.id ===
         requestedPerformanceId,
     )
-      ? requestedPerformanceId
-      : performances[0]?.id ??
-        null;
+            ? requestedPerformanceId
+      : selectedEventId
+        ? null
+        : performances[0]?.id ??
+          null;
 
   // ======================================
   // NO PUBLISHED PERFORMANCE
   // ======================================
 
-  if (!selectedPerformanceId) {
-    return {
+if (!selectedPerformanceId && !selectedEventId) {
+      return {
       account,
 
       performances,
 
+      events,
+
       selectedPerformanceId:
         null,
+
+        selectedEventId:
+  null,
 
       sales: {
         totalReservations: 0,
@@ -283,18 +322,22 @@ await expireExtraTicketOffers({
   ]);
 
   return {
-    account,
+  account,
 
-    performances,
+  performances,
 
-    selectedPerformanceId,
+  events,
 
-    sales,
+  selectedPerformanceId,
 
-    familyCoverage,
+  selectedEventId,
 
-    waitlist,
-  };
+  sales,
+
+  familyCoverage,
+
+  waitlist,
+};
 };
 
 export const action = async ({
@@ -607,14 +650,16 @@ export default function TicketSalesPage() {
     const [searchTerm, setSearchTerm] =
   useState("");
 
-  const {
-    account,
-    performances,
-    selectedPerformanceId,
-    sales,
-    familyCoverage,
-    waitlist,
-  } = useLoaderData();
+ const {
+  account,
+  performances,
+  events,
+  selectedPerformanceId,
+  selectedEventId,
+  sales,
+  familyCoverage,
+  waitlist,
+} = useLoaderData();
 
   const normalizedSearch =
   searchTerm
@@ -666,7 +711,7 @@ const [editingOrderId, setEditingOrderId] =
       : "Plymouth Meeting";
 
   return (
-    <s-page heading="Ticket Sales">
+<s-page heading="Ticket / Event Sales">
       <s-section>
         {actionData?.ok &&
   actionData?.intent ===
@@ -701,20 +746,46 @@ const [editingOrderId, setEditingOrderId] =
         fontWeight: "600",
       }}
     >
-      Performance
+      Performance / Event
     </div>
 
     <select
-      value={selectedPerformanceId ?? ""}
-      onChange={(event) => {
-  const performanceId =
+      value={
+  selectedEventId
+    ? `event:${selectedEventId}`
+    : selectedPerformanceId
+      ? `performance:${selectedPerformanceId}`
+      : ""
+}
+     onChange={(event) => {
+  const value =
     event.target.value;
 
-  navigate(
-    `?performance=${encodeURIComponent(
-      performanceId,
-    )}`,
-  );
+  if (value.startsWith("event:")) {
+    const eventId =
+      value.slice("event:".length);
+
+    navigate(
+      `?event=${encodeURIComponent(
+        eventId,
+      )}`,
+    );
+
+    return;
+  }
+
+  if (value.startsWith("performance:")) {
+    const performanceId =
+      value.slice(
+        "performance:".length,
+      );
+
+    navigate(
+      `?performance=${encodeURIComponent(
+        performanceId,
+      )}`,
+    );
+  }
 }}
       style={{
         width: "100%",
@@ -723,14 +794,31 @@ const [editingOrderId, setEditingOrderId] =
         boxSizing: "border-box",
       }}
     >
-      {performances.map((performance) => (
-        <option
-          key={performance.id}
-          value={performance.id}
-        >
-          {performance.name}
-        </option>
-      ))}
+      {performances.length > 0 && (
+  <optgroup label="PERFORMANCES">
+    {performances.map((performance) => (
+      <option
+        key={performance.id}
+        value={`performance:${performance.id}`}
+      >
+        {performance.name}
+      </option>
+    ))}
+  </optgroup>
+)}
+
+{events.length > 0 && (
+  <optgroup label="EVENTS">
+    {events.map((event) => (
+      <option
+        key={event.id}
+        value={`event:${event.id}`}
+      >
+        {event.name}
+      </option>
+    ))}
+  </optgroup>
+)}
     </select>
   </label>
 </div>
