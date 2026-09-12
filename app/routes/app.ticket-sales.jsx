@@ -256,6 +256,36 @@ if (!selectedPerformanceId && !selectedEventId) {
   // ======================================
 
 if (selectedEventId) {
+  const selectedEvent =
+  await prisma.event.findUnique({
+    where: {
+      id: selectedEventId,
+    },
+
+    include: {
+      locations: {
+        include: {
+          reservations: {
+            include: {
+              attendees: {
+                orderBy: {
+                  createdAt: "asc",
+                },
+              },
+            },
+
+            orderBy: {
+              createdAt: "desc",
+            },
+          },
+        },
+
+        orderBy: {
+          studioCode: "asc",
+        },
+      },
+    },
+  });
   return {
     account,
 
@@ -266,6 +296,8 @@ if (selectedEventId) {
     selectedPerformanceId: null,
 
     selectedEventId,
+
+    selectedEvent,
 
     sales: {
       totalReservations: 0,
@@ -699,6 +731,7 @@ export default function TicketSalesPage() {
   events,
   selectedPerformanceId,
   selectedEventId,
+  selectedEvent = null,
   sales,
   familyCoverage,
   waitlist,
@@ -752,6 +785,12 @@ const [editingOrderId, setEditingOrderId] =
     account === "FW"
       ? "Fort Washington"
       : "Plymouth Meeting";
+
+      const selectedEventLocation =
+  selectedEvent?.locations?.find(
+    (location) =>
+      location.studioCode === account,
+  ) ?? null;
 
   return (
 <s-page heading="Ticket / Event Sales">
@@ -865,23 +904,172 @@ const [editingOrderId, setEditingOrderId] =
     </select>
   </label>
 </div>
-          <h2
-            style={{
-              marginBottom: "6px",
-            }}
-          >
-            Performance Overview
-          </h2>
+          {!selectedEvent && (
+  <>
+    <h2
+      style={{
+        marginBottom: "6px",
+      }}
+    >
+      Performance Overview
+    </h2>
 
-          <p
+    <p
+      style={{
+        marginTop: 0,
+      }}
+    >
+      Ticket totals below include
+      Fort Washington and
+      Plymouth Meeting combined.
+    </p>
+  </>
+)}
+
+          {selectedEvent && (
+  <div
+    style={{
+      marginBottom: "28px",
+    }}
+  >
+    <h2
+      style={{
+        marginBottom: "6px",
+      }}
+    >
+      Event Registrations
+    </h2>
+
+    <p
+      style={{
+        marginTop: 0,
+      }}
+    >
+      {selectedEvent.name}
+    </p>
+    {selectedEventLocation && (
+  <div
+    style={{
+      marginTop: "20px",
+    }}
+  >
+    <h3>
+      {selectedEventLocation.name}
+    </h3>
+
+    <p>
+      <strong>
+        {selectedEventLocation.reservations.length}
+      </strong>{" "}
+      registration
+      {selectedEventLocation.reservations.length === 1
+        ? ""
+        : "s"}
+    </p>
+    {selectedEventLocation.reservations.length === 0 ? (
+  <p>No registrations yet.</p>
+) : (
+  <div
+    style={{
+      display: "grid",
+      gap: "12px",
+      marginTop: "16px",
+    }}
+  >
+    {selectedEventLocation.reservations.map(
+      (reservation) => (
+        <div
+          key={reservation.id}
+          style={{
+            border: "1px solid #ddd",
+            borderRadius: "12px",
+            padding: "16px",
+          }}
+        >
+          <strong
             style={{
-              marginTop: 0,
+              fontSize: "17px",
             }}
           >
-            Ticket totals below include
-            Fort Washington and
-            Plymouth Meeting combined.
-          </p>
+            {reservation.customerName}
+          </strong>
+
+          <div
+            style={{
+              marginTop: "4px",
+            }}
+          >
+            {reservation.customerEmail}
+          </div>
+<div
+  style={{
+    marginTop: "12px",
+    display: "flex",
+    gap: "18px",
+    flexWrap: "wrap",
+  }}
+>
+  <span>
+    <strong>Spots:</strong>{" "}
+    {reservation.quantity}
+  </span>
+
+  <span>
+    <strong>Payment:</strong>{" "}
+    {reservation.paymentMethod === "CHECK"
+      ? "Check"
+      : "Credit Card"}
+  </span>
+
+  <span>
+    <strong>Status:</strong>{" "}
+    {reservation.paymentMethod === "CHECK" &&
+    reservation.status === "PENDING"
+      ? "Waiting for Check"
+      : reservation.paymentMethod === "CHECK" &&
+          reservation.status === "CONFIRMED"
+        ? "Paid by Check"
+        : reservation.status === "CONFIRMED"
+          ? "Paid"
+          : reservation.status}
+  </span>
+
+  <span>
+    <strong>Total:</strong> $
+    {Number(reservation.totalAmount).toFixed(2)}
+  </span>
+</div>
+          <div
+            style={{
+              marginTop: "12px",
+            }}
+          >
+            {reservation.attendees.map(
+              (attendee) => (
+                <div
+                  key={attendee.id}
+                  style={{
+                    marginTop: "4px",
+                  }}
+                >
+                  <strong>
+                    {attendee.name}
+                  </strong>
+                  {" — "}
+                  {attendee.grade}
+                </div>
+              ),
+            )}
+          </div>
+        </div>
+      ),
+    )}
+  </div>
+)}
+  </div>
+)}
+  </div>
+)}
         </div>
 
         {sales.shows.length === 0 ? (
