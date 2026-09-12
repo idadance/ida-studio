@@ -255,6 +255,49 @@ if (!selectedPerformanceId && !selectedEventId) {
   // PERFORMANCE-SPECIFIC DATA
   // ======================================
 
+if (selectedEventId) {
+  return {
+    account,
+
+    performances,
+
+    events,
+
+    selectedPerformanceId: null,
+
+    selectedEventId,
+
+    sales: {
+      totalReservations: 0,
+      totalTickets: 0,
+      shows: [],
+      customers: [],
+    },
+
+    familyCoverage: {
+      totalFamilies: 0,
+      purchasedFamilies: 0,
+      missingFamilies: 0,
+      missingFW: 0,
+      missingPM: 0,
+      missingStudio: 0,
+      families: [],
+      purchased: [],
+      missing: [],
+      missingFWFamilies: [],
+      missingPMFamilies: [],
+      missingStudioFamilies: [],
+    },
+
+    waitlist: {
+      totalFamilies: 0,
+      totalTicketsRequested: 0,
+      shows: [],
+      entries: [],
+    },
+  };
+}
+
   const selectedPerformance =
     performances.find(
       (performance) =>
