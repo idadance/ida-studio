@@ -1169,469 +1169,216 @@ const [editingOrderId, setEditingOrderId] =
             marginBottom: "28px",
           }}
         >
-            <div
-  style={{
-    borderTop: "1px solid #ddd",
-    paddingTop: "24px",
-    marginTop: "28px",
-  }}
->
-  <h2>
-    Waiting List
-  </h2>
-
-  <p>
-    Customers waiting for tickets
-    across both studios.
-  </p>
-  <Form
-  method="post"
-  style={{
-    border: "1px solid #ddd",
-    borderRadius: "12px",
-    padding: "18px",
-    marginTop: "16px",
-    marginBottom: "20px",
-  }}
->
-  <input
-    type="hidden"
-    name="intent"
-    value="add-waitlist"
-  />
-
-  <h3
-    style={{
-      marginTop: 0,
-      marginBottom: "16px",
-    }}
-  >
-    Add to Waiting List
-  </h3>
-
+          {!selectedEvent && (
   <div
     style={{
-      display: "grid",
-      gridTemplateColumns:
-        "repeat(auto-fit, minmax(200px, 1fr))",
-      gap: "12px",
+      borderTop: "1px solid #ddd",
+      paddingTop: "24px",
+      marginTop: "28px",
     }}
   >
-    <label>
-      <div
-        style={{
-          marginBottom: "5px",
-          fontWeight: "600",
-        }}
-      >
-        Customer Name
-      </div>
+    <h2>Waiting List</h2>
 
-      <input
-        type="text"
-        name="customerName"
-        required
-        style={{
-          width: "100%",
-          padding: "10px",
-          boxSizing: "border-box",
-        }}
-      />
-    </label>
+    <p>
+      Customers waiting for tickets
+      across both studios.
+    </p>
 
-    <label>
-      <div
-        style={{
-          marginBottom: "5px",
-          fontWeight: "600",
-        }}
-      >
-        Email
-      </div>
-
-      <input
-        type="email"
-        name="customerEmail"
-        required
-        style={{
-          width: "100%",
-          padding: "10px",
-          boxSizing: "border-box",
-        }}
-      />
-    </label>
-
-    <label>
-      <div
-        style={{
-          marginBottom: "5px",
-          fontWeight: "600",
-        }}
-      >
-        Phone
-      </div>
-
-      <input
-        type="tel"
-        name="customerPhone"
-        style={{
-          width: "100%",
-          padding: "10px",
-          boxSizing: "border-box",
-        }}
-      />
-    </label>
-
-    <label>
-      <div
-        style={{
-          marginBottom: "5px",
-          fontWeight: "600",
-        }}
-      >
-        Show
-      </div>
-
-      <select
-        name="showId"
-        required
-        style={{
-          width: "100%",
-          padding: "10px",
-          boxSizing: "border-box",
-        }}
-      >
-        <option value="">
-          Select a show
-        </option>
-
-        {sales.shows.map(
-          (show) => (
-            <option
-              key={show.id}
-              value={show.id}
-            >
-              {show.name}
-              {" — "}
-              {show.remainingSeats === 0
-                ? "SOLD OUT"
-                : `${show.remainingSeats} seats remaining`}
-            </option>
-          ),
-        )}
-      </select>
-    </label>
-
-    <label>
-      <div
-        style={{
-          marginBottom: "5px",
-          fontWeight: "600",
-        }}
-      >
-        Tickets Requested
-      </div>
-
-      <input
-        type="number"
-        name="quantity"
-        min="1"
-        step="1"
-        required
-        style={{
-          width: "100%",
-          padding: "10px",
-          boxSizing: "border-box",
-        }}
-      />
-    </label>
-    <label>
-  <div
-    style={{
-      marginBottom: "5px",
-      fontWeight: "600",
-    }}
-  >
-    Request Received
-  </div>
-
-  <input
-    type="datetime-local"
-    name="requestedAt"
-    style={{
-      width: "100%",
-      padding: "10px",
-      boxSizing: "border-box",
-    }}
-  />
-
-  <div
-    style={{
-      marginTop: "5px",
-      fontSize: "12px",
-      opacity: 0.7,
-    }}
-  >
-    For emailed requests, enter when
-    the request was originally received.
-    Leave blank for a new request.
-  </div>
-</label>
-  </div>
-
-  <s-button
-  type="submit"
-  variant="primary"
-  disabled={
-    navigation.state ===
-      "submitting" &&
-    navigation.formData?.get(
-      "intent",
-    ) === "add-waitlist"
-  }
-  loading={
-    navigation.state ===
-      "submitting" &&
-    navigation.formData?.get(
-      "intent",
-    ) === "add-waitlist"
-  }
->
-  {navigation.state ===
-      "submitting" &&
-  navigation.formData?.get(
-    "intent",
-  ) === "add-waitlist"
-    ? "Adding..."
-    : "Add to Waiting List"}
-</s-button>
-
-  <div
-    style={{
-      marginTop: "10px",
-      fontSize: "13px",
-      opacity: 0.7,
-    }}
-  >
-    Adding someone here does not
-    reserve seats or charge the
-    customer.
-  </div>
-</Form>
-
-  <div
-    style={{
-      display: "grid",
-      gridTemplateColumns:
-        "repeat(auto-fit, minmax(180px, 1fr))",
-      gap: "12px",
-      marginTop: "16px",
-      marginBottom: "20px",
-    }}
-  >
-    <div
-      style={{
-        border: "1px solid #ddd",
-        borderRadius: "12px",
-        padding: "16px",
-      }}
-    >
-      <div>
-        Families Waiting
-      </div>
-
-      <strong
-        style={{
-          display: "block",
-          fontSize: "28px",
-          marginTop: "4px",
-        }}
-      >
-        {waitlist.totalFamilies}
-      </strong>
-    </div>
-
-    <div
-      style={{
-        border: "1px solid #ddd",
-        borderRadius: "12px",
-        padding: "16px",
-      }}
-    >
-      <div>
-        Tickets Requested
-      </div>
-
-      <strong
-        style={{
-          display: "block",
-          fontSize: "28px",
-          marginTop: "4px",
-        }}
-      >
-        {waitlist.totalTicketsRequested}
-      </strong>
-    </div>
-  </div>
-
-  {waitlist.entries.length === 0 ? (
-    <div
-      style={{
-        border: "1px solid #ddd",
-        borderRadius: "12px",
-        padding: "20px",
-        marginBottom: "28px",
-      }}
-    >
-      <strong>
-        No one is currently waiting
-        for tickets. 🎉
-      </strong>
-    </div>
-  ) : (
-    <div
-      style={{
-        display: "grid",
-        gap: "12px",
-        marginBottom: "28px",
-      }}
-    >
-      {waitlist.entries.map(
-        (entry) => (
-          <div
-            key={entry.id}
-            style={{
-              border: "1px solid #ddd",
-              borderRadius: "12px",
-              padding: "16px",
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                justifyContent:
-                  "space-between",
-                gap: "16px",
-                flexWrap: "wrap",
-              }}
-            >
-              <div>
-                <strong
-                  style={{
-                    fontSize: "17px",
-                  }}
-                >
-                  {entry.customerName}
-                </strong>
-
-                <div
-                  style={{
-                    marginTop: "4px",
-                  }}
-                >
-                  {entry.customerEmail}
-                </div>
-
-                {entry.customerPhone && (
-                  <div
-                    style={{
-                      marginTop: "4px",
-                    }}
-                  >
-                    {entry.customerPhone}
-                  </div>
-                )}
-
-                <div
-                  style={{
-                    marginTop: "8px",
-                  }}
-                >
-                  <strong>
-                    {entry.showName}
-                  </strong>
-                </div>
-
-                <div
-                  style={{
-                    marginTop: "4px",
-                  }}
-                >
-                  Studio:{" "}
-                  <strong>
-                    {entry.account}
-                  </strong>
-                </div>
-              </div>
-
-              <div
-                style={{
-                  textAlign: "right",
-                }}
-              >
-                <strong
-                  style={{
-                    fontSize: "28px",
-                  }}
-                >
-                  {entry.quantity}
-                </strong>
-
-                <div>
-                  Ticket
-                  {entry.quantity === 1
-                    ? ""
-                    : "s"}{" "}
-                  Requested
-                </div>
-
-                <div
-  style={{
-    marginTop: "8px",
-    fontWeight: "600",
-  }}
->
-  {entry.type === "EXTRA_TICKETS"
-    ? "Extra Ticket Request"
-    : entry.status === "OFFERED"
-      ? "Offer Sent"
-      : "Sold-Out Waitlist"}
-</div>
-
-{entry.requestedAt && (
-  <div
-    style={{
-      marginTop: "4px",
-      fontSize: "13px",
-      opacity: 0.7,
-    }}
-  >
-    Requested:{" "}
-    {new Date(
-      entry.requestedAt,
-    ).toLocaleString()}
-  </div>
-)}
-
-{entry.type === "EXTRA_TICKETS" &&
-  entry.status === "WAITING" && (
     <Form
       method="post"
       style={{
-        marginTop: "14px",
+        border: "1px solid #ddd",
+        borderRadius: "12px",
+        padding: "18px",
+        marginTop: "16px",
+        marginBottom: "20px",
       }}
     >
       <input
         type="hidden"
         name="intent"
-        value="approve-extra-tickets"
+        value="add-waitlist"
       />
 
-      <input
-        type="hidden"
-        name="requestId"
-        value={entry.id}
-      />
+      <h3
+        style={{
+          marginTop: 0,
+          marginBottom: "16px",
+        }}
+      >
+        Add to Waiting List
+      </h3>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns:
+            "repeat(auto-fit, minmax(200px, 1fr))",
+          gap: "12px",
+        }}
+      >
+        <label>
+          <div
+            style={{
+              marginBottom: "5px",
+              fontWeight: "600",
+            }}
+          >
+            Customer Name
+          </div>
+
+          <input
+            type="text"
+            name="customerName"
+            required
+            style={{
+              width: "100%",
+              padding: "10px",
+              boxSizing: "border-box",
+            }}
+          />
+        </label>
+
+        <label>
+          <div
+            style={{
+              marginBottom: "5px",
+              fontWeight: "600",
+            }}
+          >
+            Email
+          </div>
+
+          <input
+            type="email"
+            name="customerEmail"
+            required
+            style={{
+              width: "100%",
+              padding: "10px",
+              boxSizing: "border-box",
+            }}
+          />
+        </label>
+
+        <label>
+          <div
+            style={{
+              marginBottom: "5px",
+              fontWeight: "600",
+            }}
+          >
+            Phone
+          </div>
+
+          <input
+            type="tel"
+            name="customerPhone"
+            style={{
+              width: "100%",
+              padding: "10px",
+              boxSizing: "border-box",
+            }}
+          />
+        </label>
+
+        <label>
+          <div
+            style={{
+              marginBottom: "5px",
+              fontWeight: "600",
+            }}
+          >
+            Show
+          </div>
+
+          <select
+            name="showId"
+            required
+            style={{
+              width: "100%",
+              padding: "10px",
+              boxSizing: "border-box",
+            }}
+          >
+            <option value="">
+              Select a show
+            </option>
+
+            {sales.shows.map(
+              (show) => (
+                <option
+                  key={show.id}
+                  value={show.id}
+                >
+                  {show.name}
+                  {" — "}
+                  {show.remainingSeats === 0
+                    ? "SOLD OUT"
+                    : `${show.remainingSeats} seats remaining`}
+                </option>
+              ),
+            )}
+          </select>
+        </label>
+
+        <label>
+          <div
+            style={{
+              marginBottom: "5px",
+              fontWeight: "600",
+            }}
+          >
+            Tickets Requested
+          </div>
+
+          <input
+            type="number"
+            name="quantity"
+            min="1"
+            step="1"
+            required
+            style={{
+              width: "100%",
+              padding: "10px",
+              boxSizing: "border-box",
+            }}
+          />
+        </label>
+
+        <label>
+          <div
+            style={{
+              marginBottom: "5px",
+              fontWeight: "600",
+            }}
+          >
+            Request Received
+          </div>
+
+          <input
+            type="datetime-local"
+            name="requestedAt"
+            style={{
+              width: "100%",
+              padding: "10px",
+              boxSizing: "border-box",
+            }}
+          />
+
+          <div
+            style={{
+              marginTop: "5px",
+              fontSize: "12px",
+              opacity: 0.7,
+            }}
+          >
+            For emailed requests, enter when
+            the request was originally received.
+            Leave blank for a new request.
+          </div>
+        </label>
+      </div>
 
       <s-button
         type="submit"
@@ -1640,289 +1387,552 @@ const [editingOrderId, setEditingOrderId] =
           navigation.state ===
             "submitting" &&
           navigation.formData?.get(
-            "requestId",
-          ) === entry.id
+            "intent",
+          ) === "add-waitlist"
         }
         loading={
           navigation.state ===
             "submitting" &&
           navigation.formData?.get(
-            "requestId",
-          ) === entry.id
+            "intent",
+          ) === "add-waitlist"
         }
       >
         {navigation.state ===
             "submitting" &&
         navigation.formData?.get(
-          "requestId",
-        ) === entry.id
-          ? "Approving..."
-          : "Approve & Send Invoice"}
+          "intent",
+        ) === "add-waitlist"
+          ? "Adding..."
+          : "Add to Waiting List"}
       </s-button>
+
+      <div
+        style={{
+          marginTop: "10px",
+          fontSize: "13px",
+          opacity: 0.7,
+        }}
+      >
+        Adding someone here does not
+        reserve seats or charge the
+        customer.
+      </div>
     </Form>
-  )}
+
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns:
+          "repeat(auto-fit, minmax(180px, 1fr))",
+        gap: "12px",
+        marginTop: "16px",
+        marginBottom: "20px",
+      }}
+    >
+      <div
+        style={{
+          border: "1px solid #ddd",
+          borderRadius: "12px",
+          padding: "16px",
+        }}
+      >
+        <div>
+          Families Waiting
+        </div>
+
+        <strong
+          style={{
+            display: "block",
+            fontSize: "28px",
+            marginTop: "4px",
+          }}
+        >
+          {waitlist.totalFamilies}
+        </strong>
+      </div>
+
+      <div
+        style={{
+          border: "1px solid #ddd",
+          borderRadius: "12px",
+          padding: "16px",
+        }}
+      >
+        <div>
+          Tickets Requested
+        </div>
+
+        <strong
+          style={{
+            display: "block",
+            fontSize: "28px",
+            marginTop: "4px",
+          }}
+        >
+          {waitlist.totalTicketsRequested}
+        </strong>
+      </div>
+    </div>
+
+    {waitlist.entries.length === 0 ? (
+      <div
+        style={{
+          border: "1px solid #ddd",
+          borderRadius: "12px",
+          padding: "20px",
+          marginBottom: "28px",
+        }}
+      >
+        <strong>
+          No one is currently waiting
+          for tickets. 🎉
+        </strong>
+      </div>
+    ) : (
+      <div
+        style={{
+          display: "grid",
+          gap: "12px",
+          marginBottom: "28px",
+        }}
+      >
+        {waitlist.entries.map(
+          (entry) => (
+            <div
+              key={entry.id}
+              style={{
+                border: "1px solid #ddd",
+                borderRadius: "12px",
+                padding: "16px",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent:
+                    "space-between",
+                  gap: "16px",
+                  flexWrap: "wrap",
+                }}
+              >
+                <div>
+                  <strong
+                    style={{
+                      fontSize: "17px",
+                    }}
+                  >
+                    {entry.customerName}
+                  </strong>
+
+                  <div
+                    style={{
+                      marginTop: "4px",
+                    }}
+                  >
+                    {entry.customerEmail}
+                  </div>
+
+                  {entry.customerPhone && (
+                    <div
+                      style={{
+                        marginTop: "4px",
+                      }}
+                    >
+                      {entry.customerPhone}
+                    </div>
+                  )}
+
+                  <div
+                    style={{
+                      marginTop: "8px",
+                    }}
+                  >
+                    <strong>
+                      {entry.showName}
+                    </strong>
+                  </div>
+
+                  <div
+                    style={{
+                      marginTop: "4px",
+                    }}
+                  >
+                    Studio:{" "}
+                    <strong>
+                      {entry.account}
+                    </strong>
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    textAlign: "right",
+                  }}
+                >
+                  <strong
+                    style={{
+                      fontSize: "28px",
+                    }}
+                  >
+                    {entry.quantity}
+                  </strong>
+
+                  <div>
+                    Ticket
+                    {entry.quantity === 1
+                      ? ""
+                      : "s"}{" "}
+                    Requested
+                  </div>
+
+                  <div
+                    style={{
+                      marginTop: "8px",
+                      fontWeight: "600",
+                    }}
+                  >
+                    {entry.type ===
+                    "EXTRA_TICKETS"
+                      ? "Extra Ticket Request"
+                      : entry.status ===
+                          "OFFERED"
+                        ? "Offer Sent"
+                        : "Sold-Out Waitlist"}
+                  </div>
+
+                  {entry.requestedAt && (
+                    <div
+                      style={{
+                        marginTop: "4px",
+                        fontSize: "13px",
+                        opacity: 0.7,
+                      }}
+                    >
+                      Requested:{" "}
+                      {new Date(
+                        entry.requestedAt,
+                      ).toLocaleString()}
+                    </div>
+                  )}
+
+                  {entry.type ===
+                    "EXTRA_TICKETS" &&
+                    entry.status ===
+                      "WAITING" && (
+                      <Form
+                        method="post"
+                        style={{
+                          marginTop: "14px",
+                        }}
+                      >
+                        <input
+                          type="hidden"
+                          name="intent"
+                          value="approve-extra-tickets"
+                        />
+
+                        <input
+                          type="hidden"
+                          name="requestId"
+                          value={entry.id}
+                        />
+
+                        <s-button
+                          type="submit"
+                          variant="primary"
+                          disabled={
+                            navigation.state ===
+                              "submitting" &&
+                            navigation.formData?.get(
+                              "requestId",
+                            ) ===
+                              entry.id
+                          }
+                          loading={
+                            navigation.state ===
+                              "submitting" &&
+                            navigation.formData?.get(
+                              "requestId",
+                            ) ===
+                              entry.id
+                          }
+                        >
+                          {navigation.state ===
+                              "submitting" &&
+                          navigation.formData?.get(
+                            "requestId",
+                          ) ===
+                            entry.id
+                            ? "Approving..."
+                            : "Approve & Send Invoice"}
+                        </s-button>
+                      </Form>
+                    )}
+                </div>
               </div>
             </div>
-          </div>
-        ),
-      )}
-    </div>
-  )}
-</div>
-          <h2>
-  Family Ticket Coverage
-</h2>
-
-<p>
-  Compares the Performance
-  Intensive dancer roster
-  against ticket purchases
-  from both studios.
-</p>
-
-<div
-  style={{
-    display: "grid",
-    gridTemplateColumns:
-      "repeat(auto-fit, minmax(180px, 1fr))",
-    gap: "12px",
-    marginTop: "16px",
-  }}
->
-  <div
-    style={{
-      border: "1px solid #ddd",
-      borderRadius: "12px",
-      padding: "16px",
-    }}
-  >
-    <div>
-      Still Need Tickets
-    </div>
-
-    <strong
-      style={{
-        display: "block",
-        fontSize: "32px",
-        marginTop: "4px",
-      }}
-    >
-      {familyCoverage.missingFamilies}
-    </strong>
+          ),
+        )}
+      </div>
+    )}
   </div>
+)}
 
-  <div
-    style={{
-      border: "1px solid #ddd",
-      borderRadius: "12px",
-      padding: "16px",
-    }}
-  >
-    <div>
-      Fort Washington
+{!selectedEvent && (
+  <>
+    <h2>
+      Family Ticket Coverage
+    </h2>
+
+    <p>
+      Compares the Performance
+      Intensive dancer roster
+      against ticket purchases
+      from both studios.
+    </p>
+
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns:
+          "repeat(auto-fit, minmax(180px, 1fr))",
+        gap: "12px",
+        marginTop: "16px",
+      }}
+    >
+      <div
+        style={{
+          border: "1px solid #ddd",
+          borderRadius: "12px",
+          padding: "16px",
+        }}
+      >
+        <div>
+          Still Need Tickets
+        </div>
+
+        <strong
+          style={{
+            display: "block",
+            fontSize: "32px",
+            marginTop: "4px",
+          }}
+        >
+          {familyCoverage.missingFamilies}
+        </strong>
+      </div>
+
+      <div
+        style={{
+          border: "1px solid #ddd",
+          borderRadius: "12px",
+          padding: "16px",
+        }}
+      >
+        <div>
+          Fort Washington
+        </div>
+
+        <strong
+          style={{
+            display: "block",
+            fontSize: "28px",
+            marginTop: "4px",
+          }}
+        >
+          {familyCoverage.missingFW}
+        </strong>
+      </div>
+
+      <div
+        style={{
+          border: "1px solid #ddd",
+          borderRadius: "12px",
+          padding: "16px",
+        }}
+      >
+        <div>
+          Plymouth Meeting
+        </div>
+
+        <strong
+          style={{
+            display: "block",
+            fontSize: "28px",
+            marginTop: "4px",
+          }}
+        >
+          {familyCoverage.missingPM}
+        </strong>
+      </div>
+
+      <div
+        style={{
+          border: "1px solid #ddd",
+          borderRadius: "12px",
+          padding: "16px",
+        }}
+      >
+        <div>
+          Purchased
+        </div>
+
+        <strong
+          style={{
+            display: "block",
+            fontSize: "28px",
+            marginTop: "4px",
+          }}
+        >
+          {familyCoverage.purchasedFamilies}
+          {" / "}
+          {familyCoverage.totalFamilies}
+        </strong>
+      </div>
     </div>
 
-    <strong
+    <div
       style={{
-        display: "block",
-        fontSize: "28px",
-        marginTop: "4px",
+        display: "grid",
+        gridTemplateColumns:
+          "repeat(auto-fit, minmax(300px, 1fr))",
+        gap: "16px",
+        marginTop: "24px",
       }}
     >
-      {familyCoverage.missingFW}
-    </strong>
-  </div>
+      <div
+        style={{
+          border: "1px solid #ddd",
+          borderRadius: "12px",
+          padding: "18px",
+        }}
+      >
+        <h3
+          style={{
+            marginTop: 0,
+          }}
+        >
+          Fort Washington — Needs Tickets
+        </h3>
 
-  <div
-    style={{
-      border: "1px solid #ddd",
-      borderRadius: "12px",
-      padding: "16px",
-    }}
-  >
-    <div>
-      Plymouth Meeting
-    </div>
-
-    <strong
-      style={{
-        display: "block",
-        fontSize: "28px",
-        marginTop: "4px",
-      }}
-    >
-      {familyCoverage.missingPM}
-    </strong>
-  </div>
-
-  <div
-    style={{
-      border: "1px solid #ddd",
-      borderRadius: "12px",
-      padding: "16px",
-    }}
-  >
-    <div>
-      Purchased
-    </div>
-
-    <strong
-      style={{
-        display: "block",
-        fontSize: "28px",
-        marginTop: "4px",
-      }}
-    >
-      {familyCoverage.purchasedFamilies}
-      {" / "}
-      {familyCoverage.totalFamilies}
-    </strong>
-  </div>
-</div>
-
-<div
-  style={{
-    display: "grid",
-    gridTemplateColumns:
-      "repeat(auto-fit, minmax(300px, 1fr))",
-    gap: "16px",
-    marginTop: "24px",
-  }}
->
-  <div
-    style={{
-      border: "1px solid #ddd",
-      borderRadius: "12px",
-      padding: "18px",
-    }}
-  >
-    <h3
-      style={{
-        marginTop: 0,
-      }}
-    >
-      Fort Washington — Needs Tickets
-    </h3>
-
-    {familyCoverage.missingFWFamilies
-      ?.length === 0 ? (
-      <p>
-        Everyone has purchased
-        tickets. 🎉
-      </p>
-    ) : (
-      <div>
         {familyCoverage.missingFWFamilies
-          ?.map((family) => (
-            <div
-              key={family.key}
-              style={{
-                padding:
-                  "12px 0",
-                borderBottom:
-                  "1px solid #eee",
-              }}
-            >
-              <strong>
-                {family.familyName}
-              </strong>
-
-              <div
-                style={{
-                  marginTop:
-                    "3px",
-                }}
-              >
-                {family.dancerNames.join(
-                  ", ",
-                )}
-              </div>
-
-              {family.email && (
-                <div
-                  style={{
-                    marginTop:
-                      "3px",
-                  }}
-                >
-                  {family.email}
-                </div>
-              )}
-            </div>
-          ))}
-      </div>
-    )}
-  </div>
-
-  <div
-    style={{
-      border: "1px solid #ddd",
-      borderRadius: "12px",
-      padding: "18px",
-    }}
-  >
-    <h3
-      style={{
-        marginTop: 0,
-      }}
-    >
-      Plymouth Meeting — Needs Tickets
-    </h3>
-
-    {familyCoverage.missingPMFamilies
-      ?.length === 0 ? (
-      <p>
-        Everyone has purchased
-        tickets. 🎉
-      </p>
-    ) : (
-      <div>
-        {familyCoverage.missingPMFamilies
-          ?.map((family) => (
-            <div
-              key={family.key}
-              style={{
-                padding:
-                  "12px 0",
-                borderBottom:
-                  "1px solid #eee",
-              }}
-            >
-              <strong>
-                {family.familyName}
-              </strong>
-
-              <div
-                style={{
-                  marginTop:
-                    "3px",
-                }}
-              >
-                {family.dancerNames.join(
-                  ", ",
-                )}
-              </div>
-
-              {family.email && (
-                <div
-                  style={{
-                    marginTop:
-                      "3px",
-                  }}
-                >
-                  {family.email}
-                </div>
-              )}
-            </div>
-          ))}
-      </div>
-    )}
-  </div>
-</div>
-
+          ?.length === 0 ? (
           <p>
-  All purchases from both
-  studios are shown below.
+            Everyone has purchased
+            tickets. 🎉
+          </p>
+        ) : (
+          <div>
+            {familyCoverage.missingFWFamilies
+              ?.map((family) => (
+                <div
+                  key={family.key}
+                  style={{
+                    padding: "12px 0",
+                    borderBottom:
+                      "1px solid #eee",
+                  }}
+                >
+                  <strong>
+                    {family.familyName}
+                  </strong>
+
+                  <div
+                    style={{
+                      marginTop: "3px",
+                    }}
+                  >
+                    {family.dancerNames.join(
+                      ", ",
+                    )}
+                  </div>
+
+                  {family.email && (
+                    <div
+                      style={{
+                        marginTop: "3px",
+                      }}
+                    >
+                      {family.email}
+                    </div>
+                  )}
+                </div>
+              ))}
+          </div>
+        )}
+      </div>
+
+      <div
+        style={{
+          border: "1px solid #ddd",
+          borderRadius: "12px",
+          padding: "18px",
+        }}
+      >
+        <h3
+          style={{
+            marginTop: 0,
+          }}
+        >
+          Plymouth Meeting — Needs Tickets
+        </h3>
+
+        {familyCoverage.missingPMFamilies
+          ?.length === 0 ? (
+          <p>
+            Everyone has purchased
+            tickets. 🎉
+          </p>
+        ) : (
+          <div>
+            {familyCoverage.missingPMFamilies
+              ?.map((family) => (
+                <div
+                  key={family.key}
+                  style={{
+                    padding: "12px 0",
+                    borderBottom:
+                      "1px solid #eee",
+                  }}
+                >
+                  <strong>
+                    {family.familyName}
+                  </strong>
+
+                  <div
+                    style={{
+                      marginTop: "3px",
+                    }}
+                  >
+                    {family.dancerNames.join(
+                      ", ",
+                    )}
+                  </div>
+
+                  {family.email && (
+                    <div
+                      style={{
+                        marginTop: "3px",
+                      }}
+                    >
+                      {family.email}
+                    </div>
+                  )}
+                </div>
+              ))}
+          </div>
+        )}
+      </div>
+    </div>
+  </>
+)}
+
+{!selectedEvent && (
+  <>
+    <p>
+      All purchases from both
+      studios are shown below.
   Orders belonging to{" "}
   <strong>
     {currentStudioName}
@@ -1981,183 +1991,150 @@ const [editingOrderId, setEditingOrderId] =
     }}
   >
     {filteredCustomers.map(
+      (customer) => {
+        const customerStudio =
+          customer.account === "FW"
+            ? "Fort Washington"
+            : "Plymouth Meeting";
 
-              
-                (customer) => {
-                  const customerStudio =
-                    customer.account ===
-                    "FW"
-                      ? "Fort Washington"
-                      : "Plymouth Meeting";
+        const belongsToCurrentStudio =
+          customer.account === account;
 
-                  const belongsToCurrentStudio =
-                    customer.account ===
-                    account;
+        return (
+          <div
+            key={customer.id}
+            style={{
+              border: "1px solid #ddd",
+              borderRadius: "12px",
+              padding: "16px",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent:
+                  "space-between",
+                gap: "16px",
+                flexWrap: "wrap",
+              }}
+            >
+              <div>
+                <strong
+                  style={{
+                    fontSize: "17px",
+                  }}
+                >
+                  {customer.customerName}
+                </strong>
 
-                  return (
-                    <div
-                      key={customer.id}
-                      style={{
-                        border:
-                          "1px solid #ddd",
-                        borderRadius:
-                          "12px",
-                        padding:
-                          "16px",
-                      }}
-                    >
-                      <div
-                        style={{
-                          display:
-                            "flex",
-                          justifyContent:
-                            "space-between",
-                          gap: "16px",
-                          flexWrap:
-                            "wrap",
-                        }}
-                      >
-                        <div>
-                          <strong
-                            style={{
-                              fontSize:
-                                "17px",
-                            }}
-                          >
-                            {
-                              customer.customerName
-                            }
-                          </strong>
+                <div
+                  style={{
+                    marginTop: "4px",
+                  }}
+                >
+                  {customer.customerEmail}
+                </div>
 
-                          <div
-                            style={{
-                              marginTop:
-                                "4px",
-                            }}
-                          >
-                            {
-                              customer.customerEmail
-                            }
-                          </div>
+                <div
+                  style={{
+                    marginTop: "6px",
+                  }}
+                >
+                  Studio:{" "}
+                  <strong>
+                    {customerStudio}
+                  </strong>
+                </div>
+              </div>
 
-                          <div
-                            style={{
-                              marginTop:
-                                "6px",
-                            }}
-                          >
-                            Studio:{" "}
-                            <strong>
-                              {
-                                customerStudio
-                              }
-                            </strong>
-                          </div>
-                        </div>
+              <div
+                style={{
+                  textAlign: "right",
+                }}
+              >
+                <strong
+                  style={{
+                    fontSize: "24px",
+                  }}
+                >
+                  {customer.totalTickets}
+                </strong>
 
-                        <div
-                          style={{
-                            textAlign:
-                              "right",
-                          }}
-                        >
-                          <strong
-                            style={{
-                              fontSize:
-                                "24px",
-                            }}
-                          >
-                            {
-                              customer.totalTickets
-                            }
-                          </strong>
+                <div>
+                  Total Ticket
+                  {customer.totalTickets === 1
+                    ? ""
+                    : "s"}
+                </div>
+              </div>
+            </div>
 
-                          <div>
-                            Total Ticket
-                            {customer.totalTickets ===
-                            1
-                              ? ""
-                              : "s"}
-                          </div>
-                        </div>
-                      </div>
+            <div
+              style={{
+                marginTop: "14px",
+                paddingTop: "12px",
+                borderTop:
+                  "1px solid #eee",
+              }}
+            >
+              {customer.shows.map(
+                (show) => (
+                  <div
+                    key={show.showId}
+                    style={{
+                      display: "flex",
+                      justifyContent:
+                        "space-between",
+                      gap: "12px",
+                      marginBottom: "6px",
+                    }}
+                  >
+                    <span>
+                      {show.showName}
+                    </span>
 
-                      <div
-                        style={{
-                          marginTop:
-                            "14px",
-                          paddingTop:
-                            "12px",
-                          borderTop:
-                            "1px solid #eee",
-                        }}
-                      >
-                        {customer.shows.map(
-                          (show) => (
-                            <div
-                              key={
-                                show.showId
-                              }
-                              style={{
-                                display:
-                                  "flex",
-                                justifyContent:
-                                  "space-between",
-                                gap:
-                                  "12px",
-                                marginBottom:
-                                  "6px",
-                              }}
-                            >
-                              <span>
-                                {
-                                  show.showName
-                                }
-                              </span>
+                    <strong>
+                      {show.quantity}
+                    </strong>
+                  </div>
+                ),
+              )}
+            </div>
 
-                              <strong>
-                                {
-                                  show.quantity
-                                }
-                              </strong>
-                            </div>
-                          ),
-                        )}
-                      </div>
+            <div
+              style={{
+                marginTop: "10px",
+              }}
+            >
+              Payment:{" "}
+              <strong>
+                {customer.paymentMethod ===
+                "CREDIT_CARD"
+                  ? "Credit Card"
+                  : "Check"}
+              </strong>
+            </div>
 
-                      <div
-                        style={{
-                          marginTop:
-                            "10px",
-                        }}
-                      >
-                        Payment:{" "}
-                        <strong>
-                          {customer.paymentMethod ===
-                          "CREDIT_CARD"
-                            ? "Credit Card"
-                            : "Check"}
-                        </strong>
-                      </div>
+            {belongsToCurrentStudio && (
+              <div
+                style={{
+                  marginTop: "16px",
+                  paddingTop: "14px",
+                  borderTop:
+                    "1px solid #eee",
+                  display: "flex",
+                  justifyContent:
+                    "space-between",
+                  alignItems: "center",
+                  gap: "12px",
+                  flexWrap: "wrap",
+                }}
+              >
+                <small>
+  ✓ Managed by this studio
+</small>
 
-                      {belongsToCurrentStudio && (
-  <div
-    style={{
-      marginTop: "16px",
-      paddingTop: "14px",
-      borderTop: "1px solid #eee",
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "center",
-      gap: "12px",
-      flexWrap: "wrap",
-    }}
-  >
-    <small>
-      ✓ Managed by this studio
-    </small>
-
-    <button
+<button
   type="button"
   onClick={() =>
     setEditingOrderId(
@@ -2174,7 +2151,7 @@ const [editingOrderId, setEditingOrderId] =
 >
   Edit Order
 </button>
-  </div>
+</div>
 )}
 
 {belongsToCurrentStudio &&
@@ -2322,6 +2299,8 @@ const [editingOrderId, setEditingOrderId] =
 },
 )}
 </div>
+)}
+  </>
 )}
 </div>
 </s-section>
