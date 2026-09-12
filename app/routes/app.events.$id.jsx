@@ -545,6 +545,37 @@ export default function ManageEventPage() {
                         Spots: {reservation.quantity}
                       </div>
 
+                      {reservation.attendees?.length > 0 && (
+  <div
+    style={{
+      marginTop: "10px",
+      padding: "10px 12px",
+      background: "#f6f6f6",
+      borderRadius: "8px",
+    }}
+  >
+    <strong>
+      {reservation.attendees.length === 1
+        ? "Dancer"
+        : "Dancers"}
+    </strong>
+
+    {reservation.attendees.map((attendee, index) => (
+      <div
+        key={attendee.id}
+        style={{
+          marginTop: "4px",
+        }}
+      >
+        {reservation.attendees.length > 1
+          ? `${index + 1}. `
+          : ""}
+        {attendee.name} — {attendee.grade}
+      </div>
+    ))}
+  </div>
+)}
+
                       <div>
                         Payment:{" "}
                         {reservation.paymentMethod ===

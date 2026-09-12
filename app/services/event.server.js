@@ -27,10 +27,17 @@ export async function getEvent(id) {
       locations: {
         include: {
           reservations: {
-            orderBy: {
-              createdAt: "desc",
-            },
-          },
+  include: {
+    attendees: {
+      orderBy: {
+        createdAt: "asc",
+      },
+    },
+  },
+  orderBy: {
+    createdAt: "desc",
+  },
+},
         },
         orderBy: {
           studioCode: "asc",
