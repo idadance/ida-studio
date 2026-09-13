@@ -22,6 +22,14 @@ export const loader = async ({ request }) => {
 export default function EventsPage() {
   const { events } = useLoaderData();
 
+    const activeEvents = events.filter(
+    (event) => event.status !== "ARCHIVED",
+  );
+
+  const archivedEvents = events.filter(
+    (event) => event.status === "ARCHIVED",
+  );
+
   return (
     <s-page heading="Events">
       <div
@@ -37,7 +45,7 @@ export default function EventsPage() {
       </div>
 
       <s-section>
-        {events.length === 0 ? (
+        {activeEvents.length === 0 ? (
           <div
             style={{
               textAlign: "center",
@@ -71,7 +79,7 @@ export default function EventsPage() {
               gap: "16px",
             }}
           >
-            {events.map((event) => (
+            {activeEvents.map((event) => (
               <div
                 key={event.id}
                 style={{
@@ -206,6 +214,48 @@ export default function EventsPage() {
           </div>
         )}
             </s-section>
+                  {archivedEvents.length > 0 && (
+        <s-section heading="Archived Events">
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: "12px",
+            }}
+          >
+            {archivedEvents.map((event) => (
+              <div
+                key={event.id}
+                style={{
+                  border: "1px solid #ddd",
+                  borderRadius: "10px",
+                  padding: "16px",
+                  background: "#f6f6f7",
+                }}
+              >
+                <h3
+                  style={{
+                    marginTop: 0,
+                    marginBottom: "8px",
+                  }}
+                >
+                  🎟️ {event.name}
+                </h3>
+
+                <p style={{ margin: 0 }}>
+                  Status: ARCHIVED
+                </p>
+
+                <div style={{ marginTop: "12px" }}>
+                  <s-link href={`/app/events/${event.id}`}>
+                    Manage Archived Event
+                  </s-link>
+                </div>
+              </div>
+            ))}
+          </div>
+        </s-section>
+      )}
     </s-page>
   );
 }
