@@ -92,6 +92,12 @@ export const action = async ({ request, params }) => {
     });
   }
 
+  if (intent === "archive") {
+  await updateEvent(params.id, {
+    status: "ARCHIVED",
+  });
+}
+
   return { success: true };
 };
 
@@ -153,6 +159,34 @@ export default function ManageEventPage() {
                     : "Publish Event"}
               </button>
             </Form>
+            {event.status !== "ARCHIVED" && (
+  <Form
+    method="post"
+    onSubmit={(event) => {
+      const confirmed = window.confirm(
+        "Archive this event? It will be removed from the active Events list, but its reservations and history will be kept.",
+      );
+
+      if (!confirmed) {
+        event.preventDefault();
+      }
+    }}
+    style={{ marginTop: "10px" }}
+  >
+    <input
+      type="hidden"
+      name="intent"
+      value="archive"
+    />
+
+    <button
+      type="submit"
+      disabled={isSubmitting}
+    >
+      Archive Event
+    </button>
+  </Form>
+)}
           </div>
 
           <div>
