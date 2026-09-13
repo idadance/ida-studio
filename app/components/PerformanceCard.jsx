@@ -67,6 +67,35 @@ export default function PerformanceCard({
               Edit Performance
             </button>
 
+<Form
+  method="post"
+  onSubmit={(event) => {
+    const confirmed = window.confirm(
+      `Archive "${performance.name}"? It will be removed from the active performance list, but all shows and ticket history will be kept.`,
+    );
+
+    if (!confirmed) {
+      event.preventDefault();
+    }
+  }}
+>
+  <input
+    type="hidden"
+    name="_action"
+    value="archivePerformance"
+  />
+
+  <input
+    type="hidden"
+    name="performanceId"
+    value={performance.id}
+  />
+
+  <button type="submit">
+    Archive Performance
+  </button>
+</Form>
+
             <Form
               method="post"
               onSubmit={(event) => {

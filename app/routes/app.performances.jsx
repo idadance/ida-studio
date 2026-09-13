@@ -147,6 +147,27 @@ status: validStatuses.includes(status)
     return redirect("/app/performances");
   }
 
+if (actionType === "archivePerformance") {
+  const performanceId = String(
+    formData.get("performanceId") || "",
+  ).trim();
+
+  if (!performanceId) {
+    return null;
+  }
+
+  await prisma.performance.update({
+    where: {
+      id: performanceId,
+    },
+    data: {
+      status: "ARCHIVED",
+    },
+  });
+
+  return redirect("/app/performances");
+}
+
   if (actionType === "deletePerformance") {
     const performanceId = String(
       formData.get("performanceId") || "",
@@ -487,6 +508,14 @@ export default function Performances() {
   studios,
 } = useLoaderData();
 
+const activePerformances = performances.filter(
+  (performance) => performance.status !== "ARCHIVED",
+);
+
+const archivedPerformances = performances.filter(
+  (performance) => performance.status === "ARCHIVED",
+);
+
   const [expandedId, setExpandedId] = useState(null);
   const [editingPerformanceId, setEditingPerformanceId] =
     useState(null);
@@ -592,8 +621,8 @@ export default function Performances() {
 </s-section>
 
       <s-section heading="Your Performances">
-        {performances.length === 0 ? (
-          <s-paragraph>No performances yet.</s-paragraph>
+{activePerformances.length === 0 ? (
+            <s-paragraph>No performances yet.</s-paragraph>
         ) : (
           <div
             style={{
@@ -602,7 +631,7 @@ export default function Performances() {
               gap: "16px",
             }}
           >
-            {performances.map((performance) => {
+            {activePerformances.map((performance) => {
               const isExpanded = expandedId === performance.id;
               const isEditingPerformance =
                 editingPerformanceId === performance.id;
@@ -1343,7 +1372,45 @@ soldOut={soldOut}
             })}
           </div>
         )}
-      </s-section>
-    </s-page>
+            </s-section>
+
+      {archivedPerformances.length > 0 && (
+        <s-section heading="Archived Performances">
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: "12px",
+            }}
+          >
+            {archivedPerformances.map((performance) => (
+              <div
+                key={performance.id}
+                style={{
+                  border: "1px solid #ddd",
+                  borderRadius: "10px",
+                  padding: "16px",
+                  background: "#f6f6f7",
+                }}
+              >
+                <h3
+                  style={{
+                    marginTop: 0,
+                    marginBottom: "8px",
+                  }}
+                >
+                  🎭 {performance.name}
+                </h3>
+
+                <p style={{ margin: 0 }}>
+                  Status: ARCHIVED
+                </p>
+              </div>
+            ))}
+          </div>
+        </s-section>
+      )}
+
+    </s-page>
   );
 }
