@@ -40,7 +40,7 @@ export default function App() {
 </s-link>
 
 <s-link href="/app/ticket-sales">
-  Ticket Sales
+  Ticket / Event Sales
 </s-link>
 
   <s-link href="/app/rehearsals">
