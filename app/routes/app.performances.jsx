@@ -168,6 +168,27 @@ if (actionType === "archivePerformance") {
   return redirect("/app/performances");
 }
 
+if (actionType === "restorePerformance") {
+  const performanceId = String(
+    formData.get("performanceId") || "",
+  ).trim();
+
+  if (!performanceId) {
+    return null;
+  }
+
+  await prisma.performance.update({
+    where: {
+      id: performanceId,
+    },
+    data: {
+      status: "DRAFT",
+    },
+  });
+
+  return redirect("/app/performances");
+}
+
   if (actionType === "deletePerformance") {
     const performanceId = String(
       formData.get("performanceId") || "",
@@ -1405,6 +1426,23 @@ soldOut={soldOut}
                 <p style={{ margin: 0 }}>
                   Status: ARCHIVED
                 </p>
+                <Form method="post" style={{ marginTop: "12px" }}>
+  <input
+    type="hidden"
+    name="_action"
+    value="restorePerformance"
+  />
+
+  <input
+    type="hidden"
+    name="performanceId"
+    value={performance.id}
+  />
+
+  <button type="submit">
+    Restore Performance
+  </button>
+</Form>
               </div>
             ))}
           </div>
