@@ -737,6 +737,78 @@ export default function TicketSalesPage() {
   waitlist,
 } = useLoaderData();
 
+const exportEventAttendees = () => {
+  if (!selectedEvent) return;
+
+  const location = selectedEvent.locations?.find(
+    (location) => location.studioCode === account,
+  );
+
+  if (!location) return;
+
+  const rows = [
+    [
+      "Dancer",
+      "Grade",
+      "Parent",
+      "Email",
+      "Payment Method",
+      "Payment Status",
+    ],
+  ];
+
+  for (const reservation of location.reservations ?? []) {
+    let paymentMethod = "Credit Card";
+    let paymentStatus = "Paid";
+
+    if (reservation.paymentMethod === "CHECK") {
+      paymentMethod = "Check";
+      paymentStatus =
+        reservation.status === "CONFIRMED"
+          ? "Paid by Check"
+          : "Waiting for Check";
+    }
+
+    for (const attendee of reservation.attendees ?? []) {
+      rows.push([
+        attendee.name,
+        attendee.grade,
+        reservation.customerName,
+        reservation.customerEmail,
+        paymentMethod,
+        paymentStatus,
+      ]);
+    }
+  }
+
+  const csv = rows
+    .map((row) =>
+      row
+        .map((value) => {
+          const text = String(value ?? "").replace(/"/g, '""');
+          return `"${text}"`;
+        })
+        .join(","),
+    )
+    .join("\n");
+
+  const blob = new Blob([csv], {
+    type: "text/csv;charset=utf-8;",
+  });
+
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.href = url;
+  link.download = `${selectedEvent.name}-${account}-attendees.csv`;
+
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+
+  URL.revokeObjectURL(url);
+};
+
   const normalizedSearch =
   searchTerm
     .trim()
@@ -932,20 +1004,42 @@ const [editingOrderId, setEditingOrderId] =
       marginBottom: "28px",
     }}
   >
-    <h2
-      style={{
-        marginBottom: "6px",
-      }}
-    >
-      Event Registrations
-    </h2>
+    <div
+  style={{
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: "16px",
+    flexWrap: "wrap",
+  }}
+>
+  <h2
+    style={{
+      marginBottom: "6px",
+    }}
+  >
+    Event Registrations
+  </h2>
 
-    <p
-      style={{
-        marginTop: 0,
-      }}
-    >
-      {selectedEvent.name}
+  <button
+    type="button"
+    onClick={exportEventAttendees}
+    style={{
+      padding: "9px 16px",
+      fontWeight: "600",
+      cursor: "pointer",
+    }}
+  >
+    Export Attendee List
+  </button>
+</div>
+
+<p
+  style={{
+    marginTop: 0,
+  }}
+>
+  {selectedEvent.name}
     </p>
     {selectedEventLocation && (
   <div
