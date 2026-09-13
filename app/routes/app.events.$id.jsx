@@ -98,6 +98,43 @@ export const action = async ({ request, params }) => {
   });
 }
 
+if (intent === "delete") {
+  const event = await getEvent(params.id);
+
+  if (!event) {
+    throw new Response("Event not found", {
+      status: 404,
+    });
+  }
+
+  if (event.status !== "ARCHIVED") {
+    throw new Response(
+      "Event must be archived before it can be deleted.",
+      {
+        status: 400,
+      },
+    );
+  }
+
+  // Delete the Event.
+  // Event locations, reservations, and attendees cascade-delete
+  // through the Prisma relationships.
+  const { prisma } = await import("../db.server");
+
+  await prisma.event.delete({
+    where: {
+      id: params.id,
+    },
+  });
+
+  return new Response(null, {
+    status: 302,
+    headers: {
+      Location: "/app/events",
+    },
+  });
+}
+
   return { success: true };
 };
 
@@ -184,6 +221,39 @@ export default function ManageEventPage() {
       disabled={isSubmitting}
     >
       Archive Event
+    </button>
+  </Form>
+)}
+
+{event.status === "ARCHIVED" && (
+  <Form
+    method="post"
+    onSubmit={(event) => {
+      const confirmed = window.confirm(
+        `PERMANENTLY delete "${event.currentTarget.dataset.eventName}"? This will delete the event and all of its associated reservations and attendee records. This cannot be undone.`,
+      );
+
+      if (!confirmed) {
+        event.preventDefault();
+      }
+    }}
+    data-event-name={event.name}
+    style={{ marginTop: "10px" }}
+  >
+    <input
+      type="hidden"
+      name="intent"
+      value="delete"
+    />
+
+    <button
+      type="submit"
+      disabled={isSubmitting}
+      style={{
+        color: "#b42318",
+      }}
+    >
+      Permanently Delete Event
     </button>
   </Form>
 )}
