@@ -221,10 +221,14 @@ function Extension() {
 
     // Only one option: add it immediately.
     if (productVariants.length === 1) {
-      await shopify.cart.addLineItem(
-        productVariants[0].id,
-        1,
-      );
+      const variantId = Number(
+  productVariants[0].id.split("/").pop(),
+);
+
+await shopify.cart.addLineItem(
+  variantId,
+  1,
+);
 
       setSearchMode(false);
       setSearchResults([]);

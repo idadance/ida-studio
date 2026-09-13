@@ -1068,19 +1068,21 @@ const [editingOrderId, setEditingOrderId] =
 )}
   </div>
 )}
-  </div>
+ </div>
 )}
-        </div>
+</div>
 
-        {sales.shows.length === 0 ? (
-          <p>
-            No ticket sales yet.
-          </p>
-        ) : (
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns:
+{!selectedEvent && (
+  <>
+    {sales.shows.length === 0 ? (
+      <p>
+        No ticket sales yet.
+      </p>
+    ) : (
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns:
                 "repeat(auto-fit, minmax(220px, 1fr))",
               gap: "12px",
               marginBottom: "32px",
@@ -1143,33 +1145,24 @@ const [editingOrderId, setEditingOrderId] =
                   </div>
 
                   <div
-                    style={{
-                      marginTop:
-                        "8px",
-                    }}
-                  >
-                    <strong>
-                      {
-                        show.remainingSeats
-                      }
-                    </strong>{" "}
-                    seats remaining
-                  </div>
-                </div>
-              ),
-            )}
-          </div>
-        )}
+  style={{
+    marginTop: "8px",
+  }}
+>
+  <strong>
+    {show.remainingSeats}
+  </strong>{" "}
+  seats remaining
+</div>
+</div>
+),
+)}
+</div>
+)}
+  </>
+)}
 
-                <div
-          style={{
-            borderTop: "1px solid #ddd",
-            paddingTop: "24px",
-            marginTop: "8px",
-            marginBottom: "28px",
-          }}
-        >
-          {!selectedEvent && (
+{!selectedEvent && (
   <div
     style={{
       borderTop: "1px solid #ddd",
@@ -1183,7 +1176,6 @@ const [editingOrderId, setEditingOrderId] =
       Customers waiting for tickets
       across both studios.
     </p>
-
     <Form
       method="post"
       style={{
@@ -2302,7 +2294,6 @@ const [editingOrderId, setEditingOrderId] =
 )}
   </>
 )}
-</div>
 </s-section>
 </s-page>
 );
