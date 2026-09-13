@@ -119,7 +119,7 @@ if (intent === "delete") {
   // Delete the Event.
   // Event locations, reservations, and attendees cascade-delete
   // through the Prisma relationships.
-  const { prisma } = await import("../db.server");
+  const { default: prisma } = await import("../db.server");
 
   await prisma.event.delete({
     where: {
