@@ -364,3 +364,160 @@ console.log(
       result.draftOrder.order?.name,
   };
 }
+
+export async function receiveEventCheck({
+  reservationId,
+  admin,
+  account,
+}) {
+  if (
+    account !== "FW" &&
+    account !== "PM"
+  ) {
+    throw new Error(
+      "Invalid studio account.",
+    );
+  }
+
+  const reservation =
+    await prisma.eventReservation.findUnique({
+      where: {
+        id: reservationId,
+      },
+
+      include: {
+        eventLocation: {
+          include: {
+            event: true,
+          },
+        },
+
+        attendees: true,
+      },
+    });
+
+  if (!reservation) {
+    throw new Error(
+      "Event reservation not found.",
+    );
+  }
+
+  if (
+    reservation.eventLocation
+      .studioCode !== account
+  ) {
+    throw new Error(
+      `This event reservation belongs to ${reservation.eventLocation.studioCode} and cannot be received from the ${account} dashboard.`,
+    );
+  }
+
+  if (
+    reservation.paymentMethod !==
+    "CHECK"
+  ) {
+    throw new Error(
+      "This event reservation is not a check payment.",
+    );
+  }
+
+  if (
+    reservation.status !==
+    "PENDING"
+  ) {
+    throw new Error(
+      "This event reservation is already paid or is no longer active.",
+    );
+  }
+
+  if (!reservation.shopifyOrderId) {
+    throw new Error(
+      "Shopify Draft Order ID was not found.",
+    );
+  }
+
+  const response =
+  await admin.graphql(
+    `#graphql
+      mutation DraftOrderComplete($id: ID!) {
+        draftOrderComplete(id: $id) {
+          draftOrder {
+            id
+            name
+            status
+            order {
+              id
+              name
+              displayFinancialStatus
+            }
+          }
+          userErrors {
+            field
+            message
+          }
+        }
+      }
+    `,
+    {
+      variables: {
+        id:
+          reservation.shopifyOrderId,
+      },
+    },
+  );
+
+const json =
+  await response.json();
+
+if (json.errors) {
+  throw new Error(
+    JSON.stringify(
+      json.errors,
+      null,
+      2,
+    ),
+  );
+}
+
+const result =
+  json.data?.draftOrderComplete;
+
+if (!result) {
+  throw new Error(
+    "Shopify returned no draft order completion result.",
+  );
+}
+
+if (
+  result.userErrors?.length > 0
+) {
+  throw new Error(
+    result.userErrors
+      .map(
+        (error) =>
+          error.message,
+      )
+      .join(", "),
+  );
+}
+
+const receivedAt =
+  new Date();
+
+await prisma.eventReservation.update({
+  where: {
+    id: reservation.id,
+  },
+
+  data: {
+    status: "CONFIRMED",
+    checkReceivedAt:
+      receivedAt,
+  },
+});
+
+  return {
+    success: true,
+    reservationId:
+      reservation.id,
+  };
+}

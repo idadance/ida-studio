@@ -162,6 +162,11 @@ selectedEventId,
 export const action = async ({
   request,
 }) => {
+  const { receiveEventCheck } =
+    await import(
+      "../services/queue.server"
+    );
+
   const { admin, session } =
     await authenticate.admin(request);
 
@@ -182,6 +187,39 @@ export const action = async ({
     formData.get(
       "showId",
     );
+
+    const reservationType =
+  formData.get(
+    "reservationType",
+  );
+
+  if (
+  reservationType === "event"
+) {
+  if (!reservationId) {
+    throw new Response(
+      "Event reservation ID is required.",
+      {
+        status: 400,
+      },
+    );
+  }
+
+  await receiveEventCheck({
+    reservationId:
+      String(reservationId),
+
+    admin,
+
+    account,
+  });
+
+  return redirect(
+    `/app/queue?event=${String(
+      formData.get("eventId"),
+    )}`,
+  );
+}
 
   if (
     !reservationId ||
@@ -556,6 +594,49 @@ const filteredWaiting =
                 )}
               </div>
             )}
+            <Form method="post">
+  <input
+    type="hidden"
+    name="reservationId"
+    value={reservation.id}
+  />
+
+  <input
+    type="hidden"
+    name="reservationType"
+    value="event"
+  />
+
+  <input
+    type="hidden"
+    name="eventId"
+    value={selectedEventId}
+  />
+
+  <s-button
+  type="submit"
+  variant="primary"
+  disabled={
+    navigation.state ===
+      "submitting" &&
+    submittingReservationId ===
+      reservation.id
+  }
+  loading={
+    navigation.state ===
+      "submitting" &&
+    submittingReservationId ===
+      reservation.id
+  }
+>
+  {navigation.state ===
+      "submitting" &&
+    submittingReservationId ===
+      reservation.id
+    ? "Receiving Check..."
+    : "Receive Check"}
+</s-button>
+</Form>
           </div>
         ),
       )}
