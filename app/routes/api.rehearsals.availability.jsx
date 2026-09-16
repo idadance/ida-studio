@@ -1,5 +1,3 @@
-import { json } from "@remix-run/node";
-
 import {
   getTeacherByName,
 } from "../services/teacher.server";
@@ -15,7 +13,7 @@ export async function loader({ request }) {
     url.searchParams.get("teacher");
 
   if (!teacherName) {
-    return json([]);
+    return Response.json([]);
   }
 
   const teacher =
@@ -24,7 +22,7 @@ export async function loader({ request }) {
     );
 
   if (!teacher) {
-    return json([]);
+    return Response.json([]);
   }
 
   const availability =
@@ -32,5 +30,5 @@ export async function loader({ request }) {
       teacher.id,
     );
 
-  return json(availability);
+  return Response.json(availability);
 }
