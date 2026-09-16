@@ -6,6 +6,15 @@ import {
   getTeacherAvailability,
 } from "../services/teacherAvailability.server";
 
+const corsHeaders = {
+  "Access-Control-Allow-Origin":
+    "https://events.instituteofdanceartistry.com",
+  "Access-Control-Allow-Methods":
+    "GET, OPTIONS",
+  "Access-Control-Allow-Headers":
+    "Content-Type",
+};
+
 export async function loader({ request }) {
   const url = new URL(request.url);
 
@@ -13,7 +22,16 @@ export async function loader({ request }) {
     url.searchParams.get("teacher");
 
   if (!teacherName) {
-    return Response.json([]);
+    return new Response(
+      JSON.stringify([]),
+      {
+        headers: {
+          "Content-Type":
+            "application/json",
+          ...corsHeaders,
+        },
+      },
+    );
   }
 
   const teacher =
@@ -22,7 +40,16 @@ export async function loader({ request }) {
     );
 
   if (!teacher) {
-    return Response.json([]);
+    return new Response(
+      JSON.stringify([]),
+      {
+        headers: {
+          "Content-Type":
+            "application/json",
+          ...corsHeaders,
+        },
+      },
+    );
   }
 
   const availability =
@@ -30,5 +57,20 @@ export async function loader({ request }) {
       teacher.id,
     );
 
-  return Response.json(availability);
+  return new Response(
+    JSON.stringify(availability),
+    {
+      headers: {
+        "Content-Type":
+          "application/json",
+        ...corsHeaders,
+      },
+    },
+  );
+}
+
+export async function options() {
+  return new Response(null, {
+    headers: corsHeaders,
+  });
 }
