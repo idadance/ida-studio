@@ -71,3 +71,14 @@ export async function deleteTeacher(id) {
 export async function getTeacherCount() {
   return prisma.teacher.count();
 }
+
+export async function getTeacherByName(
+  firstName,
+) {
+  return prisma.teacher.findFirst({
+    where: {
+      firstName,
+      active: true,
+    },
+  });
+}

@@ -370,6 +370,11 @@ model SoloDuetRegistration {
   updatedAt        DateTime @updatedAt
 }
 
+enum EventType {
+  STANDARD
+  SOLO_DUET
+}
+
 model Event {
   id          String      @id @default(cuid())
   name        String
@@ -379,6 +384,8 @@ model Event {
   date        DateTime?
 
   status      EventStatus @default(DRAFT)
+
+  type        EventType   @default(STANDARD)
 
   creditCardEnabled Boolean @default(true)
   checkEnabled      Boolean @default(true)

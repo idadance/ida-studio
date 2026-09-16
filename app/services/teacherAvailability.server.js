@@ -42,3 +42,22 @@ export async function importTeacherAvailability(
 export async function getAvailabilityCount() {
   return prisma.teacherAvailability.count();
 }
+
+export async function getTeacherAvailability(
+  teacherId,
+) {
+  return prisma.teacherAvailability.findMany({
+    where: {
+      teacherId,
+    },
+
+    orderBy: [
+      {
+        date: "asc",
+      },
+      {
+        timeSlot: "asc",
+      },
+    ],
+  });
+}
