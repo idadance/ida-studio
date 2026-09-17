@@ -61,12 +61,12 @@ export async function getTeacherAvailability(
     },
 
     orderBy: [
-      {
-        date: "asc",
-      },
-      {
-        timeSlot: "asc",
-      },
-    ],
+  {
+    sortDate: "asc",
+  },
+  {
+    timeSlot: "asc",
+  },
+],
   });
 }

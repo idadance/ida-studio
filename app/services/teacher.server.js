@@ -26,7 +26,7 @@ export async function getTeacher(id) {
 
       availability: {
         orderBy: [
-          { day: "asc" },
+          { sortDate: "asc" },
           { timeSlot: "asc" },
         ],
       },
