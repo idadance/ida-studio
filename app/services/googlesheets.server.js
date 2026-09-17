@@ -88,10 +88,19 @@ export function parseAvailabilityRows(rows) {
       continue;
     }
 
-    const cleanedDate =
-  date.replace(/(st|nd|rd|th)/g, "") + ", 2026";
+    const cleanedDate = date.replace(
+  /(st|nd|rd|th)/g,
+  "",
+);
 
-const sortDate = new Date(cleanedDate);
+const year =
+  cleanedDate.startsWith("January")
+    ? 2027
+    : 2026;
+
+const sortDate = new Date(
+  `${cleanedDate}, ${year}`,
+);
 
 console.log({
   originalDate: date,

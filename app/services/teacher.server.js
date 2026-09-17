@@ -4,7 +4,6 @@ export async function getTeachers() {
   return prisma.teacher.findMany({
     include: {
       genres: true,
-
       availability: true,
     },
 
@@ -16,7 +15,7 @@ export async function getTeachers() {
 }
 
 export async function getTeacher(id) {
-  return prisma.teacher.findUnique({
+  const teacher = await prisma.teacher.findUnique({
     where: {
       id,
     },
@@ -32,6 +31,15 @@ export async function getTeacher(id) {
       },
     },
   });
+
+  console.log(
+    teacher.availability.map((slot) => ({
+      date: slot.date,
+      sortDate: slot.sortDate,
+    })),
+  );
+
+  return teacher;
 }
 
 export async function createTeacher(data) {
