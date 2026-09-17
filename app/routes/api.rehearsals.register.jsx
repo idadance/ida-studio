@@ -1,5 +1,12 @@
 import { createSoloDuetRegistration } from "../services/soloDuetRegistration.server";
 
+export async function loader() {
+  return Response.json({
+    success: true,
+    message: "Solo/Duet registration API is running.",
+  });
+}
+
 export async function action({ request }) {
   try {
     if (request.method !== "POST") {
