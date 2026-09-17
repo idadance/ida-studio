@@ -11,20 +11,29 @@ export async function importTeacherAvailability(
     },
   });
 
+  console.log(
+  "Importing",
+  availability.length,
+  "slots into database",
+);
+
   // Import the latest availability
   await prisma.teacherAvailability.createMany({
     data: availability.map((slot) => ({
-      teacherId,
+  teacherId,
 
-      day: slot.day,
-      date: slot.date,
-      timeSlot: slot.timeSlot,
+  day: slot.day,
+  date: slot.date,
 
-      preferredLocation:
-        slot.preferredLocation,
+  sortDate: new Date(slot.sortDate),
 
-      notes: slot.notes,
-    })),
+  timeSlot: slot.timeSlot,
+
+  preferredLocation:
+    slot.preferredLocation,
+
+  notes: slot.notes,
+})),
   });
 
   await prisma.teacher.update({

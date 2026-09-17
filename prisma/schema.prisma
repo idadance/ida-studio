@@ -312,6 +312,7 @@ model TeacherAvailability {
 
   day                String
   date               String
+  sortDate DateTime?
   timeSlot           String
 
   preferredLocation  String

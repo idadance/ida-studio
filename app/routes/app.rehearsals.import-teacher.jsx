@@ -46,8 +46,15 @@ export const action = async ({ request }) => {
     teacher.availabilitySheetUrl,
   );
 
+  console.log("Google Sheet rows:", rows.length);
+
   const availability =
     parseAvailabilityRows(rows);
+
+    console.log(
+  "Parsed availability:",
+  availability.length,
+);
 
   const imported =
     await importTeacherAvailability(

@@ -54,6 +54,13 @@ export function parseAvailabilityRows(rows) {
     (row) => row[0] === "Rehearsal Availability",
   );
 
+  console.log({
+  day,
+  date,
+  available,
+  timeSlot,
+});
+
   if (startIndex === -1) {
     throw new Error(
       "Could not find Rehearsal Availability section.",
