@@ -344,31 +344,64 @@ model RehearsalEntry {
 }
 
 model SoloDuetRegistration {
-  id               String   @id @default(cuid())
+  id String @id @default(cuid())
 
   studentFirstName String
   studentLastName  String
+  grade            String
+  studioCode       String
 
-  entryType        String
+  entryType String
 
   partnerFirstName String?
   partnerLastName  String?
 
-  teacherId        String
-  teacher          Teacher @relation(fields: [teacherId], references: [id])
+  teacherId String?
+  teacher   Teacher? @relation(fields: [teacherId], references: [id])
 
-  genreId          String
-  genre            Genre   @relation(fields: [genreId], references: [id])
+  genreId String
+  genre   Genre @relation(fields: [genreId], references: [id])
 
-  paymentMethod    String
-  paymentStatus    String
+  paymentResponsibility String
+  paymentMethod         String?
+  paymentStatus         String @default("PENDING")
 
-  paymentPercent   Int
+  totalAmount Float @default(0)
 
-  status           String   @default("REGISTERED")
+  shopifyOrderId     String?
+  shopifyOrderNumber String?
 
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  status String @default("REGISTERED")
+
+  availability SoloDuetRegistrationAvailability[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([teacherId])
+  @@index([genreId])
+  @@index([studioCode])
+  @@index([status])
+  @@index([shopifyOrderId])
+}
+
+model SoloDuetRegistrationAvailability {
+  id String @id @default(cuid())
+
+  registrationId String
+  registration   SoloDuetRegistration @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+
+  availabilityId String
+
+  day               String
+  date              String
+  timeSlot          String
+  preferredLocation String
+
+  createdAt DateTime @default(now())
+
+  @@index([registrationId])
+  @@index([availabilityId])
 }
 
 enum EventType {
