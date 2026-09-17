@@ -80,8 +80,9 @@ export function parseAvailabilityRows(rows) {
     ] = row;
 
     console.log(
-      `${day} ${date} | ${timeSlot} | ${available}`,
-    );
+  i,
+  JSON.stringify(row),
+);
 
     if (available !== "TRUE") {
       continue;
@@ -96,6 +97,11 @@ export function parseAvailabilityRows(rows) {
       notes: notes || "",
     });
   }
+
+  console.log(
+  "Finished parsing at row:",
+  rows.length - 1,
+);
 
   return availability;
 }
