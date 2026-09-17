@@ -1,22 +1,43 @@
 import { createSoloDuetRegistration } from "../services/soloDuetRegistration.server";
 
+const corsHeaders = {
+  "Access-Control-Allow-Origin":
+    "https://events.instituteofdanceartistry.com",
+  "Access-Control-Allow-Methods":
+    "GET, POST, OPTIONS",
+  "Access-Control-Allow-Headers":
+    "Content-Type",
+};
+
+function jsonResponse(data, status = 200) {
+  return new Response(
+    JSON.stringify(data),
+    {
+      status,
+      headers: {
+        "Content-Type": "application/json",
+        ...corsHeaders,
+      },
+    },
+  );
+}
+
 export async function loader() {
-  return Response.json({
+  return jsonResponse({
     success: true,
-    message: "Solo/Duet registration API is running.",
+    message:
+      "Solo/Duet registration API is running.",
   });
 }
 
 export async function action({ request }) {
   try {
     if (request.method !== "POST") {
-      return Response.json(
+      return jsonResponse(
         {
           error: "Method not allowed.",
         },
-        {
-          status: 405,
-        },
+        405,
       );
     }
 
@@ -25,7 +46,7 @@ export async function action({ request }) {
     const registration =
       await createSoloDuetRegistration(data);
 
-    return Response.json({
+    return jsonResponse({
       success: true,
 
       registrationId:
@@ -62,16 +83,21 @@ export async function action({ request }) {
       error,
     );
 
-    return Response.json(
+    return jsonResponse(
       {
         error:
           error instanceof Error
             ? error.message
             : "Registration failed.",
       },
-      {
-        status: 400,
-      },
+      400,
     );
   }
+}
+
+export async function options() {
+  return new Response(null, {
+    status: 204,
+    headers: corsHeaders,
+  });
 }
