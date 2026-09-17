@@ -25,7 +25,7 @@ export async function importTeacherAvailability(
   day: slot.day,
   date: slot.date,
 
-  sortDate: new Date(slot.sortDate),
+  sortDate: slot.sortDate,
 
   timeSlot: slot.timeSlot,
 

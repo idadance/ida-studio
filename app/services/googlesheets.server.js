@@ -88,14 +88,27 @@ export function parseAvailabilityRows(rows) {
       continue;
     }
 
-    availability.push({
-      day,
-      date,
-      timeSlot,
-      preferredLocation:
-        preferredLocation || "Either",
-      notes: notes || "",
-    });
+    const cleanedDate =
+  date.replace(/(st|nd|rd|th)/g, "") + ", 2026";
+
+const sortDate = new Date(cleanedDate);
+
+console.log({
+  originalDate: date,
+  cleanedDate,
+  sortDate: sortDate.toString(),
+  valid: !isNaN(sortDate.getTime()),
+});
+
+availability.push({
+  day,
+  date,
+  sortDate,
+  timeSlot,
+  preferredLocation:
+    preferredLocation || "Either",
+  notes: notes || "",
+});
   }
 
   console.log(
