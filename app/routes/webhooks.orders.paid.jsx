@@ -33,6 +33,102 @@ export const action = async ({ request }) => {
     return new Response();
   }
 
+    // ======================================
+  // SOLO / DUET CREDIT CARD PAYMENT
+  //
+  // Solo/Duet Shopify carts carry the
+  // registration ID as a cart attribute.
+  // Use that ID to update the exact
+  // registration that was already created.
+  // ======================================
+
+  const noteAttributes =
+    Array.isArray(payload.note_attributes)
+      ? payload.note_attributes
+      : [];
+
+  const soloDuetRegistrationAttribute =
+    noteAttributes.find(
+      (attribute) =>
+        attribute.name ===
+        "Solo/Duet Registration ID",
+    );
+
+  const soloDuetRegistrationId =
+    soloDuetRegistrationAttribute?.value?.trim();
+
+  if (soloDuetRegistrationId) {
+    console.log(
+      `💃 Solo/Duet payment received for registration ${soloDuetRegistrationId}`,
+    );
+
+    const registration =
+      await prisma.soloDuetRegistration.findUnique({
+        where: {
+          id: soloDuetRegistrationId,
+        },
+      });
+
+    if (!registration) {
+      console.error(
+        `❌ Solo/Duet registration ${soloDuetRegistrationId} was not found.`,
+      );
+
+      return new Response();
+    }
+
+    // Make sure the payment came through
+    // the same studio/store selected during
+    // registration.
+
+    const account =
+      shop === "ida-dance-store.myshopify.com"
+        ? "FW"
+        : "PM";
+
+    if (registration.studioCode !== account) {
+      console.error(
+        `❌ Solo/Duet studio mismatch. Registration is ${registration.studioCode}, but payment came through ${account}.`,
+      );
+
+      return new Response();
+    }
+
+    // Shopify may retry webhooks, so don't
+    // process the same registration twice.
+
+    if (registration.paymentStatus === "PAID") {
+      console.log(
+        `⏭️ Solo/Duet registration ${registration.id} is already paid.`,
+      );
+
+      return new Response();
+    }
+
+    await prisma.soloDuetRegistration.update({
+      where: {
+        id: registration.id,
+      },
+
+      data: {
+        paymentStatus: "PAID",
+        status: "REGISTERED",
+
+        shopifyOrderId:
+          payload.id.toString(),
+
+        shopifyOrderNumber:
+          payload.name,
+      },
+    });
+
+    console.log(
+      `✅ Solo/Duet registration ${registration.id} marked PAID from Shopify order ${payload.name}.`,
+    );
+
+    return new Response();
+  }
+
   // ======================================
   // Pay by Check orders are already
   // reservations in IDA Tickets.
