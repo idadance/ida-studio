@@ -22,6 +22,13 @@ export async function createDraftOrder(
   );
 }
 
+  if (order.orderType === "solo_duet") {
+    return createSoloDuetDraftOrder(
+      admin,
+      order,
+    );
+  }
+
   await ensureSeatsAvailable(order);
   console.log("✅ Seats validated");
   const lineItems = [];
@@ -1032,4 +1039,236 @@ return {
   draftOrderName: result.draftOrder.name,
   invoiceUrl: result.draftOrder.invoiceUrl,
 };
+}
+
+async function createSoloDuetDraftOrder(
+  admin: any,
+  order: any,
+) {
+  console.log(
+    "💃 Creating Solo/Duet check order",
+  );
+
+  if (!order.registrationId) {
+    throw new Error(
+      "Missing Solo/Duet registration ID.",
+    );
+  }
+
+  const registration =
+    await prisma.soloDuetRegistration.findUnique({
+      where: {
+        id: order.registrationId,
+      },
+
+      include: {
+        teacher: true,
+        genre: true,
+      },
+    });
+
+  if (!registration) {
+    throw new Error(
+      "Solo/Duet registration not found.",
+    );
+  }
+
+  if (registration.studioCode !== order.account) {
+    throw new Error(
+      "The Solo/Duet registration does not match the selected studio.",
+    );
+  }
+
+  if (registration.paymentMethod !== "CHECK") {
+    throw new Error(
+      "This Solo/Duet registration is not configured for check payment.",
+    );
+  }
+
+  if (
+    registration.entryType === "DUET" &&
+    registration.paymentResponsibility === "PARTNER"
+  ) {
+    throw new Error(
+      "No payment is due for this registration.",
+    );
+  }
+
+  let variantId: string;
+  let quantity = 1;
+
+  if (registration.studioCode === "FW") {
+    variantId =
+      registration.entryType === "DUET"
+        ? "52404312408360"
+        : "52404312342824";
+  } else {
+    variantId =
+      registration.entryType === "DUET"
+        ? "46588957229126"
+        : "46588957163590";
+  }
+
+  if (
+    registration.entryType === "DUET" &&
+    registration.paymentResponsibility === "FULL"
+  ) {
+    quantity = 2;
+  }
+
+  const lineItems = [
+    {
+      variantId:
+        `gid://shopify/ProductVariant/${variantId}`,
+      quantity,
+    },
+  ];
+
+  console.log(
+    "SOLO / DUET LINE ITEMS:",
+    JSON.stringify(lineItems, null, 2),
+  );
+
+  const dancerName =
+    `${registration.studentFirstName} ${registration.studentLastName}`.trim();
+
+  const response = await admin.graphql(
+    `#graphql
+      mutation DraftOrderCreate($input: DraftOrderInput!) {
+        draftOrderCreate(input: $input) {
+          draftOrder {
+            id
+            name
+            invoiceUrl
+          }
+
+          userErrors {
+            field
+            message
+          }
+        }
+      }
+    `,
+    {
+      variables: {
+        input: {
+          lineItems,
+
+          email: registration.customerEmail,
+
+          tags: [
+            "Solo/Duet",
+            "Solo/Duet Registration",
+            registration.studioCode === "FW"
+              ? "Fort Washington"
+              : "Plymouth Meeting",
+            "Check Payment",
+            `SDR:${registration.id}`,
+          ],
+
+          customAttributes: [
+            {
+              key: "Solo/Duet Registration ID",
+              value: registration.id,
+            },
+            {
+              key: "Dancer",
+              value: dancerName,
+            },
+            {
+              key: "Routine Type",
+              value: registration.entryType,
+            },
+            {
+              key: "Payment Responsibility",
+              value:
+                registration.paymentResponsibility,
+            },
+            {
+              key: "Payment Method",
+              value: "Check",
+            },
+          ],
+
+          note: `
+Solo/Duet Registration ID: ${registration.id}
+Dancer: ${dancerName}
+Routine Type: ${registration.entryType}
+Payment Responsibility: ${registration.paymentResponsibility}
+Payment Method: Check
+`,
+        },
+      },
+    },
+  );
+
+  const json = await response.json();
+
+  if (json.errors) {
+    throw new Error(
+      JSON.stringify(
+        json.errors,
+        null,
+        2,
+      ),
+    );
+  }
+
+  const result =
+    json.data?.draftOrderCreate;
+
+  if (!result) {
+    throw new Error(
+      "Shopify returned no draft order result.",
+    );
+  }
+
+  if (result.userErrors?.length > 0) {
+    throw new Error(
+      result.userErrors
+        .map(
+          (error: any) =>
+            error.message,
+        )
+        .join(", "),
+    );
+  }
+
+  if (!result.draftOrder) {
+    throw new Error(
+      "Shopify did not create the draft order.",
+    );
+  }
+
+  console.log(
+    `✅ Solo/Duet Shopify draft order created: ${result.draftOrder.name}`,
+  );
+
+  await prisma.soloDuetRegistration.update({
+    where: {
+      id: registration.id,
+    },
+
+    data: {
+      paymentStatus: "PENDING",
+
+      shopifyOrderId:
+        result.draftOrder.id,
+
+      shopifyOrderNumber:
+        result.draftOrder.name,
+    },
+  });
+
+  console.log(
+    `✅ Solo/Duet registration ${registration.id} linked to ${result.draftOrder.name}`,
+  );
+
+  return {
+    success: true,
+    registrationId: registration.id,
+    draftOrderId: result.draftOrder.id,
+    draftOrderName: result.draftOrder.name,
+    invoiceUrl: result.draftOrder.invoiceUrl,
+  };
 }
