@@ -8,6 +8,7 @@ import { prepareCustomerFolder } from "./googleDrive.server";
 import {
   sendCheckReservationConfirmation,
   sendEventCheckReservationConfirmation,
+  sendSoloDuetCheckConfirmation,
 } from "./email.server";
 
 export async function createDraftOrder(
@@ -1263,6 +1264,16 @@ Payment Method: Check
   console.log(
     `✅ Solo/Duet registration ${registration.id} linked to ${result.draftOrder.name}`,
   );
+
+  await sendSoloDuetCheckConfirmation({
+  registration,
+  draftOrderName:
+    result.draftOrder.name,
+});
+
+console.log(
+  `📧 Solo/Duet check confirmation email sent to ${registration.customerEmail}`,
+);
 
   return {
     success: true,

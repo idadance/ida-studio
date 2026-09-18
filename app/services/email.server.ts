@@ -268,6 +268,154 @@ ${studioName}`,
   );
 }
 
+export async function sendSoloDuetCheckConfirmation({
+  registration,
+  draftOrderName,
+}: {
+  registration: any;
+  draftOrderName: string;
+}) {
+  setupSendGrid();
+
+  const isFW =
+    registration.studioCode === "FW";
+
+  const fromEmail = isFW
+    ? "fwstudio@idadancer.com"
+    : "pmstudio@idadancer.com";
+
+  const studioName = isFW
+    ? "IDA Fort Washington"
+    : "IDA Plymouth Meeting";
+
+  const dancerName =
+    `${registration.studentFirstName} ${registration.studentLastName}`.trim();
+
+  const routineType =
+    registration.entryType === "DUET"
+      ? "Duet"
+      : "Solo";
+
+  const teacherName =
+    registration.teacher
+      ? `${registration.teacher.firstName}${
+          registration.teacher.lastName
+            ? ` ${registration.teacher.lastName}`
+            : ""
+        }`
+      : "No Preference";
+
+  const genreName =
+    registration.genre?.name || "";
+
+  const amountDue =
+    Number(registration.totalAmount);
+
+  await sgMail.send({
+    to: registration.customerEmail,
+
+    from: {
+      email: fromEmail,
+      name: studioName,
+    },
+
+    replyTo: fromEmail,
+
+    subject:
+      "IDA – Solo/Duet Registration Confirmation",
+
+    text: `Hi ${registration.studentFirstName},
+
+We received your Solo/Duet registration.
+
+Registration Number: ${draftOrderName}
+Dancer: ${dancerName}
+Routine Type: ${routineType}
+Genre: ${genreName}
+Teacher: ${teacherName}
+Payment Method: Check
+Amount Due: $${amountDue.toFixed(2)}
+
+Your Solo/Duet registration has been saved and your payment is currently pending.
+
+Please drop your check at the studio or mail your payment to:
+
+Institute of Dance Artistry
+PO Box 114
+Fort Washington, PA 19034
+
+Thank you!
+${studioName}`,
+
+    html: `
+      <p>
+        Hi ${registration.studentFirstName},
+      </p>
+
+      <p>
+        We received your
+        <strong>Solo/Duet registration</strong>.
+      </p>
+
+      <p>
+        <strong>Registration Number:</strong>
+        ${draftOrderName}<br>
+
+        <strong>Dancer:</strong>
+        ${dancerName}<br>
+
+        <strong>Routine Type:</strong>
+        ${routineType}<br>
+
+        <strong>Genre:</strong>
+        ${genreName}<br>
+
+        <strong>Teacher:</strong>
+        ${teacherName}<br>
+
+        <strong>Payment Method:</strong>
+        Check<br>
+
+        <strong>Amount Due:</strong>
+        $${amountDue.toFixed(2)}
+      </p>
+
+      <p>
+        Your Solo/Duet registration has been saved
+        and your payment is currently pending.
+      </p>
+
+      <p>
+        Please drop your check at the studio or
+        mail your payment to:
+      </p>
+
+      <div
+        style="
+          padding: 16px;
+          background: #fdf2f8;
+          border-radius: 12px;
+        "
+      >
+        <strong>
+          Institute of Dance Artistry
+        </strong><br>
+        PO Box 114<br>
+        Fort Washington, PA 19034
+      </div>
+
+      <p>
+        Thank you!<br>
+        ${studioName}
+      </p>
+    `,
+  });
+
+  console.log(
+    `📧 Solo/Duet check confirmation sent to ${registration.customerEmail}`,
+  );
+}
+
 export async function sendPaidTicketConfirmation({
   order,
   driveFolderLink,
