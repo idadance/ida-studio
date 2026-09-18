@@ -2,54 +2,112 @@ import { createDraftOrder } from "../services/draftOrders.server";
 import { unauthenticated } from "../shopify.server";
 
 export async function action({ request }) {
+  let shop = "";
+
   try {
     const order = await request.json();
 
-    const shop =
+    shop =
       order.account === "FW"
         ? "ida-dance-store.myshopify.com"
         : "ida-dance-store-pm.myshopify.com";
 
     console.log("Using shop:", shop);
 
-    const { admin } = await unauthenticated.admin(shop);
+    const { admin } =
+      await unauthenticated.admin(shop);
 
-console.log("✅ Authenticated successfully");
+    console.log(
+      "✅ Authenticated successfully",
+    );
 
-console.log("➡️ Calling createDraftOrder()");
+    console.log(
+      "➡️ Calling createDraftOrder()",
+    );
 
-const result = await createDraftOrder(
-  admin,
-  order,
-);
+    const result =
+      await createDraftOrder(
+        admin,
+        order,
+      );
 
-console.log("✅ createDraftOrder finished");
+    console.log(
+      "✅ createDraftOrder finished",
+    );
 
-return Response.json(result);
+    return Response.json(result);
   } catch (err) {
-    console.error("========== DRAFT ORDER ERROR ==========");
+    console.error(
+      "========== DRAFT ORDER ERROR ==========",
+    );
 
     if (err instanceof Response) {
-  console.error("========== SHOPIFY RESPONSE ==========");
-  console.error("Status:", err.status);
+      console.error(
+        "========== SHOPIFY RESPONSE ==========",
+      );
 
-  const text = await err.text();
+      console.error(
+        "Status:",
+        err.status,
+      );
 
-  console.error(text);
+      console.error(
+        "Status Text:",
+        err.statusText,
+      );
 
-  return Response.json(
-    {
-      error: text || `Shopify returned ${err.status}`,
-    },
-    {
-      status: err.status,
-    },
-  );
-}
+      console.error(
+        "Headers:",
+        Object.fromEntries(
+          err.headers.entries(),
+        ),
+      );
+
+      const text =
+        await err.text();
+
+      console.error(
+        "Response Body:",
+        text || "(empty)",
+      );
+
+      console.error(
+        "Shop being authenticated:",
+        shop,
+      );
+
+      return Response.json(
+        {
+          error:
+            text ||
+            `Shopify authentication returned ${err.status}`,
+        },
+        {
+          status: err.status,
+        },
+      );
+    }
 
     if (err instanceof Error) {
-      console.error(err.message);
-      console.error(err.stack);
+      console.error(
+        "Error name:",
+        err.name,
+      );
+
+      console.error(
+        "Error message:",
+        err.message,
+      );
+
+      console.error(
+        "Error stack:",
+        err.stack,
+      );
+
+      console.error(
+        "Shop being authenticated:",
+        shop,
+      );
     } else {
       console.error(err);
     }
