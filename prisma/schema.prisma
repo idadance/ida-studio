@@ -347,9 +347,10 @@ model SoloDuetRegistration {
   id String @id @default(cuid())
 
   studentFirstName String
-  studentLastName  String
-  grade            String
-  studioCode       String
+studentLastName  String
+grade            String
+studioCode       String
+customerEmail    String?
 
   entryType String
 

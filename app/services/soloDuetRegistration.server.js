@@ -6,6 +6,7 @@ export async function createSoloDuetRegistration(data) {
     lastName,
     grade,
     studio,
+    email,
     type,
 
     partnerFirstName,
@@ -32,6 +33,12 @@ export async function createSoloDuetRegistration(data) {
   ) {
     throw new Error(
       "Dancer name and grade are required.",
+    );
+  }
+
+  if (!email?.trim()) {
+    throw new Error(
+      "Parent email is required.",
     );
   }
 
@@ -124,6 +131,7 @@ export async function createSoloDuetRegistration(data) {
       studentLastName: lastName.trim(),
       grade: grade.trim(),
       studioCode: studio,
+      customerEmail: email.trim().toLowerCase(),
 
       entryType: type,
 
