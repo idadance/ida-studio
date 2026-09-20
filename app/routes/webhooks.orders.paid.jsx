@@ -57,7 +57,25 @@ export const action = async ({ request }) => {
   const soloDuetRegistrationId =
     soloDuetRegistrationAttribute?.value?.trim();
 
-  if (soloDuetRegistrationId) {
+  const soloDuetCreditVariantIds = new Set([
+    "52404312310056",
+    "52404312375592",
+    "46588957130822",
+    "46588957196358",
+  ]);
+
+  const hasSoloDuetCreditProduct =
+    Array.isArray(payload.line_items) &&
+    payload.line_items.some((item) =>
+      soloDuetCreditVariantIds.has(
+        item.variant_id?.toString(),
+      ),
+    );
+
+  if (
+    soloDuetRegistrationId &&
+    hasSoloDuetCreditProduct
+  ) {
     console.log(
       `💃 Solo/Duet payment received for registration ${soloDuetRegistrationId}`,
     );
