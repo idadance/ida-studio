@@ -155,3 +155,67 @@ export function expandCalendarEvent(
 
   return occurrences;
 }
+
+export async function getStudioOccupiedTimes(
+  calendarName,
+  rangeStart,
+  rangeEnd,
+) {
+  if (
+    !STUDIO_CALENDAR_NAMES.includes(
+      calendarName,
+    )
+  ) {
+    throw new Error(
+      `Unknown studio calendar: ${calendarName}`,
+    );
+  }
+
+  const client = await getCalendarClient();
+  const calendars =
+    await client.fetchCalendars();
+
+  const calendar = calendars.find(
+    (item) =>
+      item.displayName === calendarName,
+  );
+
+  if (!calendar) {
+    throw new Error(
+      `${calendarName} calendar was not found.`,
+    );
+  }
+
+  const calendarObjects =
+    await client.fetchCalendarObjects({
+      calendar,
+      timeRange: {
+        start: rangeStart,
+        end: rangeEnd,
+      },
+    });
+
+  return calendarObjects.flatMap(
+    (calendarObject) => {
+      const event =
+        parseCalendarEvent(
+          calendarObject.data,
+        );
+
+      if (!event) {
+        return [];
+      }
+
+      return expandCalendarEvent(
+        event,
+        rangeStart,
+        rangeEnd,
+      ).map((occurrence) => ({
+        calendar: calendarName,
+        title: occurrence.title,
+        start: occurrence.start,
+        end: occurrence.end,
+      }));
+    },
+  );
+}
