@@ -65,3 +65,93 @@ export function parseCalendarEvent(icsData) {
 
   return new ICAL.Event(vevent);
 }
+
+export function expandCalendarEvent(
+  event,
+  rangeStart,
+  rangeEnd,
+) {
+  if (!event) {
+    return [];
+  }
+
+  const startBoundary =
+    ICAL.Time.fromJSDate(
+      new Date(rangeStart),
+      true,
+    );
+
+  const endBoundary =
+    ICAL.Time.fromJSDate(
+      new Date(rangeEnd),
+      true,
+    );
+
+  const duration =
+    event.endDate.subtractDate(
+      event.startDate,
+    );
+
+  // One-time event
+  if (!event.isRecurring()) {
+    if (
+      event.endDate.compare(
+        startBoundary,
+      ) <= 0 ||
+      event.startDate.compare(
+        endBoundary,
+      ) >= 0
+    ) {
+      return [];
+    }
+
+    return [
+      {
+        title: event.summary,
+        start: event.startDate.toJSDate(),
+        end: event.endDate.toJSDate(),
+      },
+    ];
+  }
+
+  // Recurring event
+  const iterator = event.iterator();
+  const occurrences = [];
+
+  let occurrence;
+
+  while (
+    (occurrence = iterator.next())
+  ) {
+    if (
+      occurrence.compare(
+        endBoundary,
+      ) >= 0
+    ) {
+      break;
+    }
+
+    const occurrenceEnd =
+      occurrence.clone();
+
+    occurrenceEnd.addDuration(
+      duration,
+    );
+
+    if (
+      occurrenceEnd.compare(
+        startBoundary,
+      ) > 0
+    ) {
+      occurrences.push({
+        title: event.summary,
+        start:
+          occurrence.toJSDate(),
+        end:
+          occurrenceEnd.toJSDate(),
+      });
+    }
+  }
+
+  return occurrences;
+}

@@ -1,4 +1,5 @@
 import {
+  expandCalendarEvent,
   getCalendarClient,
   getStudioCalendars,
   parseCalendarEvent,
@@ -36,30 +37,36 @@ export async function loader() {
         },
       });
 
-    const events = calendarObjects
-      .map((calendarObject) => {
-        const event =
-          parseCalendarEvent(
-            calendarObject.data,
-          );
+    const rangeStart =
+  "2026-09-20T00:00:00Z";
 
-        if (!event) {
-          return null;
-        }
+const rangeEnd =
+  "2026-10-20T23:59:59Z";
 
-        return {
-          title: event.summary,
-          start:
-            event.startDate?.toString() ??
-            null,
-          end:
-            event.endDate?.toString() ??
-            null,
-          recurring:
-            event.isRecurring(),
-        };
-      })
-      .filter(Boolean);
+const events = calendarObjects.flatMap(
+  (calendarObject) => {
+    const event =
+      parseCalendarEvent(
+        calendarObject.data,
+      );
+
+    if (!event) {
+      return [];
+    }
+
+    return expandCalendarEvent(
+      event,
+      rangeStart,
+      rangeEnd,
+    ).map((occurrence) => ({
+      title: occurrence.title,
+      start:
+        occurrence.start.toISOString(),
+      end:
+        occurrence.end.toISOString(),
+    }));
+  },
+);
 
     return Response.json({
       success: true,
