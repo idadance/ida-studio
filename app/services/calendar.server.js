@@ -219,3 +219,50 @@ export async function getStudioOccupiedTimes(
     },
   );
 }
+
+export async function getAvailableStudios(
+  rangeStart,
+  rangeEnd,
+) {
+  const results = await Promise.all(
+    STUDIO_CALENDAR_NAMES.map(
+      async (calendarName) => {
+        const occupied =
+          await getStudioOccupiedTimes(
+            calendarName,
+            rangeStart,
+            rangeEnd,
+          );
+
+        const requestedStart =
+          new Date(rangeStart);
+
+        const requestedEnd =
+          new Date(rangeEnd);
+
+        const conflicts =
+          occupied.filter((event) => {
+            return (
+              event.start < requestedEnd &&
+              event.end > requestedStart
+            );
+          });
+
+        return {
+          calendar: calendarName,
+          available:
+            conflicts.length === 0,
+          conflicts: conflicts.map(
+            (event) => ({
+              title: event.title,
+              start: event.start,
+              end: event.end,
+            }),
+          ),
+        };
+      },
+    ),
+  );
+
+  return results;
+}
