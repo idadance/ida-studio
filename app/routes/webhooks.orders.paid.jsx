@@ -185,6 +185,47 @@ export const action = async ({ request }) => {
     return new Response();
   }
 
+  // ======================================
+  // PHOTO SALES CHECK PAYMENT
+  // ======================================
+
+  const photoOrder =
+    await prisma.photoOrder.findFirst({
+      where: {
+        shopifyOrderId:
+          draftOrderId,
+      },
+    });
+
+  if (photoOrder) {
+    const paidAt =
+      new Date();
+
+    await prisma.photoOrder.update({
+      where: {
+        id:
+          photoOrder.id,
+      },
+
+      data: {
+        status:
+          "PAID",
+
+        checkReceivedAt:
+          paidAt,
+
+        shopifyOrderNumber:
+          payload.name,
+      },
+    });
+
+    console.log(
+      `📸 Photo Sales check order ${photoOrder.id} marked PAID from Shopify order ${payload.name}.`,
+    );
+
+    return new Response();
+  }
+
   const reservation =
     await prisma.reservation.findFirst({
       where: {
