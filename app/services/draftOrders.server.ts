@@ -30,6 +30,13 @@ export async function createDraftOrder(
     );
   }
 
+  if (order.orderType === "photo") {
+    return createPhotoDraftOrder(
+      admin,
+      order,
+    );
+  }
+
   await ensureSeatsAvailable(order);
   console.log("✅ Seats validated");
   const lineItems = [];
