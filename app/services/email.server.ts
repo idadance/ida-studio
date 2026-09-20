@@ -594,3 +594,119 @@ ${additionalTicketsHtml}
     `📧 Paid ticket confirmation sent to ${order.email}`,
   );
 }
+
+export async function sendSoloDuetPartnerPayingConfirmation({
+  registration,
+}: {
+  registration: any;
+}) {
+  setupSendGrid();
+
+  const isFW =
+    registration.studioCode === "FW";
+
+  const fromEmail = isFW
+    ? "fwstudio@idadancer.com"
+    : "pmstudio@idadancer.com";
+
+  const studioName = isFW
+    ? "IDA Fort Washington"
+    : "IDA Plymouth Meeting";
+
+  const dancerName =
+    `${registration.studentFirstName} ${registration.studentLastName}`.trim();
+
+  const partnerName =
+    `${registration.partnerFirstName || ""} ${registration.partnerLastName || ""}`.trim();
+
+  const teacherName =
+    registration.teacher
+      ? `${registration.teacher.firstName}${
+          registration.teacher.lastName
+            ? ` ${registration.teacher.lastName}`
+            : ""
+        }`
+      : "No Preference";
+
+  const genreName =
+    registration.genre?.name || "";
+
+  await sgMail.send({
+    to: registration.customerEmail,
+
+    from: {
+      email: fromEmail,
+      name: studioName,
+    },
+
+    replyTo: fromEmail,
+
+    subject:
+      "IDA – Solo/Duet Registration Confirmation",
+
+    text: `Hi ${registration.studentFirstName},
+
+We received your Duet registration.
+
+Dancer: ${dancerName}
+Duet Partner: ${partnerName}
+Genre: ${genreName}
+Teacher: ${teacherName}
+
+Your duet partner is responsible for the full duet registration fee. No payment is due from you at this time.
+
+Thank you!
+${studioName}`,
+
+    html: `
+      <p>
+        Hi ${registration.studentFirstName},
+      </p>
+
+      <p>
+        We received your
+        <strong>Duet registration</strong>.
+      </p>
+
+      <p>
+        <strong>Dancer:</strong>
+        ${dancerName}<br>
+
+        <strong>Duet Partner:</strong>
+        ${partnerName}<br>
+
+        <strong>Genre:</strong>
+        ${genreName}<br>
+
+        <strong>Teacher:</strong>
+        ${teacherName}
+      </p>
+
+      <div
+        style="
+          margin-top: 24px;
+          padding: 16px;
+          background: #fdf2f8;
+          border-radius: 12px;
+        "
+      >
+        <strong>
+          Your duet partner is responsible for the full duet registration fee.
+        </strong>
+
+        <p style="margin-bottom: 0;">
+          No payment is due from you at this time.
+        </p>
+      </div>
+
+      <p>
+        Thank you!<br>
+        ${studioName}
+      </p>
+    `,
+  });
+
+  console.log(
+    `📧 Solo/Duet partner-paying confirmation sent to ${registration.customerEmail}`,
+  );
+}

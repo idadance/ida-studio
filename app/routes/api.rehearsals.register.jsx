@@ -1,5 +1,7 @@
 import { createSoloDuetRegistration } from "../services/soloDuetRegistration.server";
 
+import { sendSoloDuetPartnerPayingConfirmation } from "../services/email.server";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin":
     "https://events.instituteofdanceartistry.com",
@@ -44,9 +46,18 @@ export async function action({ request }) {
     const data = await request.json();
 
     const registration =
-      await createSoloDuetRegistration(data);
+  await createSoloDuetRegistration(data);
 
-    return jsonResponse({
+if (
+  registration.entryType === "DUET" &&
+  registration.paymentResponsibility === "PARTNER"
+) {
+  await sendSoloDuetPartnerPayingConfirmation({
+    registration,
+  });
+}
+
+return jsonResponse({
       success: true,
 
       registrationId:
