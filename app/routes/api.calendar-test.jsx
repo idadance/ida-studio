@@ -34,20 +34,50 @@ export async function loader() {
     const calendars =
       await client.fetchCalendars();
 
+    const calendar =
+      calendars.find(
+        (item) =>
+          item.displayName === "FW Studio B",
+      );
+
+    if (!calendar) {
+      return Response.json(
+        {
+          success: false,
+          error:
+            "FW Studio B calendar was not found.",
+        },
+        {
+          status: 404,
+        },
+      );
+    }
+
+    const calendarObjects =
+      await client.fetchCalendarObjects({
+        calendar,
+        timeRange: {
+          start:
+            "2026-09-20T00:00:00Z",
+          end:
+            "2026-10-20T23:59:59Z",
+        },
+      });
+
     return Response.json({
       success: true,
-      calendarCount: calendars.length,
-      calendars: calendars.map(
-        (calendar) => ({
-          displayName:
-            calendar.displayName,
-          url: calendar.url,
+      calendar: calendar.displayName,
+      eventCount: calendarObjects.length,
+      events: calendarObjects.map(
+        (event) => ({
+          url: event.url,
+          data: event.data,
         }),
       ),
     });
   } catch (error) {
     console.error(
-      "iCloud calendar test failed:",
+      "iCloud calendar event test failed:",
       error,
     );
 
