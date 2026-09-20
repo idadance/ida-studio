@@ -67,16 +67,18 @@ export default function RehearsalsPage() {
 </s-card>
 
         <s-card>
-          <h2>Entries</h2>
+  <h2>Registrations</h2>
 
-          <p>
-            Parents submit solo and duet entries.
-          </p>
+  <p>
+    Review and approve Solo & Duet registrations.
+  </p>
 
-          <s-button disabled>
-            Coming Soon
-          </s-button>
-        </s-card>
+  <Link to="/app/rehearsals/registrations">
+    <s-button variant="primary">
+      Open Registrations
+    </s-button>
+  </Link>
+</s-card>
 
         <s-card>
           <h2>Schedule</h2>

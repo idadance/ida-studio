@@ -3,9 +3,10 @@ import prisma from "../db.server";
 export async function getRegistrations() {
   return prisma.soloDuetRegistration.findMany({
     include: {
-      teacher: true,
-      genre: true,
-    },
+  teacher: true,
+  genre: true,
+  availability: true,
+},
 
     orderBy: [
       { studentLastName: "asc" },
@@ -22,4 +23,16 @@ export async function createRegistration(data) {
 
 export async function getRegistrationCount() {
   return prisma.soloDuetRegistration.count();
+}
+
+export async function approveRegistration(id) {
+  return prisma.soloDuetRegistration.update({
+    where: {
+      id,
+    },
+
+    data: {
+      status: "APPROVED",
+    },
+  });
 }

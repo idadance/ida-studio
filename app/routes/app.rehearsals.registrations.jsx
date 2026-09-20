@@ -1,9 +1,13 @@
-import { useLoaderData } from "react-router";
+import {
+  Form,
+  useLoaderData,
+} from "react-router";
 
 import { authenticate } from "../shopify.server";
 
 import {
   getRegistrations,
+  approveRegistration,
 } from "../services/registration.server";
 
 export const loader = async ({ request }) => {
@@ -11,6 +15,29 @@ export const loader = async ({ request }) => {
 
   return {
     registrations: await getRegistrations(),
+  };
+};
+
+export const action = async ({ request }) => {
+  await authenticate.admin(request);
+
+  const formData = await request.formData();
+
+  const intent = formData.get("intent");
+  const registrationId =
+    formData.get("registrationId");
+
+  if (
+    intent === "approve" &&
+    registrationId
+  ) {
+    await approveRegistration(
+      registrationId,
+    );
+  }
+
+  return {
+    success: true,
   };
 };
 
@@ -59,14 +86,65 @@ export default function RegistrationsPage() {
               </div>
 
               <div>
-                Teacher:{" "}
-                {registration.teacher.firstName}
-              </div>
+  Grade: {registration.grade}
+</div>
+
+<div>
+  Studio: {registration.studioCode}
+</div>
+
+{registration.entryType === "DUET" && (
+  <div>
+    Duet Partner:{" "}
+    {registration.partnerFirstName}{" "}
+    {registration.partnerLastName}
+  </div>
+)}
+
+              <div>
+  Teacher:{" "}
+  {registration.teacher
+    ? registration.teacher.firstName
+    : "No Preference"}
+</div>
 
               <div>
                 Genre:{" "}
                 {registration.genre.name}
               </div>
+
+              <div
+  style={{
+    marginTop: "12px",
+  }}
+>
+  <strong>
+    Rehearsal Availability:
+  </strong>
+
+  {registration.availability.length === 0 ? (
+    <div>
+      No availability submitted
+    </div>
+  ) : (
+    <ul
+      style={{
+        marginTop: "6px",
+        paddingLeft: "20px",
+      }}
+    >
+      {registration.availability.map(
+        (slot) => (
+          <li key={slot.id}>
+            {slot.day}, {slot.date} —{" "}
+            {slot.timeSlot} —{" "}
+            {slot.preferredLocation}
+          </li>
+        ),
+      )}
+    </ul>
+  )}
+</div>
 
               <div>
                 Payment:{" "}
@@ -77,6 +155,34 @@ export default function RegistrationsPage() {
                 Status:{" "}
                 {registration.status}
               </div>
+
+              {registration.status === "REGISTERED" && (
+  <Form
+    method="post"
+    style={{
+      marginTop: "16px",
+    }}
+  >
+    <input
+      type="hidden"
+      name="intent"
+      value="approve"
+    />
+
+    <input
+      type="hidden"
+      name="registrationId"
+      value={registration.id}
+    />
+
+    <s-button
+      type="submit"
+      variant="primary"
+    >
+      Approve Registration
+    </s-button>
+  </Form>
+)}
 
             </div>
           ))
