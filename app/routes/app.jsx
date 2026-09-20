@@ -43,6 +43,10 @@ export default function App() {
   Ticket / Event Sales
 </s-link>
 
+<s-link href="/app/photo-sales">
+  Photo Sales
+</s-link>
+
   <s-link href="/app/rehearsals">
   Rehearsals
 </s-link>
