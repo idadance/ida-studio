@@ -269,8 +269,8 @@ model Teacher {
 }
 
 model Genre {
-  id       String    @id @default(cuid())
-  name     String    @unique
+  id   String @id @default(cuid())
+  name String @unique
 
   teachers Teacher[]
 
@@ -280,11 +280,11 @@ model Genre {
 }
 
 model Season {
-  id        String   @id @default(cuid())
+  id String @id @default(cuid())
 
-  name      String
+  name String
 
-  active    Boolean  @default(false)
+  active Boolean @default(false)
 
   rehearsalDates RehearsalDate[]
 
@@ -293,64 +293,64 @@ model Season {
 }
 
 model RehearsalDate {
-  id        String   @id @default(cuid())
+  id String @id @default(cuid())
 
-  seasonId  String
-  season    Season   @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  seasonId String
+  season   Season @relation(fields: [seasonId], references: [id], onDelete: Cascade)
 
-  date      DateTime
+  date DateTime
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
 model TeacherAvailability {
-  id                 String   @id @default(cuid())
+  id String @id @default(cuid())
 
-  teacherId          String
-  teacher            Teacher  @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  teacherId String
+  teacher   Teacher @relation(fields: [teacherId], references: [id], onDelete: Cascade)
 
-  day                String
-  date               String
+  day      String
+  date     String
   sortDate DateTime?
-  timeSlot           String
+  timeSlot String
 
-  preferredLocation  String
-  notes              String?
+  preferredLocation String
+  notes             String?
 
-  createdAt          DateTime @default(now())
+  createdAt DateTime @default(now())
 
   @@index([teacherId])
 }
 
 model RehearsalEntry {
-  id                 String   @id @default(cuid())
+  id String @id @default(cuid())
 
-  studentFirstName   String
-  studentLastName    String
+  studentFirstName String
+  studentLastName  String
 
-  teacherId          String
-  teacher            Teacher  @relation(fields: [teacherId], references: [id])
+  teacherId String
+  teacher   Teacher @relation(fields: [teacherId], references: [id])
 
-  genreId            String
-  genre              Genre    @relation(fields: [genreId], references: [id])
+  genreId String
+  genre   Genre  @relation(fields: [genreId], references: [id])
 
-  rehearsalsNeeded   Int      @default(3)
+  rehearsalsNeeded Int @default(3)
 
-  status             String   @default("WAITING")
+  status String @default("WAITING")
 
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model SoloDuetRegistration {
   id String @id @default(cuid())
 
   studentFirstName String
-studentLastName  String
-grade            String
-studioCode       String
-customerEmail    String?
+  studentLastName  String
+  grade            String
+  studioCode       String
+  customerEmail    String?
 
   entryType String
 
@@ -361,11 +361,11 @@ customerEmail    String?
   teacher   Teacher? @relation(fields: [teacherId], references: [id])
 
   genreId String
-  genre   Genre @relation(fields: [genreId], references: [id])
+  genre   Genre  @relation(fields: [genreId], references: [id])
 
   paymentResponsibility String
   paymentMethod         String?
-  paymentStatus         String @default("PENDING")
+  paymentStatus         String  @default("PENDING")
 
   totalAmount Float @default(0)
 
@@ -411,16 +411,16 @@ enum EventType {
 }
 
 model Event {
-  id          String      @id @default(cuid())
+  id          String  @id @default(cuid())
   name        String
-  description String?     @db.Text
+  description String? @db.Text
   imageUrl    String?
 
-  date        DateTime?
+  date DateTime?
 
-  status      EventStatus @default(DRAFT)
+  status EventStatus @default(DRAFT)
 
-  type        EventType   @default(STANDARD)
+  type EventType @default(STANDARD)
 
   creditCardEnabled Boolean @default(true)
   checkEnabled      Boolean @default(true)
@@ -435,7 +435,7 @@ model EventLocation {
   id String @id @default(cuid())
 
   eventId String
-  event   Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  event   Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
   studioCode String
   name       String
@@ -443,7 +443,7 @@ model EventLocation {
   capacity Int
   price    Float
 
-    checkVariantId  String?
+  checkVariantId  String?
   creditVariantId String?
 
   reservations EventReservation[]
@@ -479,9 +479,9 @@ model EventReservation {
 
   notes String? @db.Text
 
-attendees EventAttendee[]
+  attendees EventAttendee[]
 
-createdAt DateTime @default(now())
+  createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([eventLocationId])
@@ -514,6 +514,64 @@ enum EventStatus {
 enum EventReservationStatus {
   PENDING
   CONFIRMED
+  CANCELED
+  REFUNDED
+}
+
+// ============================================================
+// PHOTO SALES
+// ============================================================
+
+model PhotoOrder {
+  id String @id @default(cuid())
+
+  studioCode String
+
+  customerName  String
+  dancerName    String
+  customerEmail String
+
+  paymentMethod TicketPaymentMethod
+  status        PhotoOrderStatus    @default(PENDING)
+
+  subtotal      Float @default(0)
+  processingFee Float @default(0)
+  totalAmount   Float @default(0)
+
+  shopifyOrderId     String?
+  shopifyOrderNumber String?
+
+  checkNumber     String?
+  checkReceivedAt DateTime?
+
+  photos PhotoOrderItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([studioCode])
+  @@index([customerEmail])
+  @@index([status])
+  @@index([shopifyOrderId])
+}
+
+model PhotoOrderItem {
+  id String @id @default(cuid())
+
+  photoOrderId String
+  photoOrder   PhotoOrder @relation(fields: [photoOrderId], references: [id], onDelete: Cascade)
+
+  photoNumber String
+
+  createdAt DateTime @default(now())
+
+  @@unique([photoOrderId, photoNumber])
+  @@index([photoNumber])
+}
+
+enum PhotoOrderStatus {
+  PENDING
+  PAID
   CANCELED
   REFUNDED
 }

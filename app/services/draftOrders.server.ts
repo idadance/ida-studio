@@ -1283,3 +1283,208 @@ console.log(
     invoiceUrl: result.draftOrder.invoiceUrl,
   };
 }
+
+// ============================================================
+// PHOTO SALES
+// ============================================================
+
+async function createPhotoDraftOrder(
+  admin: any,
+  order: any,
+) {
+  if (
+    !Array.isArray(order.photoNumbers) ||
+    order.photoNumbers.length < 1
+  ) {
+    throw new Error("Please select at least one photo.");
+  }
+
+  if (!order.customerName?.trim()) {
+    throw new Error("Customer name is required.");
+  }
+
+  if (!order.dancerName?.trim()) {
+    throw new Error("Dancer name is required.");
+  }
+
+  if (!order.email?.trim()) {
+    throw new Error("Email is required.");
+  }
+
+  if (!["FW", "PM"].includes(order.account)) {
+    throw new Error("Invalid studio.");
+  }
+
+  // Clean and deduplicate the selected photo numbers.
+  const photoNumbers = [
+    ...new Set(
+      order.photoNumbers
+        .map((photoNumber: any) =>
+          String(photoNumber).trim(),
+        )
+        .filter(Boolean),
+    ),
+  ].sort((a, b) => Number(a) - Number(b));
+
+  if (photoNumbers.length < 1) {
+    throw new Error("Please select at least one photo.");
+  }
+
+  const variantId =
+    order.account === "FW"
+      ? "52473140019496"
+      : "46602260250694";
+
+  const subtotal = photoNumbers.length * 25;
+
+  const lineItems = [
+    {
+      variantId:
+        `gid://shopify/ProductVariant/${variantId}`,
+      quantity: photoNumbers.length,
+    },
+  ];
+
+  const response = await admin.graphql(
+    `#graphql
+      mutation DraftOrderCreate($input: DraftOrderInput!) {
+        draftOrderCreate(input: $input) {
+          draftOrder {
+            id
+            name
+            invoiceUrl
+          }
+
+          userErrors {
+            field
+            message
+          }
+        }
+      }
+    `,
+    {
+      variables: {
+        input: {
+          lineItems,
+
+          email: order.email.trim(),
+
+          tags: [
+            "Photo Sales",
+            "Senior REP Photos",
+            order.account === "FW"
+              ? "Fort Washington"
+              : "Plymouth Meeting",
+            "Check Payment",
+          ],
+
+          customAttributes: [
+            {
+              key: "Order Type",
+              value: "Photo Sales",
+            },
+            {
+              key: "Customer",
+              value: order.customerName.trim(),
+            },
+            {
+              key: "Dancer",
+              value: order.dancerName.trim(),
+            },
+            {
+              key: "Photo Numbers",
+              value: photoNumbers.join(", "),
+            },
+            {
+              key: "Payment Method",
+              value: "Check",
+            },
+          ],
+
+          note: `
+Photo Sales
+Customer: ${order.customerName.trim()}
+Dancer: ${order.dancerName.trim()}
+Photo Numbers: ${photoNumbers.join(", ")}
+Payment Method: Check
+`,
+        },
+      },
+    },
+  );
+
+  const json = await response.json();
+
+  if (json.errors) {
+    throw new Error(
+      JSON.stringify(json.errors, null, 2),
+    );
+  }
+
+  const result = json.data?.draftOrderCreate;
+
+  if (!result) {
+    throw new Error(
+      "Shopify returned no draft order result.",
+    );
+  }
+
+  if (result.userErrors?.length > 0) {
+    throw new Error(
+      result.userErrors
+        .map((error: any) => error.message)
+        .join(", "),
+    );
+  }
+
+  if (!result.draftOrder) {
+    throw new Error(
+      "Shopify did not create the photo draft order.",
+    );
+  }
+
+  const photoOrder = await prisma.photoOrder.create({
+    data: {
+      studioCode: order.account,
+      customerName: order.customerName.trim(),
+      dancerName: order.dancerName.trim(),
+      customerEmail: order.email.trim(),
+
+      paymentMethod: "CHECK",
+      status: "PENDING",
+
+      subtotal,
+      processingFee: 0,
+      totalAmount: subtotal,
+
+      shopifyOrderId: result.draftOrder.id,
+      shopifyOrderNumber: result.draftOrder.name,
+
+      photos: {
+        create: photoNumbers.map((photoNumber) => ({
+          photoNumber,
+        })),
+      },
+    },
+
+    include: {
+      photos: true,
+    },
+  });
+
+  console.log(
+    `✅ Photo order ${photoOrder.id} created with ${photoNumbers.length} photos`,
+  );
+
+  console.log(
+    `✅ Photo Shopify draft order created: ${result.draftOrder.name}`,
+  );
+
+  return {
+    success: true,
+    photoOrderId: photoOrder.id,
+    draftOrderId: result.draftOrder.id,
+    draftOrderName: result.draftOrder.name,
+    invoiceUrl: result.draftOrder.invoiceUrl,
+  };
+}
