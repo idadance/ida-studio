@@ -1,44 +1,18 @@
-import { createDAVClient } from "tsdav";
+import {
+  getCalendarClient,
+  getStudioCalendars,
+  parseCalendarEvent,
+} from "../services/calendar.server.js";
 
 export async function loader() {
   try {
-    const email =
-      process.env.ICLOUD_CALENDAR_EMAIL;
+    const client = await getCalendarClient();
+    const calendars = await getStudioCalendars();
 
-    const password =
-      process.env.ICLOUD_CALENDAR_PASSWORD;
-
-    if (!email || !password) {
-      return Response.json(
-        {
-          success: false,
-          error:
-            "iCloud calendar credentials are not configured.",
-        },
-        {
-          status: 500,
-        },
-      );
-    }
-
-    const client = await createDAVClient({
-      serverUrl: "https://caldav.icloud.com",
-      credentials: {
-        username: email,
-        password,
-      },
-      authMethod: "Basic",
-      defaultAccountType: "caldav",
-    });
-
-    const calendars =
-      await client.fetchCalendars();
-
-    const calendar =
-      calendars.find(
-        (item) =>
-          item.displayName === "FW Studio B",
-      );
+    const calendar = calendars.find(
+      (item) =>
+        item.displayName === "FW Studio B",
+    );
 
     if (!calendar) {
       return Response.json(
@@ -57,23 +31,41 @@ export async function loader() {
       await client.fetchCalendarObjects({
         calendar,
         timeRange: {
-          start:
-            "2026-09-20T00:00:00Z",
-          end:
-            "2026-10-20T23:59:59Z",
+          start: "2026-09-20T00:00:00Z",
+          end: "2026-10-20T23:59:59Z",
         },
       });
+
+    const events = calendarObjects
+      .map((calendarObject) => {
+        const event =
+          parseCalendarEvent(
+            calendarObject.data,
+          );
+
+        if (!event) {
+          return null;
+        }
+
+        return {
+          title: event.summary,
+          start:
+            event.startDate?.toString() ??
+            null,
+          end:
+            event.endDate?.toString() ??
+            null,
+          recurring:
+            event.isRecurring(),
+        };
+      })
+      .filter(Boolean);
 
     return Response.json({
       success: true,
       calendar: calendar.displayName,
-      eventCount: calendarObjects.length,
-      events: calendarObjects.map(
-        (event) => ({
-          url: event.url,
-          data: event.data,
-        }),
-      ),
+      eventCount: events.length,
+      events,
     });
   } catch (error) {
     console.error(

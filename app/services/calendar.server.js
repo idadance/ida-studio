@@ -1,5 +1,7 @@
 import { createDAVClient } from "tsdav";
 
+import ICAL from "ical.js";
+
 const STUDIO_CALENDAR_NAMES = [
   "FW Studio A",
   "FW Studio B",
@@ -46,4 +48,20 @@ export async function getStudioCalendars() {
       calendar.displayName,
     ),
   );
+}
+
+export function parseCalendarEvent(icsData) {
+  if (!icsData) {
+    return null;
+  }
+
+  const parsed = ICAL.parse(icsData);
+  const component = new ICAL.Component(parsed);
+  const vevent = component.getFirstSubcomponent("vevent");
+
+  if (!vevent) {
+    return null;
+  }
+
+  return new ICAL.Event(vevent);
 }
