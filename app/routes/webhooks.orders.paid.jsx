@@ -614,6 +614,163 @@ const pendingTickets =
 
   console.log("IDA Account:", account);
 
+  // ======================================
+  // PHOTO SALES CREDIT CARD ORDER
+  // ======================================
+
+  const photoCreditVariantId =
+    account === "FW"
+      ? "52473139986728"
+      : "46602260217926";
+
+  const photoLineItem = payload.line_items?.find(
+    (item) =>
+      item.variant_id?.toString() ===
+      photoCreditVariantId,
+  );
+
+  if (photoLineItem) {
+    console.log(
+      `📸 Photo Sales payment received for ${payload.name}`,
+    );
+
+    // Shopify can retry webhooks. Never create
+    // the same PhotoOrder twice.
+    const existingPhotoOrder =
+      await prisma.photoOrder.findFirst({
+        where: {
+          shopifyOrderId:
+            payload.id.toString(),
+        },
+      });
+
+    if (existingPhotoOrder) {
+      console.log(
+        `⏭️ Photo order ${payload.name} has already been processed.`,
+      );
+
+      return new Response();
+    }
+
+    const photoAttributes =
+      Array.isArray(payload.note_attributes)
+        ? payload.note_attributes
+        : [];
+
+    const getPhotoAttribute = (name) =>
+      photoAttributes.find(
+        (attribute) =>
+          attribute.name === name,
+      )?.value ?? "";
+
+    const customerName =
+      getPhotoAttribute("Customer").trim() ||
+      [
+        payload.customer?.first_name,
+        payload.customer?.last_name,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .trim() ||
+      "Customer";
+
+    const dancerName =
+      getPhotoAttribute("Dancer").trim();
+
+    const customerEmail =
+      payload.customer?.email ??
+      payload.email ??
+      "";
+
+    const rawPhotoNumbers =
+      getPhotoAttribute("Photo Numbers");
+
+    const photoNumbers = [
+      ...new Set(
+        rawPhotoNumbers
+          .split(",")
+          .map((photoNumber) =>
+            photoNumber.trim(),
+          )
+          .filter(Boolean),
+      ),
+    ].sort(
+      (a, b) => Number(a) - Number(b),
+    );
+
+    if (photoNumbers.length < 1) {
+      throw new Error(
+        `Paid Photo Sales order ${payload.name} is missing photo numbers.`,
+      );
+    }
+
+    if (
+      photoNumbers.length !==
+      Number(photoLineItem.quantity)
+    ) {
+      throw new Error(
+        `Paid Photo Sales order ${payload.name} has ${photoLineItem.quantity} Shopify items but ${photoNumbers.length} photo numbers.`,
+      );
+    }
+
+    const subtotal =
+      photoNumbers.length * 25;
+
+    const processingFee =
+      Number(
+        (subtotal * 0.026).toFixed(2),
+      );
+
+    const totalAmount =
+      Number(
+        (subtotal + processingFee).toFixed(2),
+      );
+
+    const photoOrder =
+      await prisma.photoOrder.create({
+        data: {
+          studioCode: account,
+
+          customerName,
+          dancerName,
+          customerEmail,
+
+          paymentMethod:
+            "CREDIT_CARD",
+
+          status: "PAID",
+
+          subtotal,
+          processingFee,
+          totalAmount,
+
+          shopifyOrderId:
+            payload.id.toString(),
+
+          shopifyOrderNumber:
+            payload.name,
+
+          photos: {
+            create: photoNumbers.map(
+              (photoNumber) => ({
+                photoNumber,
+              }),
+            ),
+          },
+        },
+
+        include: {
+          photos: true,
+        },
+      });
+
+    console.log(
+      `✅ Paid PhotoOrder ${photoOrder.id} created for ${payload.name} with ${photoNumbers.length} photos.`,
+    );
+
+    return new Response();
+  }
+
 // ======================================
 // EVENT ORDER DETECTION
 // ======================================
