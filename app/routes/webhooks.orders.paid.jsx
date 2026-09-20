@@ -177,43 +177,113 @@ export const action = async ({ request }) => {
       ? `gid://shopify/DraftOrder/${payload.draft_order_id}`
       : null;
 
-  if (!draftOrderId) {
-    console.log(
-      "⚠️ Paid Check Payment order did not include a draft order ID.",
-    );
-
-    return new Response();
-  }
-
   // ======================================
   // PHOTO SALES CHECK PAYMENT
+  //
+  // Shopify does not always include the
+  // original draft_order_id after a draft
+  // order is completed. Photo Sales orders
+  // retain identifying cart attributes, so
+  // use those as a strict fallback.
   // ======================================
 
-  const photoOrder =
-    await prisma.photoOrder.findFirst({
-      where: {
-        shopifyOrderId:
-          draftOrderId,
-      },
-    });
+  const getNoteAttribute = (name) =>
+    noteAttributes
+      .find(
+        (attribute) =>
+          attribute.name === name,
+      )
+      ?.value?.trim() || "";
 
-  if (photoOrder) {
-    const paidAt =
-      new Date();
+  const orderType =
+    getNoteAttribute("Order Type");
+
+  const paymentMethod =
+    getNoteAttribute("Payment Method");
+
+  if (
+    orderType === "Photo Sales" &&
+    paymentMethod === "Check"
+  ) {
+    const account =
+      shop === "ida-dance-store.myshopify.com"
+        ? "FW"
+        : "PM";
+
+    const customerName =
+      getNoteAttribute("Customer");
+
+    const dancerName =
+      getNoteAttribute("Dancer");
+
+    const photoNumbers =
+      getNoteAttribute("Photo Numbers")
+        .split(",")
+        .map((number) => number.trim())
+        .filter(Boolean)
+        .sort(
+          (a, b) =>
+            Number(a) - Number(b),
+        );
+
+    const candidates =
+      await prisma.photoOrder.findMany({
+        where: {
+          studioCode: account,
+          paymentMethod: "CHECK",
+          status: "PENDING",
+          customerName,
+          dancerName,
+        },
+
+        include: {
+          photos: true,
+        },
+      });
+
+    const matches =
+      candidates.filter((candidate) => {
+        const candidateNumbers =
+          candidate.photos
+            .map(
+              (photo) =>
+                photo.photoNumber,
+            )
+            .sort(
+              (a, b) =>
+                Number(a) - Number(b),
+            );
+
+        return (
+          candidateNumbers.length ===
+            photoNumbers.length &&
+          candidateNumbers.every(
+            (number, index) =>
+              number ===
+              photoNumbers[index],
+          )
+        );
+      });
+
+    if (matches.length !== 1) {
+      console.error(
+        `❌ Expected exactly one pending Photo Sales check order for ${customerName} / ${dancerName} / ${photoNumbers.join(", ")}, but found ${matches.length}.`,
+      );
+
+      return new Response();
+    }
+
+    const photoOrder =
+      matches[0];
 
     await prisma.photoOrder.update({
       where: {
-        id:
-          photoOrder.id,
+        id: photoOrder.id,
       },
 
       data: {
-        status:
-          "PAID",
-
-        checkReceivedAt:
-          paidAt,
-
+        status: "PAID",
+        checkReceivedAt: new Date(),
         shopifyOrderNumber:
           payload.name,
       },
@@ -221,6 +291,14 @@ export const action = async ({ request }) => {
 
     console.log(
       `📸 Photo Sales check order ${photoOrder.id} marked PAID from Shopify order ${payload.name}.`,
+    );
+
+    return new Response();
+  }
+
+  if (!draftOrderId) {
+    console.log(
+      "⚠️ Paid Check Payment order did not include a draft order ID.",
     );
 
     return new Response();
