@@ -1,6 +1,8 @@
 import {
   Link,
+  Outlet,
   useLoaderData,
+  useParams,
 } from "react-router";
 
 import {
@@ -26,6 +28,13 @@ export async function loader() {
 export default function RehearsalSchedulePage() {
   const { registrations } =
     useLoaderData();
+
+      const { registrationId } =
+    useParams();
+
+  if (registrationId) {
+    return <Outlet />;
+  }
 
   return (
     <s-page
