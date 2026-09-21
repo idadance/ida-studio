@@ -2,10 +2,6 @@ import {
   getRegistrations,
 } from "../services/registration.server.js";
 
-import {
-  getRehearsalCandidateSlots,
-} from "../services/rehearsalScheduling.server.js";
-
 export async function loader() {
   try {
     const registrations =
@@ -24,41 +20,30 @@ export async function loader() {
       );
     }
 
-    const candidateSlots =
-      await getRehearsalCandidateSlots(
-        registration.id,
+    if (!registration.teacher) {
+      throw new Error(
+        "Test dancer does not have an assigned teacher.",
       );
+    }
 
     return Response.json({
       success: true,
 
+      registrationId:
+        registration.id,
+
       student:
         `${registration.studentFirstName} ${registration.studentLastName}`,
 
+      teacherId:
+        registration.teacher.id,
+
       teacher:
-        registration.teacher?.firstName ??
-        "No Preference",
-
-      candidateSlots:
-        candidateSlots.map((slot) => ({
-          date: slot.date,
-          day: slot.day,
-          timeSlot: slot.timeSlot,
-          location: slot.location,
-
-          start:
-            slot.start.toISOString(),
-
-          end:
-            slot.end.toISOString(),
-
-          availableStudios:
-            slot.availableStudios,
-        })),
+        registration.teacher.firstName,
     });
   } catch (error) {
     console.error(
-      "Rehearsal candidate service test failed:",
+      "Scheduling ID test failed:",
       error,
     );
 
@@ -69,7 +54,7 @@ export async function loader() {
         error:
           error instanceof Error
             ? error.message
-            : "Unknown rehearsal candidate error",
+            : "Unknown scheduling test error",
       },
       {
         status: 500,
