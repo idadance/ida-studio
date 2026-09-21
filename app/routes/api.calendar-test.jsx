@@ -7,6 +7,10 @@ import {
   parseTeacherAvailabilitySlot,
 } from "../services/teacher.server.js";
 
+import {
+  getAvailableStudiosAtLocation,
+} from "../services/calendar.server.js";
+
 export async function loader() {
   try {
     const registrations =
@@ -67,12 +71,59 @@ export async function loader() {
                 parentSlot.timeSlot,
               location:
                 parentSlot.preferredLocation,
-              start:
-                teacherSlot.start.toISOString(),
-              end:
-                teacherSlot.end.toISOString(),
+              start: teacherSlot.start,
+              end: teacherSlot.end,
             }));
         },
+      );
+
+    const candidateSlots =
+      await Promise.all(
+        matches.map(async (match) => {
+          const studios =
+            await getAvailableStudiosAtLocation(
+              match.location,
+              match.start.toISOString(),
+              match.end.toISOString(),
+            );
+
+          return {
+            date: match.date,
+            day: match.day,
+            timeSlot: match.timeSlot,
+            location: match.location,
+
+            start:
+              match.start.toISOString(),
+
+            end:
+              match.end.toISOString(),
+
+            availableStudios:
+              studios
+                .filter(
+                  (studio) =>
+                    studio.available,
+                )
+                .map(
+                  (studio) =>
+                    studio.calendar,
+                ),
+
+            conflicts:
+              studios
+                .filter(
+                  (studio) =>
+                    !studio.available,
+                )
+                .map((studio) => ({
+                  calendar:
+                    studio.calendar,
+                  conflicts:
+                    studio.conflicts,
+                })),
+          };
+        }),
       );
 
     return Response.json({
@@ -84,21 +135,22 @@ export async function loader() {
       teacher:
         registration.teacher.firstName,
 
-      matches,
+      candidateSlots,
     });
   } catch (error) {
     console.error(
-      "Parent and teacher availability match test failed:",
+      "Candidate rehearsal slot test failed:",
       error,
     );
 
     return Response.json(
       {
         success: false,
+
         error:
           error instanceof Error
             ? error.message
-            : "Unknown availability matching error",
+            : "Unknown candidate slot error",
       },
       {
         status: 500,
