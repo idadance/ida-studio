@@ -11,6 +11,8 @@ import {
   getAvailableStudiosAtLocation,
 } from "./calendar.server.js";
 
+import prisma from "../db.server";
+
 export async function getRehearsalCandidateSlots(
   registrationId,
 ) {
@@ -129,4 +131,35 @@ export async function getRehearsalCandidateSlots(
     );
 
   return candidateSlots.filter(Boolean);
+}
+
+export async function getTeacherScheduledRehearsals(
+  teacherId,
+  rangeStart,
+  rangeEnd,
+) {
+  const start = new Date(rangeStart);
+  const end = new Date(rangeEnd);
+
+  return prisma.soloDuetScheduledRehearsal.findMany({
+    where: {
+      teacherId,
+
+      startTime: {
+        lt: end,
+      },
+
+      endTime: {
+        gt: start,
+      },
+    },
+
+    include: {
+      registration: true,
+    },
+
+    orderBy: {
+      startTime: "asc",
+    },
+  });
 }
