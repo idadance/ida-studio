@@ -2,6 +2,11 @@ import {
   getRegistrations,
 } from "../services/registration.server.js";
 
+import {
+  getTeacherAvailability,
+  parseTeacherAvailabilitySlot,
+} from "../services/teacher.server.js";
+
 export async function loader() {
   try {
     const registrations =
@@ -10,49 +15,80 @@ export async function loader() {
     const registration =
       registrations.find(
         (item) =>
-          item.availability?.length > 0,
+          item.studentFirstName === "test" &&
+          item.studentLastName === "dancer",
       );
 
     if (!registration) {
       throw new Error(
-        "No registration with availability was found.",
+        "Test dancer registration was not found.",
       );
     }
+
+    if (!registration.teacher) {
+      throw new Error(
+        "Test dancer does not have an assigned teacher.",
+      );
+    }
+
+    const teacherAvailability =
+      await getTeacherAvailability(
+        registration.teacher.id,
+        "2026-09-01T00:00:00Z",
+        "2026-12-31T23:59:59Z",
+      );
+
+    const teacherSlots =
+      teacherAvailability
+        .map((slot) =>
+          parseTeacherAvailabilitySlot(
+            slot,
+          ),
+        )
+        .filter(Boolean);
+
+    const matches =
+      registration.availability.flatMap(
+        (parentSlot) => {
+          return teacherSlots
+            .filter(
+              (teacherSlot) =>
+                teacherSlot.date ===
+                  parentSlot.date &&
+                teacherSlot.timeSlot ===
+                  parentSlot.timeSlot &&
+                teacherSlot.preferredLocation ===
+                  parentSlot.preferredLocation,
+            )
+            .map((teacherSlot) => ({
+              date: parentSlot.date,
+              day: parentSlot.day,
+              timeSlot:
+                parentSlot.timeSlot,
+              location:
+                parentSlot.preferredLocation,
+              start:
+                teacherSlot.start.toISOString(),
+              end:
+                teacherSlot.end.toISOString(),
+            }));
+        },
+      );
 
     return Response.json({
       success: true,
 
-      registration: {
-        student:
-          `${registration.studentFirstName} ${registration.studentLastName}`,
+      student:
+        `${registration.studentFirstName} ${registration.studentLastName}`,
 
-        status:
-          registration.status,
+      teacher:
+        registration.teacher.firstName,
 
-        teacher:
-          registration.teacher
-            ? registration.teacher.firstName
-            : "No Preference",
-
-        studio:
-          registration.studioCode,
-
-        availability:
-          registration.availability.map(
-            (slot) => ({
-              day: slot.day,
-              date: slot.date,
-              timeSlot:
-                slot.timeSlot,
-              preferredLocation:
-                slot.preferredLocation,
-            }),
-          ),
-      },
+      matches,
     });
   } catch (error) {
     console.error(
-      "Registration availability test failed:",
+      "Parent and teacher availability match test failed:",
       error,
     );
 
@@ -62,7 +98,7 @@ export async function loader() {
         error:
           error instanceof Error
             ? error.message
-            : "Unknown registration availability error",
+            : "Unknown availability matching error",
       },
       {
         status: 500,

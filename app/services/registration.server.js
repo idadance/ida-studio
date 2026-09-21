@@ -36,3 +36,19 @@ export async function approveRegistration(id) {
     },
   });
 }
+
+export async function getRegistrationById(
+  id,
+) {
+  return prisma.soloDuetRegistration.findUnique({
+    where: {
+      id,
+    },
+
+    include: {
+      teacher: true,
+      genre: true,
+      availability: true,
+    },
+  });
+}
