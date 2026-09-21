@@ -156,6 +156,54 @@ if (capacity < reservedQuantity) {
   });
 }
 
+if (intent === "cancelReservation") {
+  const reservationId = String(
+    formData.get("reservationId") || "",
+  ).trim();
+
+  if (!reservationId) {
+    throw new Response("Reservation ID is required.", {
+      status: 400,
+    });
+  }
+
+  const { default: prisma } = await import("../db.server");
+
+  const reservation =
+    await prisma.eventReservation.findUnique({
+      where: {
+        id: reservationId,
+      },
+      include: {
+        eventLocation: true,
+      },
+    });
+
+  if (
+    !reservation ||
+    reservation.eventLocation.eventId !== params.id
+  ) {
+    throw new Response("Reservation not found.", {
+      status: 404,
+    });
+  }
+
+  if (reservation.status === "CANCELED") {
+    return { success: true };
+  }
+
+  await prisma.eventReservation.update({
+    where: {
+      id: reservationId,
+    },
+    data: {
+      status: "CANCELED",
+    },
+  });
+
+  return { success: true };
+}
+
 if (intent === "delete") {
   const event = await getEvent(params.id);
 
@@ -651,8 +699,7 @@ export default function ManageEventPage() {
   </label>
 
   <button type="submit" disabled={isSubmitting}>
-    {isSubmitting ? "Saving..." : "Save Shopify IDs"}
-  </button>
+{isSubmitting ? "Saving..." : "Save Location Changes"}  </button>
 </Form>
               </div>
             ),
@@ -803,6 +850,45 @@ export default function ManageEventPage() {
                           reservation.totalAmount,
                         ).toFixed(2)}
                       </div>
+                      {reservation.status !== "CANCELED" && (
+  <Form
+    method="post"
+    onSubmit={(event) => {
+      const confirmed = window.confirm(
+        `Cancel the registration for ${reservation.customerName}? Their ${reservation.quantity} spot${reservation.quantity === 1 ? "" : "s"} will be returned to available inventory. This does not issue a Shopify refund.`,
+      );
+
+      if (!confirmed) {
+        event.preventDefault();
+      }
+    }}
+    style={{
+      marginTop: "12px",
+    }}
+  >
+    <input
+      type="hidden"
+      name="intent"
+      value="cancelReservation"
+    />
+
+    <input
+      type="hidden"
+      name="reservationId"
+      value={reservation.id}
+    />
+
+    <button
+      type="submit"
+      disabled={isSubmitting}
+      style={{
+        color: "#b42318",
+      }}
+    >
+      Cancel Registration
+    </button>
+  </Form>
+)}
                     </div>
                   ),
                 )}
