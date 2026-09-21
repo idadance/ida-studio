@@ -81,16 +81,18 @@ export default function RehearsalsPage() {
 </s-card>
 
         <s-card>
-          <h2>Schedule</h2>
+  <h2>Schedule</h2>
 
-          <p>
-            Assign rehearsals and studios.
-          </p>
+  <p>
+    Assign rehearsals and studios.
+  </p>
 
-          <s-button disabled>
-            Coming Soon
-          </s-button>
-        </s-card>
+  <Link to="/app/rehearsals/schedule">
+    <s-button variant="primary">
+      Open Schedule
+    </s-button>
+  </Link>
+</s-card>
 
         <s-card>
           <h2>Reports</h2>
