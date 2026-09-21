@@ -1,4 +1,8 @@
 import {
+  getAvailableStudiosAtLocation,
+} from "../services/calendar.server.js";
+
+import {
   getTeacherByName,
   getTeacherAvailability,
   parseTeacherAvailabilitySlot,
@@ -22,18 +26,35 @@ export async function loader() {
         "2026-10-17T23:59:59Z",
       );
 
-    const parsed =
-      availability.map(
-        (slot) =>
+    const parsedSlots =
+      availability
+        .map((slot) =>
           parseTeacherAvailabilitySlot(
             slot,
           ),
+        )
+        .filter(Boolean);
+
+    const slot = parsedSlots[0];
+
+    if (!slot) {
+      throw new Error(
+        "Amy has no availability on October 17.",
+      );
+    }
+
+    const studios =
+      await getAvailableStudiosAtLocation(
+        slot.preferredLocation,
+        slot.start.toISOString(),
+        slot.end.toISOString(),
       );
 
     return Response.json({
       success: true,
       teacher: teacher.firstName,
-      slots: parsed.map((slot) => ({
+
+      teacherAvailability: {
         date: slot.date,
         timeSlot: slot.timeSlot,
         location:
@@ -42,11 +63,13 @@ export async function loader() {
           slot.start.toISOString(),
         end:
           slot.end.toISOString(),
-      })),
+      },
+
+      studios,
     });
   } catch (error) {
     console.error(
-      "Teacher availability test failed:",
+      "Teacher and studio availability test failed:",
       error,
     );
 
@@ -56,7 +79,7 @@ export async function loader() {
         error:
           error instanceof Error
             ? error.message
-            : "Unknown teacher availability error",
+            : "Unknown availability error",
       },
       {
         status: 500,
