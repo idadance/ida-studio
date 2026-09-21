@@ -266,3 +266,34 @@ export async function getAvailableStudios(
 
   return results;
 }
+
+export async function getAvailableStudiosAtLocation(
+  location,
+  rangeStart,
+  rangeEnd,
+) {
+  const normalizedLocation =
+    location?.trim().toUpperCase();
+
+  if (
+    normalizedLocation !== "FW" &&
+    normalizedLocation !== "PM"
+  ) {
+    throw new Error(
+      `Unknown studio location: ${location}`,
+    );
+  }
+
+  const allStudios =
+    await getAvailableStudios(
+      rangeStart,
+      rangeEnd,
+    );
+
+  return allStudios.filter(
+    (studio) =>
+      studio.calendar.startsWith(
+        `${normalizedLocation} Studio `,
+      ),
+  );
+}
