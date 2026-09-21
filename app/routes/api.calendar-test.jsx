@@ -1,51 +1,75 @@
-import prisma from "../db.server";
+import {
+  getRegistrations,
+} from "../services/registration.server.js";
 
-const TEST_REHEARSAL_ID =
-  "cmubjuzru0001vv3awfiqs7pf";
+import {
+  getRehearsalCandidateSlots,
+} from "../services/rehearsalScheduling.server.js";
 
 export async function loader() {
   try {
-    const rehearsal =
-      await prisma.soloDuetScheduledRehearsal.findUnique({
-        where: {
-          id: TEST_REHEARSAL_ID,
-        },
-      });
+    const registrations =
+      await getRegistrations();
 
-    if (!rehearsal) {
-      return Response.json({
-        success: true,
-        message:
-          "Temporary test rehearsal was already removed.",
-      });
+    const registration =
+      registrations.find(
+        (item) =>
+          item.studentFirstName === "test" &&
+          item.studentLastName === "dancer",
+      );
+
+    if (!registration) {
+      throw new Error(
+        "Test dancer registration was not found.",
+      );
     }
 
-    await prisma.soloDuetScheduledRehearsal.delete({
-      where: {
-        id: TEST_REHEARSAL_ID,
-      },
-    });
+    const candidateSlots =
+      await getRehearsalCandidateSlots(
+        registration.id,
+      );
 
     return Response.json({
       success: true,
-      message:
-        "Temporary test rehearsal removed.",
-      deletedRehearsalId:
-        TEST_REHEARSAL_ID,
+
+      student:
+        `${registration.studentFirstName} ${registration.studentLastName}`,
+
+      teacher:
+        registration.teacher?.firstName ??
+        "No Preference",
+
+      candidateSlots:
+        candidateSlots.map((slot) => ({
+          date: slot.date,
+          day: slot.day,
+          timeSlot: slot.timeSlot,
+          location: slot.location,
+
+          start:
+            slot.start.toISOString(),
+
+          end:
+            slot.end.toISOString(),
+
+          availableStudios:
+            slot.availableStudios,
+        })),
     });
   } catch (error) {
     console.error(
-      "Test rehearsal cleanup failed:",
+      "Final rehearsal candidate test failed:",
       error,
     );
 
     return Response.json(
       {
         success: false,
+
         error:
           error instanceof Error
             ? error.message
-            : "Unknown cleanup error",
+            : "Unknown rehearsal candidate error",
       },
       {
         status: 500,
