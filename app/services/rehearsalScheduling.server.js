@@ -89,10 +89,22 @@ export async function getRehearsalCandidateSlots(
       },
     );
 
-  const candidateSlots =
+    const candidateSlots =
     await Promise.all(
       matchingSlots.map(
         async (slot) => {
+          const teacherConflict =
+            await checkTeacherSchedulingConflict(
+              registration.teacher.id,
+              slot.start,
+              slot.end,
+              slot.location,
+            );
+
+          if (!teacherConflict.available) {
+            return null;
+          }
+
           const studios =
             await getAvailableStudiosAtLocation(
               slot.location,
