@@ -90,3 +90,28 @@ export async function getTeacherByName(
     },
   });
 }
+
+export async function getTeacherAvailability(
+  teacherId,
+  rangeStart,
+  rangeEnd,
+) {
+  const start = new Date(rangeStart);
+  const end = new Date(rangeEnd);
+
+  return prisma.teacherAvailability.findMany({
+    where: {
+      teacherId,
+
+      sortDate: {
+        gte: start,
+        lte: end,
+      },
+    },
+
+    orderBy: [
+      { sortDate: "asc" },
+      { timeSlot: "asc" },
+    ],
+  });
+}
