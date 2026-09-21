@@ -3,13 +3,8 @@ import {
 } from "../services/registration.server.js";
 
 import {
-  getTeacherAvailability,
-  parseTeacherAvailabilitySlot,
-} from "../services/teacher.server.js";
-
-import {
-  getAvailableStudiosAtLocation,
-} from "../services/calendar.server.js";
+  getRehearsalCandidateSlots,
+} from "../services/rehearsalScheduling.server.js";
 
 export async function loader() {
   try {
@@ -29,101 +24,9 @@ export async function loader() {
       );
     }
 
-    if (!registration.teacher) {
-      throw new Error(
-        "Test dancer does not have an assigned teacher.",
-      );
-    }
-
-    const teacherAvailability =
-      await getTeacherAvailability(
-        registration.teacher.id,
-        "2026-09-01T00:00:00Z",
-        "2026-12-31T23:59:59Z",
-      );
-
-    const teacherSlots =
-      teacherAvailability
-        .map((slot) =>
-          parseTeacherAvailabilitySlot(
-            slot,
-          ),
-        )
-        .filter(Boolean);
-
-    const matches =
-      registration.availability.flatMap(
-        (parentSlot) => {
-          return teacherSlots
-            .filter(
-              (teacherSlot) =>
-                teacherSlot.date ===
-                  parentSlot.date &&
-                teacherSlot.timeSlot ===
-                  parentSlot.timeSlot &&
-                teacherSlot.preferredLocation ===
-                  parentSlot.preferredLocation,
-            )
-            .map((teacherSlot) => ({
-              date: parentSlot.date,
-              day: parentSlot.day,
-              timeSlot:
-                parentSlot.timeSlot,
-              location:
-                parentSlot.preferredLocation,
-              start: teacherSlot.start,
-              end: teacherSlot.end,
-            }));
-        },
-      );
-
     const candidateSlots =
-      await Promise.all(
-        matches.map(async (match) => {
-          const studios =
-            await getAvailableStudiosAtLocation(
-              match.location,
-              match.start.toISOString(),
-              match.end.toISOString(),
-            );
-
-          return {
-            date: match.date,
-            day: match.day,
-            timeSlot: match.timeSlot,
-            location: match.location,
-
-            start:
-              match.start.toISOString(),
-
-            end:
-              match.end.toISOString(),
-
-            availableStudios:
-              studios
-                .filter(
-                  (studio) =>
-                    studio.available,
-                )
-                .map(
-                  (studio) =>
-                    studio.calendar,
-                ),
-
-            conflicts:
-              studios
-                .filter(
-                  (studio) =>
-                    !studio.available,
-                )
-                .map((studio) => ({
-                  calendar:
-                    studio.calendar,
-                  conflicts:
-                    studio.conflicts,
-                })),
-          };
-        }),
+      await getRehearsalCandidateSlots(
+        registration.id,
       );
 
     return Response.json({
@@ -133,13 +36,29 @@ export async function loader() {
         `${registration.studentFirstName} ${registration.studentLastName}`,
 
       teacher:
-        registration.teacher.firstName,
+        registration.teacher?.firstName ??
+        "No Preference",
 
-      candidateSlots,
+      candidateSlots:
+        candidateSlots.map((slot) => ({
+          date: slot.date,
+          day: slot.day,
+          timeSlot: slot.timeSlot,
+          location: slot.location,
+
+          start:
+            slot.start.toISOString(),
+
+          end:
+            slot.end.toISOString(),
+
+          availableStudios:
+            slot.availableStudios,
+        })),
     });
   } catch (error) {
     console.error(
-      "Candidate rehearsal slot test failed:",
+      "Rehearsal candidate service test failed:",
       error,
     );
 
@@ -150,7 +69,7 @@ export async function loader() {
         error:
           error instanceof Error
             ? error.message
-            : "Unknown candidate slot error",
+            : "Unknown rehearsal candidate error",
       },
       {
         status: 500,
