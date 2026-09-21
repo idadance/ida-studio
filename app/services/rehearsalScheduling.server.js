@@ -163,3 +163,127 @@ export async function getTeacherScheduledRehearsals(
     },
   });
 }
+
+export async function checkTeacherSchedulingConflict(
+  teacherId,
+  proposedStart,
+  proposedEnd,
+  proposedLocation,
+) {
+  const start = new Date(proposedStart);
+  const end = new Date(proposedEnd);
+
+  const normalizedLocation =
+    proposedLocation
+      ?.trim()
+      .toUpperCase();
+
+  if (
+    normalizedLocation !== "FW" &&
+    normalizedLocation !== "PM"
+  ) {
+    throw new Error(
+      `Unknown rehearsal location: ${proposedLocation}`,
+    );
+  }
+
+  const bufferStart =
+    new Date(
+      start.getTime() -
+        30 * 60 * 1000,
+    );
+
+  const bufferEnd =
+    new Date(
+      end.getTime() +
+        30 * 60 * 1000,
+    );
+
+  const nearbyRehearsals =
+    await prisma.soloDuetScheduledRehearsal.findMany({
+      where: {
+        teacherId,
+
+        startTime: {
+          lt: bufferEnd,
+        },
+
+        endTime: {
+          gt: bufferStart,
+        },
+      },
+
+      orderBy: {
+        startTime: "asc",
+      },
+    });
+
+  for (const rehearsal of nearbyRehearsals) {
+    // A teacher can never have two
+    // rehearsals happening at the same time.
+    const overlaps =
+      rehearsal.startTime < end &&
+      rehearsal.endTime > start;
+
+    if (overlaps) {
+      return {
+        available: false,
+        reason: "OVERLAP",
+        conflict: rehearsal,
+      };
+    }
+
+    // Back-to-back rehearsals at the
+    // same location are allowed.
+    if (
+      rehearsal.location ===
+      normalizedLocation
+    ) {
+      continue;
+    }
+
+    // Switching FW <-> PM requires
+    // at least 30 minutes of travel time.
+    const beforeProposed =
+      rehearsal.endTime <= start;
+
+    if (beforeProposed) {
+      const gap =
+        start.getTime() -
+        rehearsal.endTime.getTime();
+
+      if (gap < 30 * 60 * 1000) {
+        return {
+          available: false,
+          reason: "TRAVEL_BUFFER",
+          conflict: rehearsal,
+        };
+      }
+
+      continue;
+    }
+
+    const afterProposed =
+      rehearsal.startTime >= end;
+
+    if (afterProposed) {
+      const gap =
+        rehearsal.startTime.getTime() -
+        end.getTime();
+
+      if (gap < 30 * 60 * 1000) {
+        return {
+          available: false,
+          reason: "TRAVEL_BUFFER",
+          conflict: rehearsal,
+        };
+      }
+    }
+  }
+
+  return {
+    available: true,
+    reason: null,
+    conflict: null,
+  };
+}
