@@ -260,6 +260,8 @@ model Teacher {
 
   registrations SoloDuetRegistration[]
 
+  scheduledRehearsals SoloDuetScheduledRehearsal[]
+
   notes String? @db.Text
 
   genres Genre[]
@@ -375,6 +377,7 @@ model SoloDuetRegistration {
   status String @default("REGISTERED")
 
   availability SoloDuetRegistrationAvailability[]
+  scheduledRehearsals SoloDuetScheduledRehearsal[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -403,6 +406,29 @@ model SoloDuetRegistrationAvailability {
 
   @@index([registrationId])
   @@index([availabilityId])
+}
+
+model SoloDuetScheduledRehearsal {
+  id String @id @default(cuid())
+
+  registrationId String
+  registration   SoloDuetRegistration @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+
+  teacherId String
+  teacher   Teacher @relation(fields: [teacherId], references: [id])
+
+  startTime DateTime
+  endTime   DateTime
+
+  location       String
+  studioCalendar String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([registrationId])
+  @@index([teacherId])
+  @@index([startTime])
 }
 
 enum EventType {
