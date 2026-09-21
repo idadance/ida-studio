@@ -62,6 +62,62 @@ export const action = async ({ request, params }) => {
     formData.get("locationId") || "",
   ).trim();
 
+  const capacity = Number(
+  formData.get("capacity"),
+);
+
+const price = Number(
+  formData.get("price"),
+);
+
+if (
+  !Number.isInteger(capacity) ||
+  capacity < 0 ||
+  !Number.isFinite(price) ||
+  price < 0
+) {
+  throw new Response(
+    "Capacity and price must be valid numbers.",
+    {
+      status: 400,
+    },
+  );
+}
+
+const currentEvent = await getEvent(params.id);
+
+const currentLocation = currentEvent?.locations.find(
+  (location) => location.id === locationId,
+);
+
+if (!currentLocation) {
+  throw new Response("Event location not found.", {
+    status: 404,
+  });
+}
+
+const reservedQuantity =
+  currentLocation.reservations
+    ?.filter(
+      (reservation) =>
+        reservation.status === "PENDING" ||
+        reservation.status === "CONFIRMED",
+    )
+    .reduce(
+      (total, reservation) =>
+        total + reservation.quantity,
+      0,
+    ) ?? 0;
+
+if (capacity < reservedQuantity) {
+  throw new Response(
+    `Capacity cannot be lower than the ${reservedQuantity} spots already reserved.`,
+    {
+      status: 400,
+    },
+  );
+}
+
   const creditVariantId = String(
     formData.get("creditVariantId") || "",
   ).trim();
@@ -71,11 +127,13 @@ export const action = async ({ request, params }) => {
   ).trim();
 
   if (locationId) {
-    await updateEventLocation(locationId, {
-      creditVariantId,
-      checkVariantId,
-    });
-  }
+  await updateEventLocation(locationId, {
+    capacity,
+    price,
+    creditVariantId,
+    checkVariantId,
+  });
+}
 
   return { success: true };
 }
@@ -499,6 +557,53 @@ export default function ManageEventPage() {
     }}
   >
     Shopify Checkout Setup
+    <label
+  style={{
+    display: "block",
+    marginBottom: "12px",
+  }}
+>
+  <div style={{ marginBottom: "5px" }}>
+    Capacity
+  </div>
+
+  <input
+    type="number"
+    name="capacity"
+    min="0"
+    defaultValue={location.capacity}
+    required
+    style={{
+      width: "100%",
+      padding: "8px",
+      boxSizing: "border-box",
+    }}
+  />
+</label>
+<label
+  style={{
+    display: "block",
+    marginBottom: "18px",
+  }}
+>
+  <div style={{ marginBottom: "5px" }}>
+    Price Per Spot
+  </div>
+
+  <input
+    type="number"
+    name="price"
+    min="0"
+    step="0.01"
+    defaultValue={location.price}
+    required
+    style={{
+      width: "100%",
+      padding: "8px",
+      boxSizing: "border-box",
+    }}
+  />
+</label>
   </div>
 
   <label
