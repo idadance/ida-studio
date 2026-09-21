@@ -1,75 +1,58 @@
 import {
-  getAvailableStudiosAtLocation,
-} from "../services/calendar.server.js";
-
-import {
-  getTeacherByName,
-  getTeacherAvailability,
-  parseTeacherAvailabilitySlot,
-} from "../services/teacher.server.js";
+  getRegistrations,
+} from "../services/registration.server.js";
 
 export async function loader() {
   try {
-    const teacher =
-      await getTeacherByName("Amy");
+    const registrations =
+      await getRegistrations();
 
-    if (!teacher) {
+    const registration =
+      registrations.find(
+        (item) =>
+          item.availability?.length > 0,
+      );
+
+    if (!registration) {
       throw new Error(
-        "Amy was not found.",
+        "No registration with availability was found.",
       );
     }
-
-    const availability =
-      await getTeacherAvailability(
-        teacher.id,
-        "2026-10-17T00:00:00Z",
-        "2026-10-17T23:59:59Z",
-      );
-
-    const parsedSlots =
-      availability
-        .map((slot) =>
-          parseTeacherAvailabilitySlot(
-            slot,
-          ),
-        )
-        .filter(Boolean);
-
-    const slot = parsedSlots[0];
-
-    if (!slot) {
-      throw new Error(
-        "Amy has no availability on October 17.",
-      );
-    }
-
-    const studios =
-      await getAvailableStudiosAtLocation(
-        slot.preferredLocation,
-        slot.start.toISOString(),
-        slot.end.toISOString(),
-      );
 
     return Response.json({
       success: true,
-      teacher: teacher.firstName,
 
-      teacherAvailability: {
-        date: slot.date,
-        timeSlot: slot.timeSlot,
-        location:
-          slot.preferredLocation,
-        start:
-          slot.start.toISOString(),
-        end:
-          slot.end.toISOString(),
+      registration: {
+        student:
+          `${registration.studentFirstName} ${registration.studentLastName}`,
+
+        status:
+          registration.status,
+
+        teacher:
+          registration.teacher
+            ? registration.teacher.firstName
+            : "No Preference",
+
+        studio:
+          registration.studioCode,
+
+        availability:
+          registration.availability.map(
+            (slot) => ({
+              day: slot.day,
+              date: slot.date,
+              timeSlot:
+                slot.timeSlot,
+              preferredLocation:
+                slot.preferredLocation,
+            }),
+          ),
       },
-
-      studios,
     });
   } catch (error) {
     console.error(
-      "Teacher and studio availability test failed:",
+      "Registration availability test failed:",
       error,
     );
 
@@ -79,7 +62,7 @@ export async function loader() {
         error:
           error instanceof Error
             ? error.message
-            : "Unknown availability error",
+            : "Unknown registration availability error",
       },
       {
         status: 500,
