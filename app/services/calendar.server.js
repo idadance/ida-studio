@@ -160,6 +160,8 @@ export async function getStudioOccupiedTimes(
   calendarName,
   rangeStart,
   rangeEnd,
+  client = null,
+  calendars = null,
 ) {
   if (
     !STUDIO_CALENDAR_NAMES.includes(
@@ -171,14 +173,20 @@ export async function getStudioOccupiedTimes(
     );
   }
 
-  const client = await getCalendarClient();
-  const calendars =
-    await client.fetchCalendars();
+  const calendarClient =
+    client ??
+    (await getCalendarClient());
 
-  const calendar = calendars.find(
-    (item) =>
-      item.displayName === calendarName,
-  );
+  const availableCalendars =
+    calendars ??
+    (await calendarClient.fetchCalendars());
+
+  const calendar =
+    availableCalendars.find(
+      (item) =>
+        item.displayName ===
+        calendarName,
+    );
 
   if (!calendar) {
     throw new Error(
@@ -187,7 +195,7 @@ export async function getStudioOccupiedTimes(
   }
 
   const calendarObjects =
-    await client.fetchCalendarObjects({
+    await calendarClient.fetchCalendarObjects({
       calendar,
       timeRange: {
         start: rangeStart,
@@ -224,45 +232,63 @@ export async function getAvailableStudios(
   rangeStart,
   rangeEnd,
 ) {
-  const results = await Promise.all(
-    STUDIO_CALENDAR_NAMES.map(
-      async (calendarName) => {
-        const occupied =
-          await getStudioOccupiedTimes(
-            calendarName,
-            rangeStart,
-            rangeEnd,
-          );
+  const client =
+    await getCalendarClient();
 
-        const requestedStart =
-          new Date(rangeStart);
+  const calendars =
+    await client.fetchCalendars();
 
-        const requestedEnd =
-          new Date(rangeEnd);
+  const requestedStart =
+    new Date(rangeStart);
 
-        const conflicts =
-          occupied.filter((event) => {
-            return (
-              event.start < requestedEnd &&
-              event.end > requestedStart
+  const requestedEnd =
+    new Date(rangeEnd);
+
+  const results =
+    await Promise.all(
+      STUDIO_CALENDAR_NAMES.map(
+        async (calendarName) => {
+          const occupied =
+            await getStudioOccupiedTimes(
+              calendarName,
+              rangeStart,
+              rangeEnd,
+              client,
+              calendars,
             );
-          });
 
-        return {
-          calendar: calendarName,
-          available:
-            conflicts.length === 0,
-          conflicts: conflicts.map(
-            (event) => ({
-              title: event.title,
-              start: event.start,
-              end: event.end,
-            }),
-          ),
-        };
-      },
-    ),
-  );
+          const conflicts =
+            occupied.filter((event) => {
+              return (
+                event.start <
+                  requestedEnd &&
+                event.end >
+                  requestedStart
+              );
+            });
+
+          return {
+            calendar:
+              calendarName,
+
+            available:
+              conflicts.length === 0,
+
+            conflicts:
+              conflicts.map(
+                (event) => ({
+                  title:
+                    event.title,
+                  start:
+                    event.start,
+                  end:
+                    event.end,
+                }),
+              ),
+          };
+        },
+      ),
+    );
 
   return results;
 }
@@ -284,16 +310,70 @@ export async function getAvailableStudiosAtLocation(
     );
   }
 
-  const allStudios =
-    await getAvailableStudios(
-      rangeStart,
-      rangeEnd,
+  const calendarNames =
+    STUDIO_CALENDAR_NAMES.filter(
+      (calendarName) =>
+        calendarName.startsWith(
+          `${normalizedLocation} Studio `,
+        ),
     );
 
-  return allStudios.filter(
-    (studio) =>
-      studio.calendar.startsWith(
-        `${normalizedLocation} Studio `,
+  const client =
+    await getCalendarClient();
+
+  const calendars =
+    await client.fetchCalendars();
+
+  const requestedStart =
+    new Date(rangeStart);
+
+  const requestedEnd =
+    new Date(rangeEnd);
+
+  const results =
+    await Promise.all(
+      calendarNames.map(
+        async (calendarName) => {
+          const occupied =
+            await getStudioOccupiedTimes(
+              calendarName,
+              rangeStart,
+              rangeEnd,
+              client,
+              calendars,
+            );
+
+          const conflicts =
+            occupied.filter(
+              (event) =>
+                event.start <
+                  requestedEnd &&
+                event.end >
+                  requestedStart,
+            );
+
+          return {
+            calendar:
+              calendarName,
+
+            available:
+              conflicts.length === 0,
+
+            conflicts:
+              conflicts.map(
+                (event) => ({
+                  title:
+                    event.title,
+                  start:
+                    event.start,
+                  end:
+                    event.end,
+                }),
+              ),
+          };
+        },
       ),
-  );
+    );
+
+  return results;
 }
