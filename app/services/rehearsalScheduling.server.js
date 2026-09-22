@@ -299,3 +299,108 @@ export async function checkTeacherSchedulingConflict(
     conflict: null,
   };
 }
+
+export async function createScheduledRehearsal({
+  registrationId,
+  startTime,
+  endTime,
+  location,
+  studioCalendar,
+}) {
+  const registration =
+    await getRegistrationById(
+      registrationId,
+    );
+
+  if (!registration) {
+    throw new Error(
+      "Registration was not found.",
+    );
+  }
+
+  if (
+    registration.status !== "APPROVED"
+  ) {
+    throw new Error(
+      "Registration must be approved before scheduling.",
+    );
+  }
+
+  if (!registration.teacher) {
+    throw new Error(
+      "Registration does not have an assigned teacher.",
+    );
+  }
+
+  const start = new Date(startTime);
+  const end = new Date(endTime);
+
+  const teacherConflict =
+    await checkTeacherSchedulingConflict(
+      registration.teacher.id,
+      start,
+      end,
+      location,
+    );
+
+  if (!teacherConflict.available) {
+    throw new Error(
+      "The teacher is no longer available for this rehearsal time.",
+    );
+  }
+
+  const studios =
+    await getAvailableStudiosAtLocation(
+      location,
+      start.toISOString(),
+      end.toISOString(),
+    );
+
+  const selectedStudio =
+    studios.find(
+      (studio) =>
+        studio.calendar ===
+        studioCalendar,
+    );
+
+  if (
+    !selectedStudio ||
+    !selectedStudio.available
+  ) {
+    throw new Error(
+      "That studio is no longer available for this rehearsal time.",
+    );
+  }
+
+  const existingCount =
+    await prisma.soloDuetScheduledRehearsal.count({
+      where: {
+        registrationId,
+      },
+    });
+
+  if (existingCount >= 3) {
+    throw new Error(
+      "This registration already has 3 scheduled rehearsals.",
+    );
+  }
+
+  return prisma.soloDuetScheduledRehearsal.create({
+    data: {
+      registrationId,
+
+      teacherId:
+        registration.teacher.id,
+
+      startTime: start,
+      endTime: end,
+
+      location:
+        location
+          .trim()
+          .toUpperCase(),
+
+      studioCalendar,
+    },
+  });
+}

@@ -1,4 +1,5 @@
 import {
+  Form,
   useLoaderData,
 } from "react-router";
 
@@ -11,8 +12,60 @@ import {
 } from "../services/registration.server.js";
 
 import {
+  createScheduledRehearsal,
   getRehearsalCandidateSlots,
 } from "../services/rehearsalScheduling.server.js";
+
+export async function action({
+  request,
+  params,
+}) {
+  const formData =
+    await request.formData();
+
+  const intent =
+    formData.get("intent");
+
+  if (intent !== "schedule") {
+    return null;
+  }
+
+  const startTime =
+    formData.get("startTime");
+
+  const endTime =
+    formData.get("endTime");
+
+  const location =
+    formData.get("location");
+
+  const studioCalendar =
+    formData.get("studioCalendar");
+
+  if (
+    !startTime ||
+    !endTime ||
+    !location ||
+    !studioCalendar
+  ) {
+    throw new Error(
+      "Missing rehearsal scheduling information.",
+    );
+  }
+
+  await createScheduledRehearsal({
+    registrationId:
+      params.registrationId,
+    startTime,
+    endTime,
+    location,
+    studioCalendar,
+  });
+
+  return {
+    success: true,
+  };
+}
 
 export async function loader({
   params,
@@ -159,6 +212,53 @@ export default function RehearsalScheduleDetailPage() {
       ),
     )}
   </select>
+  <Form method="post">
+  <input
+    type="hidden"
+    name="intent"
+    value="schedule"
+  />
+
+  <input
+    type="hidden"
+    name="startTime"
+    value={slot.start}
+  />
+
+  <input
+    type="hidden"
+    name="endTime"
+    value={slot.end}
+  />
+
+  <input
+    type="hidden"
+    name="location"
+    value={slot.location}
+  />
+
+  <input
+    type="hidden"
+    name="studioCalendar"
+    value={
+      selectedStudios[
+        `${slot.start}-${slot.location}`
+      ] ?? ""
+    }
+  />
+
+  <s-button
+    type="submit"
+    variant="primary"
+    disabled={
+      !selectedStudios[
+        `${slot.start}-${slot.location}`
+      ]
+    }
+  >
+    Schedule Rehearsal
+  </s-button>
+</Form>
 </s-stack>
                   </s-stack>
                 </s-box>
