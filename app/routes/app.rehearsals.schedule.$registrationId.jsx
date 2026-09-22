@@ -14,6 +14,7 @@ import {
 import {
   createScheduledRehearsal,
   getRehearsalCandidateSlots,
+  getRelatedDancerRehearsals,
 } from "../services/rehearsalScheduling.server.js";
 
 export async function action({
@@ -89,10 +90,42 @@ export async function loader({
       registration.id,
     );
 
-  return {
-    registration,
+    const relatedDancerRehearsals =
+  await getRelatedDancerRehearsals(
+    registration.id,
+  );
 
-    candidateSlots:
+  return {
+  registration,
+
+  relatedDancerRehearsals:
+    relatedDancerRehearsals.map(
+      (rehearsal) => ({
+        id: rehearsal.id,
+
+        startTime:
+          rehearsal.startTime.toISOString(),
+
+        endTime:
+          rehearsal.endTime.toISOString(),
+
+        studioCalendar:
+          rehearsal.studioCalendar,
+
+        entryType:
+          rehearsal.registration.entryType,
+
+        genre:
+          rehearsal.registration.genre?.name ??
+          null,
+
+        teacher:
+          rehearsal.teacher?.firstName ??
+          null,
+      }),
+    ),
+
+  candidateSlots:
       candidateSlots.map((slot) => ({
         date: slot.date,
         day: slot.day,
@@ -110,12 +143,91 @@ export async function loader({
 
 export default function RehearsalScheduleDetailPage() {
   const {
-    registration,
-    candidateSlots,
-  } = useLoaderData();
+  registration,
+  candidateSlots,
+  relatedDancerRehearsals,
+} = useLoaderData();
 
     const [selectedStudios, setSelectedStudios] =
     useState({});
+
+    const getRelatedRehearsalMatch = (
+  slot,
+) => {
+  const slotStart =
+    new Date(slot.start);
+
+  const slotEnd =
+    new Date(slot.end);
+
+  for (
+    const rehearsal of
+      relatedDancerRehearsals
+  ) {
+    const relatedStart =
+      new Date(
+        rehearsal.startTime,
+      );
+
+    const relatedEnd =
+      new Date(
+        rehearsal.endTime,
+      );
+
+    const beforeGap =
+      slotStart.getTime() -
+      relatedEnd.getTime();
+
+    const afterGap =
+      relatedStart.getTime() -
+      slotEnd.getTime();
+
+    if (
+      beforeGap === 0 ||
+      afterGap === 0
+    ) {
+      return {
+        type: "BACK_TO_BACK",
+        rehearsal,
+      };
+    }
+
+    const sameDay =
+      slotStart.toLocaleDateString(
+        "en-US",
+        {
+          timeZone:
+            "America/New_York",
+        },
+      ) ===
+      relatedStart.toLocaleDateString(
+        "en-US",
+        {
+          timeZone:
+            "America/New_York",
+        },
+      );
+
+    if (
+      sameDay &&
+      (
+        (beforeGap > 0 &&
+          beforeGap <=
+            60 * 60 * 1000) ||
+        (afterGap > 0 &&
+          afterGap <=
+            60 * 60 * 1000)
+      )
+    ) {
+      return {
+        type: "NEARBY",
+        rehearsal,
+      };
+    }
+  }
+
+  return null;
+};
 
   return (
     <s-page
@@ -187,6 +299,64 @@ export default function RehearsalScheduleDetailPage() {
   )
 )}
 
+{relatedDancerRehearsals.length > 0 && (
+  <>
+    <s-heading>
+      Other Rehearsals for This Dancer
+    </s-heading>
+
+    <s-paragraph>
+      This dancer has another Solo/Duet
+      entry. These rehearsals may be
+      helpful when choosing nearby times.
+    </s-paragraph>
+
+    {relatedDancerRehearsals.map(
+      (rehearsal) => (
+        <s-box
+          key={rehearsal.id}
+          padding="base"
+          borderWidth="base"
+          borderRadius="base"
+        >
+          <s-stack gap="small">
+            <s-paragraph>
+              {rehearsal.entryType}
+              {rehearsal.genre
+                ? ` · ${rehearsal.genre}`
+                : ""}
+            </s-paragraph>
+
+            <s-paragraph>
+              {new Date(
+                rehearsal.startTime,
+              ).toLocaleString(
+                "en-US",
+                {
+                  timeZone:
+                    "America/New_York",
+                  weekday: "long",
+                  month: "long",
+                  day: "numeric",
+                  hour: "numeric",
+                  minute: "2-digit",
+                },
+              )}
+            </s-paragraph>
+
+            <s-paragraph>
+              {rehearsal.studioCalendar}
+              {rehearsal.teacher
+                ? ` · ${rehearsal.teacher}`
+                : ""}
+            </s-paragraph>
+          </s-stack>
+        </s-box>
+      ),
+    )}
+  </>
+)}
+
           {candidateSlots.length === 0 ? (
             <s-box
               padding="base"
@@ -200,7 +370,13 @@ export default function RehearsalScheduleDetailPage() {
             </s-box>
           ) : (
             candidateSlots.map(
-              (slot) => (
+  (slot) => {
+    const relatedMatch =
+      getRelatedRehearsalMatch(
+        slot,
+      );
+
+    return (
                 <s-box
                   key={`${slot.start}-${slot.location}`}
                   padding="base"
@@ -217,6 +393,35 @@ export default function RehearsalScheduleDetailPage() {
                       {slot.timeSlot} ·{" "}
                       {slot.location}
                     </s-paragraph>
+
+                    {relatedMatch && (
+  <s-box
+    padding="small"
+    borderWidth="base"
+    borderRadius="base"
+  >
+    <s-stack gap="small">
+      <s-heading>
+        {relatedMatch.type ===
+        "BACK_TO_BACK"
+          ? "Great Match — Back-to-Back"
+          : "Good Match — Same Day"}
+      </s-heading>
+
+      <s-paragraph>
+        This dancer already has a{" "}
+        {
+          relatedMatch.rehearsal
+            .entryType
+        }
+        {relatedMatch.rehearsal.genre
+          ? ` (${relatedMatch.rehearsal.genre})`
+          : ""}{" "}
+        rehearsal nearby.
+      </s-paragraph>
+    </s-stack>
+  </s-box>
+)}
 
                     <s-stack gap="small">
   <s-paragraph>
@@ -306,9 +511,10 @@ export default function RehearsalScheduleDetailPage() {
 </Form>
 </s-stack>
                   </s-stack>
-                </s-box>
-              ),
-            )
+                   </s-box>
+    );
+  },
+)
           )}
         </s-stack>
       </s-section>

@@ -391,7 +391,7 @@ export async function createScheduledRehearsal({
       studioCalendar,
 
     title:
-      `${registration.studentFirstName} ${registration.studentLastName} - ${registration.genre?.name ?? "Solo/Duet"}`,
+  `${registration.teacher.firstName}-${registration.studentFirstName} ${registration.studentLastName}`,
 
     startTime: start,
     endTime: end,
@@ -413,6 +413,52 @@ export async function createScheduledRehearsal({
           .toUpperCase(),
 
       studioCalendar,
+    },
+  });
+}
+
+export async function getRelatedDancerRehearsals(
+  registrationId,
+) {
+  const registration =
+    await getRegistrationById(
+      registrationId,
+    );
+
+  if (!registration) {
+    throw new Error(
+      "Registration was not found.",
+    );
+  }
+
+  return prisma.soloDuetScheduledRehearsal.findMany({
+    where: {
+      registration: {
+        studentFirstName:
+          registration.studentFirstName,
+
+        studentLastName:
+          registration.studentLastName,
+
+        id: {
+          not: registration.id,
+        },
+      },
+    },
+
+    include: {
+      registration: {
+        include: {
+          teacher: true,
+          genre: true,
+        },
+      },
+
+      teacher: true,
+    },
+
+    orderBy: {
+      startTime: "asc",
     },
   });
 }
