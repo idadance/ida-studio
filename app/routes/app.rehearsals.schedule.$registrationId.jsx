@@ -3,6 +3,10 @@ import {
 } from "react-router";
 
 import {
+  useState,
+} from "react";
+
+import {
   getRegistrationById,
 } from "../services/registration.server.js";
 
@@ -56,6 +60,9 @@ export default function RehearsalScheduleDetailPage() {
     registration,
     candidateSlots,
   } = useLoaderData();
+
+    const [selectedStudios, setSelectedStudios] =
+    useState({});
 
   return (
     <s-page
@@ -113,12 +120,46 @@ export default function RehearsalScheduleDetailPage() {
                       {slot.location}
                     </s-paragraph>
 
-                    <s-paragraph>
-                      Available Studios:{" "}
-                      {slot.availableStudios.join(
-                        ", ",
-                      )}
-                    </s-paragraph>
+                    <s-stack gap="small">
+  <s-paragraph>
+    Choose Studio:
+  </s-paragraph>
+
+  <select
+    value={
+      selectedStudios[
+        `${slot.start}-${slot.location}`
+      ] ?? ""
+    }
+    onChange={(event) => {
+      const slotKey =
+        `${slot.start}-${slot.location}`;
+
+      setSelectedStudios(
+        (current) => ({
+          ...current,
+          [slotKey]:
+            event.target.value,
+        }),
+      );
+    }}
+  >
+    <option value="">
+      Select a studio
+    </option>
+
+    {slot.availableStudios.map(
+      (studio) => (
+        <option
+          key={studio}
+          value={studio}
+        >
+          {studio}
+        </option>
+      ),
+    )}
+  </select>
+</s-stack>
                   </s-stack>
                 </s-box>
               ),
