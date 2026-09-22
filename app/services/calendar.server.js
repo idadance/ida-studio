@@ -377,3 +377,98 @@ export async function getAvailableStudiosAtLocation(
 
   return results;
 }
+
+export async function createStudioCalendarEvent({
+  calendarName,
+  title,
+  startTime,
+  endTime,
+}) {
+  if (
+    !STUDIO_CALENDAR_NAMES.includes(
+      calendarName,
+    )
+  ) {
+    throw new Error(
+      `Unknown studio calendar: ${calendarName}`,
+    );
+  }
+
+  const client =
+    await getCalendarClient();
+
+  const calendars =
+    await client.fetchCalendars();
+
+  const calendar =
+    calendars.find(
+      (item) =>
+        item.displayName ===
+        calendarName,
+    );
+
+  if (!calendar) {
+    throw new Error(
+      `${calendarName} calendar was not found.`,
+    );
+  }
+
+  const start =
+    ICAL.Time.fromJSDate(
+      new Date(startTime),
+      true,
+    );
+
+  const end =
+    ICAL.Time.fromJSDate(
+      new Date(endTime),
+      true,
+    );
+
+  const component =
+    new ICAL.Component([
+      "vcalendar",
+      [],
+      [],
+    ]);
+
+  component.updatePropertyWithValue(
+    "version",
+    "2.0",
+  );
+
+  component.updatePropertyWithValue(
+    "prodid",
+    "-//Institute of Dance Artistry//IDA Studio//EN",
+  );
+
+  const event =
+    new ICAL.Event();
+
+  event.uid =
+    `ida-rehearsal-${crypto.randomUUID()}`;
+
+  event.summary = title;
+  event.startDate = start;
+  event.endDate = end;
+
+  component.addSubcomponent(
+    event.component,
+  );
+
+  const filename =
+    `${event.uid}.ics`;
+
+  await client.createCalendarObject({
+    calendar,
+    filename,
+    iCalString:
+      component.toString(),
+  });
+
+  return {
+    calendar: calendarName,
+    uid: event.uid,
+    filename,
+  };
+}

@@ -1,64 +1,31 @@
 import {
-  getRegistrations,
-} from "../services/registration.server.js";
-
-import {
-  getRehearsalCandidateSlots,
-} from "../services/rehearsalScheduling.server.js";
+  createStudioCalendarEvent,
+} from "../services/calendar.server.js";
 
 export async function loader() {
   try {
-    const registrations =
-      await getRegistrations();
+    const event =
+      await createStudioCalendarEvent({
+        calendarName:
+          "FW Studio A",
 
-    const registration =
-      registrations.find(
-        (item) =>
-          item.studentFirstName === "test" &&
-          item.studentLastName === "dancer",
-      );
+        title:
+          "IDA CALENDAR TEST — DELETE ME",
 
-    if (!registration) {
-      throw new Error(
-        "Test dancer registration was not found.",
-      );
-    }
+        startTime:
+          "2026-09-27T14:00:00-04:00",
 
-    const candidateSlots =
-      await getRehearsalCandidateSlots(
-        registration.id,
-      );
+        endTime:
+          "2026-09-27T15:00:00-04:00",
+      });
 
     return Response.json({
       success: true,
-
-      student:
-        `${registration.studentFirstName} ${registration.studentLastName}`,
-
-      teacher:
-        registration.teacher?.firstName ??
-        "No Preference",
-
-      candidateSlots:
-        candidateSlots.map((slot) => ({
-          date: slot.date,
-          day: slot.day,
-          timeSlot: slot.timeSlot,
-          location: slot.location,
-
-          start:
-            slot.start.toISOString(),
-
-          end:
-            slot.end.toISOString(),
-
-          availableStudios:
-            slot.availableStudios,
-        })),
+      event,
     });
   } catch (error) {
     console.error(
-      "Final rehearsal candidate test failed:",
+      "Calendar write test failed:",
       error,
     );
 
@@ -69,7 +36,7 @@ export async function loader() {
         error:
           error instanceof Error
             ? error.message
-            : "Unknown rehearsal candidate error",
+            : "Unknown calendar write error",
       },
       {
         status: 500,
