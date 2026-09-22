@@ -8,6 +8,7 @@ import {
 } from "./teacher.server.js";
 
 import {
+  createStudioCalendarEvent,
   getAvailableStudiosAtLocation,
 } from "./calendar.server.js";
 
@@ -384,6 +385,17 @@ export async function createScheduledRehearsal({
       "This registration already has 3 scheduled rehearsals.",
     );
   }
+
+    await createStudioCalendarEvent({
+    calendarName:
+      studioCalendar,
+
+    title:
+      `${registration.studentFirstName} ${registration.studentLastName} - ${registration.genre?.name ?? "Solo/Duet"}`,
+
+    startTime: start,
+    endTime: end,
+  });
 
   return prisma.soloDuetScheduledRehearsal.create({
     data: {
