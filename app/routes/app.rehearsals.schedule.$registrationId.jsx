@@ -142,6 +142,51 @@ export default function RehearsalScheduleDetailPage() {
             available options below.
           </s-paragraph>
 
+          <s-heading>
+  Scheduled Rehearsals —{" "}
+  {registration.scheduledRehearsals.length} of 3
+</s-heading>
+
+{registration.scheduledRehearsals.length === 0 ? (
+  <s-paragraph>
+    No rehearsals scheduled yet.
+  </s-paragraph>
+) : (
+  registration.scheduledRehearsals.map(
+    (rehearsal) => (
+      <s-box
+        key={rehearsal.id}
+        padding="base"
+        borderWidth="base"
+        borderRadius="base"
+      >
+        <s-stack gap="small">
+          <s-paragraph>
+            {new Date(
+              rehearsal.startTime,
+            ).toLocaleString(
+              "en-US",
+              {
+                timeZone:
+                  "America/New_York",
+                weekday: "long",
+                month: "long",
+                day: "numeric",
+                hour: "numeric",
+                minute: "2-digit",
+              },
+            )}
+          </s-paragraph>
+
+          <s-paragraph>
+            {rehearsal.studioCalendar}
+          </s-paragraph>
+        </s-stack>
+      </s-box>
+    ),
+  )
+)}
+
           {candidateSlots.length === 0 ? (
             <s-box
               padding="base"

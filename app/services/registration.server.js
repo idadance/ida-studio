@@ -46,9 +46,15 @@ export async function getRegistrationById(
     },
 
     include: {
-      teacher: true,
-      genre: true,
-      availability: true,
+  teacher: true,
+  genre: true,
+  availability: true,
+
+  scheduledRehearsals: {
+    orderBy: {
+      startTime: "asc",
     },
+  },
+},
   });
 }
