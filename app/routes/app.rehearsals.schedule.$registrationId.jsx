@@ -1,6 +1,7 @@
 import {
   Form,
   useLoaderData,
+  useNavigation,
 } from "react-router";
 
 import {
@@ -185,6 +186,18 @@ export default function RehearsalScheduleDetailPage() {
   relatedDancerRehearsals,
   coordinatingDancerRehearsals,
 } = useLoaderData();
+
+const navigation = useNavigation();
+
+const isScheduling =
+  navigation.state === "submitting" &&
+  navigation.formData?.get("intent") ===
+    "schedule";
+
+const schedulingStartTime =
+  isScheduling
+    ? navigation.formData?.get("startTime")
+    : null;
 
     const [selectedStudios, setSelectedStudios] =
     useState({});
@@ -729,16 +742,24 @@ return (
   />
 
   <s-button
-    type="submit"
-    variant="primary"
-    disabled={
-      !selectedStudios[
-        `${slot.start}-${slot.location}`
-      ]
-    }
-  >
-    Schedule Rehearsal
-  </s-button>
+  type="submit"
+  variant="primary"
+  loading={
+    isScheduling &&
+    schedulingStartTime === slot.start
+  }
+  disabled={
+    !selectedStudios[
+      `${slot.start}-${slot.location}`
+    ] ||
+    isScheduling
+  }
+>
+  {isScheduling &&
+  schedulingStartTime === slot.start
+    ? "Scheduling..."
+    : "Schedule Rehearsal"}
+</s-button>
 </Form>
 </s-stack>
                   </s-stack>
