@@ -43,7 +43,6 @@ export async function loader({ request }) {
   slot.day,
   slot.date,
   slot.timeSlot,
-  slot.preferredLocation,
 ]
   .map((value) =>
     String(value ?? "")
