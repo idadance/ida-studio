@@ -13,6 +13,7 @@ import {
 
 import {
   createScheduledRehearsal,
+  getCoordinatingDancerRehearsals,
   getRehearsalCandidateSlots,
   getRelatedDancerRehearsals,
 } from "../services/rehearsalScheduling.server.js";
@@ -95,8 +96,44 @@ export async function loader({
     registration.id,
   );
 
-  return {
+const coordinatingDancerRehearsals =
+  await getCoordinatingDancerRehearsals(
+    registration.id,
+  );
+
+return {
   registration,
+
+    coordinatingDancerRehearsals:
+    coordinatingDancerRehearsals.map(
+      (rehearsal) => ({
+        id: rehearsal.id,
+
+        startTime:
+          rehearsal.startTime.toISOString(),
+
+        endTime:
+          rehearsal.endTime.toISOString(),
+
+        studioCalendar:
+          rehearsal.studioCalendar,
+
+        dancerName:
+          `${rehearsal.registration.studentFirstName} ${rehearsal.registration.studentLastName}`,
+
+        entryType:
+          rehearsal.registration.entryType,
+
+        genre:
+          rehearsal.registration.genre?.name ??
+          null,
+
+        teacher:
+          rehearsal.teacher?.firstName ??
+          null,
+      }),
+    ),
+
 
   relatedDancerRehearsals:
     relatedDancerRehearsals.map(
@@ -146,6 +183,7 @@ export default function RehearsalScheduleDetailPage() {
   registration,
   candidateSlots,
   relatedDancerRehearsals,
+  coordinatingDancerRehearsals,
 } = useLoaderData();
 
     const [selectedStudios, setSelectedStudios] =
@@ -163,6 +201,84 @@ export default function RehearsalScheduleDetailPage() {
   for (
     const rehearsal of
       relatedDancerRehearsals
+  ) {
+    const relatedStart =
+      new Date(
+        rehearsal.startTime,
+      );
+
+    const relatedEnd =
+      new Date(
+        rehearsal.endTime,
+      );
+
+    const beforeGap =
+      slotStart.getTime() -
+      relatedEnd.getTime();
+
+    const afterGap =
+      relatedStart.getTime() -
+      slotEnd.getTime();
+
+    if (
+      beforeGap === 0 ||
+      afterGap === 0
+    ) {
+      return {
+        type: "BACK_TO_BACK",
+        rehearsal,
+      };
+    }
+
+    const sameDay =
+      slotStart.toLocaleDateString(
+        "en-US",
+        {
+          timeZone:
+            "America/New_York",
+        },
+      ) ===
+      relatedStart.toLocaleDateString(
+        "en-US",
+        {
+          timeZone:
+            "America/New_York",
+        },
+      );
+
+    if (
+      sameDay &&
+      (
+        (beforeGap > 0 &&
+          beforeGap <=
+            60 * 60 * 1000) ||
+        (afterGap > 0 &&
+          afterGap <=
+            60 * 60 * 1000)
+      )
+    ) {
+      return {
+        type: "NEARBY",
+        rehearsal,
+      };
+    }
+  }
+
+  return null;
+};
+
+const getCoordinatingRehearsalMatch = (
+  slot,
+) => {
+  const slotStart =
+    new Date(slot.start);
+
+  const slotEnd =
+    new Date(slot.end);
+
+  for (
+    const rehearsal of
+      coordinatingDancerRehearsals
   ) {
     const relatedStart =
       new Date(
@@ -357,6 +473,74 @@ export default function RehearsalScheduleDetailPage() {
   </>
 )}
 
+{registration.coordinatingDancerName && (
+  <>
+    <s-heading>
+      Coordinating Dancer
+    </s-heading>
+
+    <s-paragraph>
+      Parent requested scheduling near{" "}
+      {registration.coordinatingDancerName}.
+    </s-paragraph>
+
+    {coordinatingDancerRehearsals.length === 0 ? (
+      <s-paragraph>
+        No scheduled rehearsals found for this
+        dancer yet.
+      </s-paragraph>
+    ) : (
+      coordinatingDancerRehearsals.map(
+        (rehearsal) => (
+          <s-box
+            key={rehearsal.id}
+            padding="base"
+            borderWidth="base"
+            borderRadius="base"
+          >
+            <s-stack gap="small">
+              <s-heading>
+                {rehearsal.dancerName}
+              </s-heading>
+
+              <s-paragraph>
+                {rehearsal.entryType}
+                {rehearsal.genre
+                  ? ` · ${rehearsal.genre}`
+                  : ""}
+              </s-paragraph>
+
+              <s-paragraph>
+                {new Date(
+                  rehearsal.startTime,
+                ).toLocaleString(
+                  "en-US",
+                  {
+                    timeZone:
+                      "America/New_York",
+                    weekday: "long",
+                    month: "long",
+                    day: "numeric",
+                    hour: "numeric",
+                    minute: "2-digit",
+                  },
+                )}
+              </s-paragraph>
+
+              <s-paragraph>
+                {rehearsal.studioCalendar}
+                {rehearsal.teacher
+                  ? ` · ${rehearsal.teacher}`
+                  : ""}
+              </s-paragraph>
+            </s-stack>
+          </s-box>
+        ),
+      )
+    )}
+  </>
+)}
+
           {candidateSlots.length === 0 ? (
             <s-box
               padding="base"
@@ -372,11 +556,16 @@ export default function RehearsalScheduleDetailPage() {
             candidateSlots.map(
   (slot) => {
     const relatedMatch =
-      getRelatedRehearsalMatch(
-        slot,
-      );
+  getRelatedRehearsalMatch(
+    slot,
+  );
 
-    return (
+const coordinatingMatch =
+  getCoordinatingRehearsalMatch(
+    slot,
+  );
+
+return (
                 <s-box
                   key={`${slot.start}-${slot.location}`}
                   padding="base"
@@ -418,6 +607,48 @@ export default function RehearsalScheduleDetailPage() {
           ? ` (${relatedMatch.rehearsal.genre})`
           : ""}{" "}
         rehearsal nearby.
+      </s-paragraph>
+    </s-stack>
+  </s-box>
+)}
+
+{coordinatingMatch && (
+  <s-box
+    padding="small"
+    borderWidth="base"
+    borderRadius="base"
+  >
+    <s-stack gap="small">
+      <s-heading>
+        {coordinatingMatch.type ===
+        "BACK_TO_BACK"
+          ? "Great Family Match — Back-to-Back"
+          : "Good Family Match — Same Day"}
+      </s-heading>
+
+      <s-paragraph>
+        {coordinatingMatch.rehearsal.dancerName}{" "}
+        already has a rehearsal nearby.
+      </s-paragraph>
+
+      <s-paragraph>
+        {new Date(
+          coordinatingMatch.rehearsal.startTime,
+        ).toLocaleString(
+          "en-US",
+          {
+            timeZone:
+              "America/New_York",
+            weekday: "long",
+            hour: "numeric",
+            minute: "2-digit",
+          },
+        )}
+        {" · "}
+        {
+          coordinatingMatch.rehearsal
+            .studioCalendar
+        }
       </s-paragraph>
     </s-stack>
   </s-box>

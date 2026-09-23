@@ -462,3 +462,87 @@ export async function getRelatedDancerRehearsals(
     },
   });
 }
+
+export async function getCoordinatingDancerRehearsals(
+  registrationId,
+) {
+  const registration =
+    await getRegistrationById(
+      registrationId,
+    );
+
+  if (!registration) {
+    throw new Error(
+      "Registration was not found.",
+    );
+  }
+
+  const coordinatingName =
+    registration.coordinatingDancerName?.trim();
+
+  if (!coordinatingName) {
+    return [];
+  }
+
+  const registrations =
+    await prisma.soloDuetRegistration.findMany({
+      where: {
+        id: {
+          not: registration.id,
+        },
+      },
+
+      select: {
+        id: true,
+        studentFirstName: true,
+        studentLastName: true,
+      },
+    });
+
+  const normalizedName =
+    coordinatingName
+      .replace(/\s+/g, " ")
+      .toLowerCase();
+
+  const matchingRegistrationIds =
+    registrations
+      .filter((item) => {
+        const dancerName =
+          `${item.studentFirstName} ${item.studentLastName}`
+            .trim()
+            .replace(/\s+/g, " ")
+            .toLowerCase();
+
+        return dancerName === normalizedName;
+      })
+      .map((item) => item.id);
+
+  if (
+    matchingRegistrationIds.length === 0
+  ) {
+    return [];
+  }
+
+  return prisma.soloDuetScheduledRehearsal.findMany({
+    where: {
+      registrationId: {
+        in: matchingRegistrationIds,
+      },
+    },
+
+    include: {
+      registration: {
+        include: {
+          teacher: true,
+          genre: true,
+        },
+      },
+
+      teacher: true,
+    },
+
+    orderBy: {
+      startTime: "asc",
+    },
+  });
+}
