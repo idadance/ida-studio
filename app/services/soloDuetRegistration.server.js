@@ -9,11 +9,13 @@ export async function createSoloDuetRegistration(data) {
     email,
     type,
 
-    partnerFirstName,
-    partnerLastName,
+   partnerFirstName,
+partnerLastName,
 
-    teacher,
-    genre,
+coordinatingDancerName,
+
+teacher,
+genre,
 
     paymentResponsibility,
     paymentMethod,
@@ -141,11 +143,14 @@ export async function createSoloDuetRegistration(data) {
           : null,
 
       partnerLastName:
-        type === "DUET"
-          ? partnerLastName.trim()
-          : null,
+  type === "DUET"
+    ? partnerLastName.trim()
+    : null,
 
-      teacherId: teacherRecord?.id ?? null,
+coordinatingDancerName:
+  coordinatingDancerName?.trim() || null,
+
+teacherId: teacherRecord?.id ?? null,
 
       genreId: genreRecord.id,
 
