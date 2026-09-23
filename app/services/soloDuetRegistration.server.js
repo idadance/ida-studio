@@ -72,14 +72,7 @@ genre,
     );
   }
 
-  if (
-    !Array.isArray(selectedRehearsals) ||
-    selectedRehearsals.length === 0
-  ) {
-    throw new Error(
-      "Please select rehearsal availability.",
-    );
-  }
+  
 
   // ======================================
   // FIND TEACHER
@@ -102,6 +95,34 @@ genre,
     if (!teacherRecord) {
       throw new Error(
         "Selected teacher was not found.",
+      );
+    }
+  }
+
+    // ======================================
+  // VALIDATE REHEARSAL AVAILABILITY
+  // ======================================
+
+  if (!Array.isArray(selectedRehearsals)) {
+    throw new Error(
+      "Rehearsal availability is invalid.",
+    );
+  }
+
+  if (
+    teacherRecord &&
+    selectedRehearsals.length === 0
+  ) {
+    const teacherAvailabilityCount =
+      await prisma.teacherAvailability.count({
+        where: {
+          teacherId: teacherRecord.id,
+        },
+      });
+
+    if (teacherAvailabilityCount > 0) {
+      throw new Error(
+        "Please select rehearsal availability.",
       );
     }
   }
