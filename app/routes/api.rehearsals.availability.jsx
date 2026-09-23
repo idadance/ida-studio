@@ -40,10 +40,18 @@ export async function loader({ request }) {
     for (const teacher of teachers) {
       for (const slot of teacher.availability) {
         const key = [
-          slot.date,
-          slot.timeSlot,
-          slot.preferredLocation,
-        ].join("|");
+  slot.day,
+  slot.date,
+  slot.timeSlot,
+  slot.preferredLocation,
+]
+  .map((value) =>
+    String(value ?? "")
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, " "),
+  )
+  .join("|");
 
         if (!uniqueSlots.has(key)) {
           uniqueSlots.set(key, slot);
