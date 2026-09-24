@@ -937,6 +937,65 @@ for (const item of payload.line_items) {
 // ======================================
 
 if (matchedEventItems.length > 0) {
+    const eventNoteAttributes =
+    Array.isArray(payload.note_attributes)
+      ? payload.note_attributes
+      : [];
+
+  const eventReservationId =
+    eventNoteAttributes.find(
+      (attribute) =>
+        attribute.name ===
+        "Event Reservation ID",
+    )?.value?.trim() || "";
+
+  if (eventReservationId) {
+    const pendingReservation =
+      await prisma.eventReservation.findUnique({
+        where: {
+          id: eventReservationId,
+        },
+        include: {
+          eventLocation: true,
+          attendees: true,
+        },
+      });
+
+    if (!pendingReservation) {
+      throw new Error(
+        `Event reservation ${eventReservationId} was not found.`,
+      );
+    }
+
+    if (
+      pendingReservation.status === "CONFIRMED"
+    ) {
+      console.log(
+        `⏭️ Event reservation ${eventReservationId} is already confirmed.`,
+      );
+
+      return new Response();
+    }
+
+    await prisma.eventReservation.update({
+      where: {
+        id: eventReservationId,
+      },
+      data: {
+        status: "CONFIRMED",
+        shopifyOrderId:
+          payload.id.toString(),
+        shopifyOrderNumber:
+          payload.name,
+      },
+    });
+
+    console.log(
+      `✅ Event reservation ${eventReservationId} confirmed from Shopify order ${payload.name}`,
+    );
+
+    return new Response();
+  }
   const existingEventReservation =
     await prisma.eventReservation.findFirst({
       where: {
