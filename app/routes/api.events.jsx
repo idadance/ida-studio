@@ -63,3 +63,21 @@ date: event.date,
 
   return Response.json(result);
 }
+
+export async function action({ request }) {
+  if (request.method !== "POST") {
+    return Response.json(
+      { error: "Method not allowed" },
+      { status: 405 },
+    );
+  }
+
+  const body = await request.json();
+
+  console.log("🎃 EVENT CREDIT REGISTRATION:", body);
+
+  return Response.json({
+    success: true,
+    received: body,
+  });
+}
