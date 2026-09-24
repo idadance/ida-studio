@@ -217,15 +217,7 @@ if (intent === "addManualReservation") {
         0,
       ) ?? 0;
 
-  if (
-    reservedQuantity + quantity >
-    location.capacity
-  ) {
-    throw new Response(
-      `This registration would exceed the ${location.capacity}-spot capacity.`,
-      { status: 400 },
-    );
-  }
+  
 
   const { default: prisma } =
     await import("../db.server");
