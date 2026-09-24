@@ -156,6 +156,103 @@ if (capacity < reservedQuantity) {
   });
 }
 
+if (intent === "addManualReservation") {
+  const locationId = String(
+    formData.get("locationId") || "",
+  ).trim();
+
+  const customerName = String(
+    formData.get("customerName") || "",
+  ).trim();
+
+  const customerEmail = String(
+    formData.get("customerEmail") || "",
+  ).trim();
+
+  const quantity = Number(
+    formData.get("quantity"),
+  );
+
+  const shopifyOrderNumber = String(
+    formData.get("shopifyOrderNumber") || "",
+  ).trim();
+
+  if (
+    !locationId ||
+    !customerName ||
+    !customerEmail ||
+    !Number.isInteger(quantity) ||
+    quantity < 1
+  ) {
+    throw new Response(
+      "Please complete all required registration fields.",
+      { status: 400 },
+    );
+  }
+
+  const currentEvent = await getEvent(params.id);
+
+  const location =
+    currentEvent?.locations.find(
+      (item) => item.id === locationId,
+    );
+
+  if (!location) {
+    throw new Response(
+      "Event location not found.",
+      { status: 404 },
+    );
+  }
+
+  const reservedQuantity =
+    location.reservations
+      ?.filter(
+        (reservation) =>
+          reservation.status === "PENDING" ||
+          reservation.status === "CONFIRMED",
+      )
+      .reduce(
+        (total, reservation) =>
+          total + reservation.quantity,
+        0,
+      ) ?? 0;
+
+  if (
+    reservedQuantity + quantity >
+    location.capacity
+  ) {
+    throw new Response(
+      `This registration would exceed the ${location.capacity}-spot capacity.`,
+      { status: 400 },
+    );
+  }
+
+  const { default: prisma } =
+    await import("../db.server");
+
+  await prisma.eventReservation.create({
+    data: {
+      eventLocationId: locationId,
+      customerName,
+      customerEmail,
+      quantity,
+      paymentMethod: "CREDIT_CARD",
+      status: "CONFIRMED",
+      totalAmount: Number(
+        (
+          quantity *
+          location.price *
+          1.026
+        ).toFixed(2),
+      ),
+      shopifyOrderNumber:
+        shopifyOrderNumber || null,
+    },
+  });
+
+  return { success: true };
+}
+
 if (intent === "cancelReservation") {
   const reservationId = String(
     formData.get("reservationId") || "",
@@ -738,6 +835,170 @@ export default function ManageEventPage() {
           </div>
         )}
       </s-section>
+
+      <s-section heading="Add Registration">
+  <Form
+    method="post"
+    style={{
+      display: "grid",
+      gap: "14px",
+      maxWidth: "600px",
+    }}
+  >
+    <input
+      type="hidden"
+      name="intent"
+      value="addManualReservation"
+    />
+
+    <label>
+      <div
+        style={{
+          fontWeight: "600",
+          marginBottom: "5px",
+        }}
+      >
+        Studio
+      </div>
+
+      <select
+        name="locationId"
+        required
+        defaultValue=""
+        style={{
+          width: "100%",
+          padding: "9px",
+        }}
+      >
+        <option value="" disabled>
+          Select studio
+        </option>
+
+        {event.locations.map((location) => (
+          <option
+            key={location.id}
+            value={location.id}
+          >
+            {location.studioCode === "FW"
+              ? "Fort Washington"
+              : location.studioCode === "PM"
+                ? "Plymouth Meeting"
+                : location.name}
+          </option>
+        ))}
+      </select>
+    </label>
+
+    <label>
+      <div
+        style={{
+          fontWeight: "600",
+          marginBottom: "5px",
+        }}
+      >
+        Parent Name
+      </div>
+
+      <input
+        type="text"
+        name="customerName"
+        required
+        style={{
+          width: "100%",
+          padding: "9px",
+          boxSizing: "border-box",
+        }}
+      />
+    </label>
+
+    <label>
+      <div
+        style={{
+          fontWeight: "600",
+          marginBottom: "5px",
+        }}
+      >
+        Email
+      </div>
+
+      <input
+        type="email"
+        name="customerEmail"
+        required
+        style={{
+          width: "100%",
+          padding: "9px",
+          boxSizing: "border-box",
+        }}
+      />
+    </label>
+
+    <label>
+      <div
+        style={{
+          fontWeight: "600",
+          marginBottom: "5px",
+        }}
+      >
+        Number of Spots
+      </div>
+
+      <input
+        type="number"
+        name="quantity"
+        min="1"
+        required
+        style={{
+          width: "100%",
+          padding: "9px",
+          boxSizing: "border-box",
+        }}
+      />
+    </label>
+
+    <label>
+      <div
+        style={{
+          fontWeight: "600",
+          marginBottom: "5px",
+        }}
+      >
+        Shopify Order Number
+      </div>
+
+      <input
+        type="text"
+        name="shopifyOrderNumber"
+        placeholder="Example: #23668"
+        style={{
+          width: "100%",
+          padding: "9px",
+          boxSizing: "border-box",
+        }}
+      />
+    </label>
+
+    <div
+      style={{
+        fontSize: "14px",
+        color: "#666",
+      }}
+    >
+      Use this for an already-paid registration that needs
+      to be added to IDA Studio. This will not charge the
+      customer again.
+    </div>
+
+    <button
+      type="submit"
+      disabled={isSubmitting}
+    >
+      {isSubmitting
+        ? "Adding..."
+        : "Add Paid Registration"}
+    </button>
+  </Form>
+</s-section>
 
       <s-section heading="Reservations">
         {capacitySummary.totalReserved === 0 ? (
