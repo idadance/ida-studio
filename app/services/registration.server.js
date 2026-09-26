@@ -2,6 +2,17 @@ import prisma from "../db.server";
 
 export async function getRegistrations() {
   return prisma.soloDuetRegistration.findMany({
+    where: {
+      OR: [
+        {
+          paymentMethod: "CHECK",
+        },
+        {
+          paymentStatus: "PAID",
+        },
+      ],
+    },
+
     include: {
   teacher: true,
   genre: true,
