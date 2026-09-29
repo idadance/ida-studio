@@ -1,5 +1,4 @@
 import {
-  Form,
   useLoaderData,
 } from "react-router";
 
@@ -7,7 +6,6 @@ import { authenticate } from "../shopify.server";
 
 import {
   getRegistrations,
-  approveRegistration,
 } from "../services/registration.server";
 
 export const loader = async ({ request }) => {
@@ -18,37 +16,43 @@ export const loader = async ({ request }) => {
   };
 };
 
-export const action = async ({ request }) => {
-  await authenticate.admin(request);
-
-  const formData = await request.formData();
-
-  const intent = formData.get("intent");
-  const registrationId =
-    formData.get("registrationId");
-
-  if (
-    intent === "approve" &&
-    registrationId
-  ) {
-    await approveRegistration(
-      registrationId,
-    );
-  }
-
-  return {
-    success: true,
-  };
-};
-
 export default function RegistrationsPage() {
   const { registrations } = useLoaderData();
 
+  const groupedRegistrations = registrations.reduce(
+    (groups, registration) => {
+      const teacherName =
+        registration.teacher?.firstName ??
+        "No Preference";
+
+      if (!groups[teacherName]) {
+        groups[teacherName] = {
+          teacher: registration.teacher,
+          registrations: [],
+        };
+      }
+
+      groups[teacherName].registrations.push(
+        registration,
+      );
+
+      return groups;
+    },
+    {},
+  );
+
+  const teacherGroups = Object.entries(
+    groupedRegistrations,
+  ).sort(([nameA], [nameB]) => {
+    if (nameA === "No Preference") return 1;
+    if (nameB === "No Preference") return -1;
+
+    return nameA.localeCompare(nameB);
+  });
+
   return (
     <s-page heading="Solo & Duet Registrations">
-
       <s-section>
-
         {registrations.length === 0 ? (
           <div
             style={{
@@ -56,140 +60,293 @@ export default function RegistrationsPage() {
               textAlign: "center",
             }}
           >
-            <h2>
-              No registrations yet
-            </h2>
+            <h2>No registrations yet</h2>
 
             <p>
-              Parent registrations will
-              appear here.
+              Parent registrations will appear here.
             </p>
           </div>
         ) : (
-          registrations.map((registration) => (
+          <>
             <div
-              key={registration.id}
               style={{
-                border: "1px solid #ddd",
-                borderRadius: "12px",
-                padding: "18px",
-                marginBottom: "16px",
+                marginBottom: "24px",
               }}
             >
-              <h3>
-                {registration.studentFirstName}{" "}
-                {registration.studentLastName}
-              </h3>
+              <h2
+                style={{
+                  margin: 0,
+                }}
+              >
+                Teacher Requests
+              </h2>
 
-              <div>
-                {registration.entryType}
-              </div>
-
-              <div>
-  Grade: {registration.grade}
-</div>
-
-<div>
-  Studio: {registration.studioCode}
-</div>
-
-{registration.entryType === "DUET" && (
-  <div>
-    Duet Partner:{" "}
-    {registration.partnerFirstName}{" "}
-    {registration.partnerLastName}
-  </div>
-)}
-
-              <div>
-  Teacher:{" "}
-  {registration.teacher
-    ? registration.teacher.firstName
-    : "No Preference"}
-</div>
-
-              <div>
-                Genre:{" "}
-                {registration.genre.name}
-              </div>
-
-              <div
-  style={{
-    marginTop: "12px",
-  }}
->
-  <strong>
-    Rehearsal Availability:
-  </strong>
-
-  {registration.availability.length === 0 ? (
-    <div>
-      No availability submitted
-    </div>
-  ) : (
-    <ul
-      style={{
-        marginTop: "6px",
-        paddingLeft: "20px",
-      }}
-    >
-      {registration.availability.map(
-        (slot) => (
-          <li key={slot.id}>
-            {slot.day}, {slot.date} —{" "}
-            {slot.timeSlot} —{" "}
-            {slot.preferredLocation}
-          </li>
-        ),
-      )}
-    </ul>
-  )}
-</div>
-
-              <div>
-                Payment:{" "}
-                {registration.paymentStatus}
-              </div>
-
-              <div>
-                Status:{" "}
-                {registration.status}
-              </div>
-
-              {registration.status === "REGISTERED" && (
-  <Form
-    method="post"
-    style={{
-      marginTop: "16px",
-    }}
-  >
-    <input
-      type="hidden"
-      name="intent"
-      value="approve"
-    />
-
-    <input
-      type="hidden"
-      name="registrationId"
-      value={registration.id}
-    />
-
-    <s-button
-      type="submit"
-      variant="primary"
-    >
-      Approve Registration
-    </s-button>
-  </Form>
-)}
-
+              <p
+                style={{
+                  marginTop: "6px",
+                  color: "#666",
+                }}
+              >
+                {registrations.length} total registrations
+              </p>
             </div>
-          ))
+
+            {teacherGroups.map(
+              ([
+                teacherName,
+                group,
+              ]) => {
+                const requested =
+                  group.registrations.length;
+
+                const max =
+                  group.teacher?.maxSoloDuets;
+
+                return (
+                  <div
+                    key={teacherName}
+                    style={{
+                      marginBottom: "32px",
+                      border:
+                        "1px solid #ddd",
+                      borderRadius: "14px",
+                      overflow: "hidden",
+                      background: "white",
+                    }}
+                  >
+                    <div
+                      style={{
+                        padding:
+                          "16px 20px",
+                        background:
+                          "#f7f7f7",
+                        borderBottom:
+                          "1px solid #ddd",
+                      }}
+                    >
+                      <h2
+                        style={{
+                          margin: 0,
+                        }}
+                      >
+                        {teacherName}
+                      </h2>
+
+                      <div
+                        style={{
+                          marginTop: "4px",
+                          color: "#666",
+                        }}
+                      >
+                        {teacherName ===
+                        "No Preference"
+                          ? `${requested} registration${
+                              requested === 1
+                                ? ""
+                                : "s"
+                            }`
+                          : `${requested} requested / ${max} max`}
+                      </div>
+                    </div>
+
+                    <div
+                      style={{
+                        overflowX: "auto",
+                      }}
+                    >
+                      <table
+                        style={{
+                          width: "100%",
+                          borderCollapse:
+                            "collapse",
+                        }}
+                      >
+                        <thead>
+                          <tr
+                            style={{
+                              textAlign:
+                                "left",
+                              background:
+                                "#fafafa",
+                            }}
+                          >
+                            <th
+                              style={{
+                                padding:
+                                  "12px 16px",
+                              }}
+                            >
+                              Dancer
+                            </th>
+
+                            <th
+                              style={{
+                                padding:
+                                  "12px 16px",
+                              }}
+                            >
+                              Grade
+                            </th>
+
+                            <th
+                              style={{
+                                padding:
+                                  "12px 16px",
+                              }}
+                            >
+                              Entry
+                            </th>
+
+                            <th
+                              style={{
+                                padding:
+                                  "12px 16px",
+                              }}
+                            >
+                              Genre
+                            </th>
+
+                            <th
+                              style={{
+                                padding:
+                                  "12px 16px",
+                              }}
+                            >
+                              Status
+                            </th>
+                          </tr>
+                        </thead>
+
+                        <tbody>
+                          {group.registrations
+                            .slice()
+                            .sort((a, b) => {
+                              const lastName =
+                                a.studentLastName.localeCompare(
+                                  b.studentLastName,
+                                );
+
+                              if (
+                                lastName !== 0
+                              ) {
+                                return lastName;
+                              }
+
+                              return a.studentFirstName.localeCompare(
+                                b.studentFirstName,
+                              );
+                            })
+                            .map(
+                              (
+                                registration,
+                              ) => (
+                                <tr
+                                  key={
+                                    registration.id
+                                  }
+                                  style={{
+                                    borderTop:
+                                      "1px solid #eee",
+                                  }}
+                                >
+                                  <td
+                                    style={{
+                                      padding:
+                                        "14px 16px",
+                                      fontWeight:
+                                        "600",
+                                    }}
+                                  >
+                                    {
+                                      registration.studentFirstName
+                                    }{" "}
+                                    {
+                                      registration.studentLastName
+                                    }
+
+                                    {registration.entryType ===
+                                      "DUET" &&
+                                      registration.partnerFirstName && (
+                                        <div
+                                          style={{
+                                            marginTop:
+                                              "3px",
+                                            fontSize:
+                                              "12px",
+                                            fontWeight:
+                                              "400",
+                                            color:
+                                              "#666",
+                                          }}
+                                        >
+                                          with{" "}
+                                          {
+                                            registration.partnerFirstName
+                                          }{" "}
+                                          {
+                                            registration.partnerLastName
+                                          }
+                                        </div>
+                                      )}
+                                  </td>
+
+                                  <td
+                                    style={{
+                                      padding:
+                                        "14px 16px",
+                                    }}
+                                  >
+                                    {
+                                      registration.grade
+                                    }
+                                  </td>
+
+                                  <td
+                                    style={{
+                                      padding:
+                                        "14px 16px",
+                                    }}
+                                  >
+                                    {
+                                      registration.entryType
+                                    }
+                                  </td>
+
+                                  <td
+                                    style={{
+                                      padding:
+                                        "14px 16px",
+                                    }}
+                                  >
+                                    {registration
+                                      .genre
+                                      ?.name ??
+                                      "—"}
+                                  </td>
+
+                                  <td
+                                    style={{
+                                      padding:
+                                        "14px 16px",
+                                    }}
+                                  >
+                                    {
+                                      registration.status
+                                    }
+                                  </td>
+                                </tr>
+                              ),
+                            )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                );
+              },
+            )}
+          </>
         )}
-
       </s-section>
-
     </s-page>
   );
 }
