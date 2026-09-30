@@ -9,8 +9,13 @@ import {
 } from "react";
 
 import {
+  assignRegistrationTeacher,
   getRegistrationById,
 } from "../services/registration.server.js";
+
+import {
+  getTeachers,
+} from "../services/teacher.server.js";
 
 import {
   createScheduledRehearsal,
@@ -28,6 +33,26 @@ export async function action({
 
   const intent =
     formData.get("intent");
+
+  if (intent === "assign-teacher") {
+    const teacherId =
+      formData.get("teacherId");
+
+    if (!teacherId) {
+      throw new Error(
+        "Please select a teacher.",
+      );
+    }
+
+    await assignRegistrationTeacher(
+      params.registrationId,
+      teacherId,
+    );
+
+    return {
+      success: true,
+    };
+  }
 
   if (intent !== "schedule") {
     return null;
@@ -87,10 +112,15 @@ export async function loader({
     );
   }
 
-  const candidateSlots =
-    await getRehearsalCandidateSlots(
-      registration.id,
-    );
+  const teachers =
+  await getTeachers();
+
+const candidateSlots =
+  registration.teacherId
+    ? await getRehearsalCandidateSlots(
+        registration.id,
+      )
+    : [];
 
     const relatedDancerRehearsals =
   await getRelatedDancerRehearsals(
@@ -105,7 +135,11 @@ const coordinatingDancerRehearsals =
 return {
   registration,
 
-    coordinatingDancerRehearsals:
+  teachers: teachers.filter(
+    (teacher) => teacher.active,
+  ),
+
+  coordinatingDancerRehearsals:
     coordinatingDancerRehearsals.map(
       (rehearsal) => ({
         id: rehearsal.id,
@@ -182,12 +216,18 @@ return {
 export default function RehearsalScheduleDetailPage() {
   const {
   registration,
+  teachers,
   candidateSlots,
   relatedDancerRehearsals,
   coordinatingDancerRehearsals,
 } = useLoaderData();
 
 const navigation = useNavigation();
+
+const isAssigningTeacher =
+  navigation.state === "submitting" &&
+  navigation.formData?.get("intent") ===
+    "assign-teacher";
 
 const isScheduling =
   navigation.state === "submitting" &&
@@ -201,6 +241,82 @@ const schedulingStartTime =
 
     const [selectedStudios, setSelectedStudios] =
     useState({});
+
+    if (!registration.teacherId) {
+  return (
+    <s-page
+      heading={`${registration.studentFirstName} ${registration.studentLastName}`}
+    >
+      <s-section>
+        <s-stack gap="base">
+          <s-heading>
+            Assign Teacher
+          </s-heading>
+
+          <s-paragraph>
+            {registration.entryType} ·{" "}
+            {registration.genre?.name ??
+              "No Genre"}
+          </s-paragraph>
+
+          <s-paragraph>
+            Assign a teacher before viewing
+            rehearsal scheduling options.
+          </s-paragraph>
+
+          <Form method="post">
+            <input
+              type="hidden"
+              name="intent"
+              value="assign-teacher"
+            />
+
+            <s-stack gap="base">
+              <select
+                name="teacherId"
+                defaultValue=""
+                required
+              >
+                <option value="">
+                  Select teacher
+                </option>
+
+                {teachers.map(
+                  (teacher) => (
+                    <option
+                      key={teacher.id}
+                      value={teacher.id}
+                    >
+                      {teacher.firstName}
+                      {teacher.lastName
+                        ? ` ${teacher.lastName}`
+                        : ""}
+                    </option>
+                  ),
+                )}
+              </select>
+
+              <s-button
+                type="submit"
+                variant="primary"
+                loading={
+                  isAssigningTeacher
+                }
+                disabled={
+                  isAssigningTeacher
+                }
+              >
+                {isAssigningTeacher
+                  ? "Assigning..."
+                  : "Assign Teacher"}
+              </s-button>
+            </s-stack>
+          </Form>
+        </s-stack>
+      </s-section>
+    </s-page>
+  );
+}
 
     const getRelatedRehearsalMatch = (
   slot,

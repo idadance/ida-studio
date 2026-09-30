@@ -48,6 +48,34 @@ export async function approveRegistration(id) {
   });
 }
 
+export async function assignRegistrationTeacher(
+  id,
+  teacherId,
+) {
+  const teacher = await prisma.teacher.findFirst({
+    where: {
+      id: teacherId,
+      active: true,
+    },
+  });
+
+  if (!teacher) {
+    throw new Error(
+      "Selected teacher was not found.",
+    );
+  }
+
+  return prisma.soloDuetRegistration.update({
+    where: {
+      id,
+    },
+
+    data: {
+      teacherId: teacher.id,
+    },
+  });
+}
+
 export async function getRegistrationById(
   id,
 ) {
