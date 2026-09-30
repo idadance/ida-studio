@@ -115,8 +115,12 @@ export async function loader({
   const teachers =
   await getTeachers();
 
+const needsTeacherAssignment =
+  !registration.teacherId ||
+  registration.teacher?.firstName === "No Preference";
+
 const candidateSlots =
-  registration.teacherId
+  !needsTeacherAssignment
     ? await getRehearsalCandidateSlots(
         registration.id,
       )
@@ -242,7 +246,10 @@ const schedulingStartTime =
     const [selectedStudios, setSelectedStudios] =
     useState({});
 
-    if (!registration.teacherId) {
+    if (
+  !registration.teacherId ||
+  registration.teacher?.firstName === "No Preference"
+) {
   return (
     <s-page
       heading={`${registration.studentFirstName} ${registration.studentLastName}`}
