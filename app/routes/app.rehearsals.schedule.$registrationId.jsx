@@ -507,6 +507,52 @@ const getCoordinatingRehearsalMatch = (
           </s-paragraph>
 
           <s-heading>
+  Parent Availability
+</s-heading>
+
+{registration.availability.length === 0 ? (
+  <s-paragraph>
+    No rehearsal availability was submitted.
+  </s-paragraph>
+) : (
+  <s-stack gap="small">
+    {registration.availability.map(
+      (availability) => (
+        <s-box
+          key={availability.id}
+          padding="base"
+          borderWidth="base"
+          borderRadius="base"
+        >
+          <s-stack gap="small">
+            <s-paragraph>
+              <strong>
+                {availability.day},{" "}
+                {availability.date}
+              </strong>
+            </s-paragraph>
+
+            <s-paragraph>
+              {availability.timeSlot}
+            </s-paragraph>
+
+            <s-paragraph>
+              Preferred Location:{" "}
+              {availability.preferredLocation}
+            </s-paragraph>
+          </s-stack>
+        </s-box>
+      ),
+    )}
+  </s-stack>
+)}
+
+<s-heading>
+  Scheduled Rehearsals —{" "}
+  {registration.scheduledRehearsals.length} of 3
+</s-heading>
+
+          <s-heading>
   Scheduled Rehearsals —{" "}
   {registration.scheduledRehearsals.length} of 3
 </s-heading>
