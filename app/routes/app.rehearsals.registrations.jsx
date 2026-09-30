@@ -128,32 +128,38 @@ export default function RegistrationsPage() {
         return count + 1;
       }
 
-      const dancerName =
-        `${registration.studentFirstName} ${registration.studentLastName}`
-          .trim()
+      const dancerLastName =
+        registration.studentLastName
+          ?.trim()
           .toLowerCase();
 
-      const partnerName =
-        `${registration.partnerFirstName ?? ""} ${registration.partnerLastName ?? ""}`
-          .trim()
+      const partnerLastName =
+        registration.partnerLastName
+          ?.trim()
           .toLowerCase();
 
       const matchingPartnerIndex =
         registrations.findIndex((other) => {
-          const otherDancerName =
-            `${other.studentFirstName} ${other.studentLastName}`
-              .trim()
+          if (
+            other.entryType !== "DUET" ||
+            other.id === registration.id
+          ) {
+            return false;
+          }
+
+          const otherDancerLastName =
+            other.studentLastName
+              ?.trim()
               .toLowerCase();
 
-          const otherPartnerName =
-            `${other.partnerFirstName ?? ""} ${other.partnerLastName ?? ""}`
-              .trim()
+          const otherPartnerLastName =
+            other.partnerLastName
+              ?.trim()
               .toLowerCase();
 
           return (
-            other.entryType === "DUET" &&
-            otherDancerName === partnerName &&
-            otherPartnerName === dancerName
+            otherDancerLastName === partnerLastName &&
+            otherPartnerLastName === dancerLastName
           );
         });
 
