@@ -1,4 +1,5 @@
 import {
+  Form,
   useLoaderData,
 } from "react-router";
 
@@ -6,6 +7,7 @@ import { authenticate } from "../shopify.server";
 
 import {
   getRegistrations,
+  approveRegistration,
 } from "../services/registration.server";
 
 export const loader = async ({ request }) => {
@@ -13,6 +15,29 @@ export const loader = async ({ request }) => {
 
   return {
     registrations: await getRegistrations(),
+  };
+};
+
+export const action = async ({ request }) => {
+  await authenticate.admin(request);
+
+  const formData = await request.formData();
+
+  const intent = formData.get("intent");
+  const registrationId =
+    formData.get("registrationId");
+
+  if (
+    intent === "approve" &&
+    registrationId
+  ) {
+    await approveRegistration(
+      registrationId,
+    );
+  }
+
+  return {
+    success: true,
   };
 };
 
@@ -97,7 +122,52 @@ export default function RegistrationsPage() {
                 group,
               ]) => {
                 const requested =
-                  group.registrations.length;
+  group.registrations.reduce(
+    (count, registration, index, registrations) => {
+      if (registration.entryType !== "DUET") {
+        return count + 1;
+      }
+
+      const dancerName =
+        `${registration.studentFirstName} ${registration.studentLastName}`
+          .trim()
+          .toLowerCase();
+
+      const partnerName =
+        `${registration.partnerFirstName ?? ""} ${registration.partnerLastName ?? ""}`
+          .trim()
+          .toLowerCase();
+
+      const matchingPartnerIndex =
+        registrations.findIndex((other) => {
+          const otherDancerName =
+            `${other.studentFirstName} ${other.studentLastName}`
+              .trim()
+              .toLowerCase();
+
+          const otherPartnerName =
+            `${other.partnerFirstName ?? ""} ${other.partnerLastName ?? ""}`
+              .trim()
+              .toLowerCase();
+
+          return (
+            other.entryType === "DUET" &&
+            otherDancerName === partnerName &&
+            otherPartnerName === dancerName
+          );
+        });
+
+      if (
+        matchingPartnerIndex !== -1 &&
+        matchingPartnerIndex < index
+      ) {
+        return count;
+      }
+
+      return count + 1;
+    },
+    0,
+  );
 
                 const max =
                   group.teacher?.maxSoloDuets;
@@ -213,6 +283,15 @@ export default function RegistrationsPage() {
                               }}
                             >
                               Status
+                            </th>
+
+                            <th
+                              style={{
+                                padding:
+                                  "12px 16px",
+                              }}
+                            >
+                              Action
                             </th>
                           </tr>
                         </thead>
@@ -333,6 +412,48 @@ export default function RegistrationsPage() {
                                     {
                                       registration.status
                                     }
+                                  </td>
+
+                                  <td
+                                    style={{
+                                      padding:
+                                        "14px 16px",
+                                    }}
+                                  >
+                                    {registration.status ===
+                                    "REGISTERED" ? (
+                                      <Form method="post">
+                                        <input
+                                          type="hidden"
+                                          name="intent"
+                                          value="approve"
+                                        />
+
+                                        <input
+                                          type="hidden"
+                                          name="registrationId"
+                                          value={
+                                            registration.id
+                                          }
+                                        />
+
+                                        <s-button
+                                          type="submit"
+                                          variant="primary"
+                                        >
+                                          Approve
+                                        </s-button>
+                                      </Form>
+                                    ) : (
+                                      <span
+                                        style={{
+                                          color:
+                                            "#666",
+                                        }}
+                                      >
+                                        Approved
+                                      </span>
+                                    )}
                                   </td>
                                 </tr>
                               ),
