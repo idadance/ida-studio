@@ -194,10 +194,12 @@ soloDuetSelected,
 export const action = async ({
   request,
 }) => {
-  const { receiveEventCheck } =
-    await import(
-      "../services/queue.server"
-    );
+  const {
+  receiveEventCheck,
+  receiveSoloDuetCheck,
+} = await import(
+  "../services/queue.server"
+);
 
   const { admin, session } =
     await authenticate.admin(request);
@@ -224,6 +226,32 @@ export const action = async ({
   formData.get(
     "reservationType",
   );
+
+  if (
+  reservationType === "solo-duet"
+) {
+  if (!reservationId) {
+    throw new Response(
+      "Solo/Duet registration ID is required.",
+      {
+        status: 400,
+      },
+    );
+  }
+
+  await receiveSoloDuetCheck({
+    registrationId:
+      String(reservationId),
+
+    admin,
+
+    account,
+  });
+
+  return redirect(
+    "/app/queue?soloDuet=true",
+  );
+}
 
   if (
   reservationType === "event"
@@ -612,6 +640,43 @@ const filteredWaiting =
               {registration.shopifyOrderNumber ??
                 "Draft Order"}
             </p>
+            <Form method="post">
+  <input
+    type="hidden"
+    name="reservationId"
+    value={registration.id}
+  />
+
+  <input
+    type="hidden"
+    name="reservationType"
+    value="solo-duet"
+  />
+
+  <s-button
+    type="submit"
+    variant="primary"
+    disabled={
+      navigation.state ===
+        "submitting" &&
+      submittingReservationId ===
+        registration.id
+    }
+    loading={
+      navigation.state ===
+        "submitting" &&
+      submittingReservationId ===
+        registration.id
+    }
+  >
+    {navigation.state ===
+      "submitting" &&
+    submittingReservationId ===
+      registration.id
+      ? "Receiving Check..."
+      : "Receive Check"}
+  </s-button>
+</Form>
           </div>
         ),
       )}

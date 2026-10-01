@@ -521,3 +521,157 @@ await prisma.eventReservation.update({
       reservation.id,
   };
 }
+
+export async function receiveSoloDuetCheck({
+  registrationId,
+  admin,
+  account,
+}) {
+  if (
+    account !== "FW" &&
+    account !== "PM"
+  ) {
+    throw new Error(
+      "Invalid studio account.",
+    );
+  }
+
+  const registration =
+    await prisma.soloDuetRegistration.findUnique({
+      where: {
+        id: registrationId,
+      },
+    });
+
+  if (!registration) {
+    throw new Error(
+      "Solo/Duet registration not found.",
+    );
+  }
+
+  if (
+    registration.studioCode !== account
+  ) {
+    throw new Error(
+      `This Solo/Duet registration belongs to ${registration.studioCode} and cannot be received from the ${account} dashboard.`,
+    );
+  }
+
+  if (
+    registration.paymentMethod !==
+    "CHECK"
+  ) {
+    throw new Error(
+      "This Solo/Duet registration is not a check payment.",
+    );
+  }
+
+  if (
+    registration.paymentStatus !==
+    "PENDING"
+  ) {
+    throw new Error(
+      "This Solo/Duet registration is already paid or is no longer awaiting payment.",
+    );
+  }
+
+  if (
+    registration.paymentResponsibility ===
+    "PARTNER"
+  ) {
+    throw new Error(
+      "No payment is due for this registration.",
+    );
+  }
+
+  if (!registration.shopifyOrderId) {
+    throw new Error(
+      "Shopify Draft Order ID was not found.",
+    );
+  }
+
+  const response =
+    await admin.graphql(
+      `#graphql
+        mutation DraftOrderComplete($id: ID!) {
+          draftOrderComplete(id: $id) {
+            draftOrder {
+              id
+              name
+              status
+              order {
+                id
+                name
+                displayFinancialStatus
+              }
+            }
+            userErrors {
+              field
+              message
+            }
+          }
+        }
+      `,
+      {
+        variables: {
+          id:
+            registration.shopifyOrderId,
+        },
+      },
+    );
+
+  const json =
+    await response.json();
+
+  if (json.errors) {
+    throw new Error(
+      JSON.stringify(
+        json.errors,
+        null,
+        2,
+      ),
+    );
+  }
+
+  const result =
+    json.data?.draftOrderComplete;
+
+  if (!result) {
+    throw new Error(
+      "Shopify returned no draft order completion result.",
+    );
+  }
+
+  if (
+    result.userErrors?.length > 0
+  ) {
+    throw new Error(
+      result.userErrors
+        .map(
+          (error) =>
+            error.message,
+        )
+        .join(", "),
+    );
+  }
+
+  await prisma.soloDuetRegistration.update({
+    where: {
+      id: registration.id,
+    },
+
+    data: {
+      paymentStatus: "PAID",
+    },
+  });
+
+  return {
+    success: true,
+    registrationId:
+      registration.id,
+    shopifyOrderId:
+      result.draftOrder.order?.id,
+    shopifyOrderName:
+      result.draftOrder.order?.name,
+  };
+}
