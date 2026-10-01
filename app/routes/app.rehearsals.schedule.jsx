@@ -92,11 +92,11 @@ export default function RehearsalSchedulePage() {
                       {registration.studioCode}
                     </s-paragraph>
 
-                    <Link
-                      to={`/app/rehearsals/schedule/${registration.id}`}
-                    >
-                      View Scheduling Options
-                    </Link>
+                    <s-button
+  href={`/app/rehearsals/schedule/${registration.id}`}
+>
+  View Scheduling Options
+</s-button>
                   </s-stack>
                 </s-box>
               ),
