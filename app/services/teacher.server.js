@@ -181,9 +181,26 @@ export function parseTeacherAvailabilitySlot(
   const endMeridiem =
     endMeridiemText.toLowerCase();
 
-  const startMeridiem =
-    startMeridiemText?.toLowerCase() ??
-    endMeridiem;
+  let startMeridiem =
+  startMeridiemText?.toLowerCase();
+
+if (!startMeridiem) {
+  const startHourNumber =
+    Number(startHourText);
+
+  const endHourNumber =
+    Number(endHourText);
+
+  if (
+    endMeridiem === "pm" &&
+    startHourNumber === 11 &&
+    endHourNumber === 12
+  ) {
+    startMeridiem = "am";
+  } else {
+    startMeridiem = endMeridiem;
+  }
+}
 
   function to24Hour(
     hourText,
