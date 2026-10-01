@@ -188,6 +188,14 @@ export async function getRehearsalCandidateSlots(
             return null;
           }
 
+          console.log("CHECKING PARENT SLOT", {
+  date: slot.date,
+  timeSlot: slot.timeSlot,
+  location: slot.location,
+  start: slot.start,
+  end: slot.end,
+});
+
           const studios =
             await getAvailableStudiosAtLocation(
               slot.location,
