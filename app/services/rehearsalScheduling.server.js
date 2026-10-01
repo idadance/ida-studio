@@ -14,6 +14,50 @@ import {
 
 import prisma from "../db.server";
 
+function parseParentAvailabilitySlot(
+  availability,
+) {
+  if (
+    !availability?.date ||
+    !availability?.timeSlot
+  ) {
+    return null;
+  }
+
+  const year =
+    availability.date.includes("January") ||
+    availability.date.includes("February")
+      ? 2027
+      : 2026;
+
+  const cleanedDate =
+    availability.date.replace(
+      /(\d+)(st|nd|rd|th)/,
+      "$1",
+    );
+
+  const parsedDate = new Date(
+    `${cleanedDate}, ${year}`,
+  );
+
+  if (Number.isNaN(parsedDate.getTime())) {
+    return null;
+  }
+
+  const sortDate = new Date(
+    Date.UTC(
+      parsedDate.getFullYear(),
+      parsedDate.getMonth(),
+      parsedDate.getDate(),
+    ),
+  );
+
+  return parseTeacherAvailabilitySlot({
+    ...availability,
+    sortDate,
+  });
+}
+
 export async function getRehearsalCandidateSlots(
   registrationId,
 ) {
@@ -65,30 +109,68 @@ export async function getRehearsalCandidateSlots(
       .filter(Boolean);
 
   const matchingSlots =
-    registration.availability.flatMap(
-      (parentSlot) => {
-        return teacherSlots
-          .filter(
-            (teacherSlot) =>
-              teacherSlot.date ===
-                parentSlot.date &&
-              teacherSlot.timeSlot ===
-                parentSlot.timeSlot &&
-              teacherSlot.preferredLocation ===
+  teacherSlots.length === 0
+    ? registration.availability
+        .map((parentSlot) =>
+          parseParentAvailabilitySlot(
+            parentSlot,
+          ),
+        )
+        .filter(Boolean)
+        .flatMap((parentSlot) => {
+          const preferredLocation =
+            parentSlot.preferredLocation
+              ?.trim()
+              .toLowerCase();
+
+          const locations =
+            preferredLocation ===
+            "fort washington or plymouth meeting"
+              ? ["FW", "PM"]
+              : preferredLocation ===
+                  "fort washington"
+                ? ["FW"]
+                : preferredLocation ===
+                    "plymouth meeting"
+                  ? ["PM"]
+                  : [];
+
+          return locations.map(
+            (location) => ({
+              date: parentSlot.date,
+              day: parentSlot.day,
+              timeSlot:
+                parentSlot.timeSlot,
+              location,
+              start: parentSlot.start,
+              end: parentSlot.end,
+            }),
+          );
+        })
+    : registration.availability.flatMap(
+        (parentSlot) => {
+          return teacherSlots
+            .filter(
+              (teacherSlot) =>
+                teacherSlot.date ===
+                  parentSlot.date &&
+                teacherSlot.timeSlot ===
+                  parentSlot.timeSlot &&
+                teacherSlot.preferredLocation ===
+                  parentSlot.preferredLocation,
+            )
+            .map((teacherSlot) => ({
+              date: parentSlot.date,
+              day: parentSlot.day,
+              timeSlot:
+                parentSlot.timeSlot,
+              location:
                 parentSlot.preferredLocation,
-          )
-          .map((teacherSlot) => ({
-            date: parentSlot.date,
-            day: parentSlot.day,
-            timeSlot:
-              parentSlot.timeSlot,
-            location:
-              parentSlot.preferredLocation,
-            start: teacherSlot.start,
-            end: teacherSlot.end,
-          }));
-      },
-    );
+              start: teacherSlot.start,
+              end: teacherSlot.end,
+            }));
+        },
+      );
 
     const candidateSlots =
     await Promise.all(
