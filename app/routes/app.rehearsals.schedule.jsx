@@ -2,6 +2,7 @@ import {
   Link,
   Outlet,
   useLoaderData,
+  useNavigation,
   useParams,
 } from "react-router";
 
@@ -28,6 +29,13 @@ export async function loader() {
 export default function RehearsalSchedulePage() {
   const { registrations } =
     useLoaderData();
+
+    const navigation = useNavigation();
+
+const loadingRegistrationId =
+  navigation.state === "loading"
+    ? navigation.location?.pathname.split("/").pop()
+    : null;
 
       const { registrationId } =
     useParams();
@@ -94,8 +102,19 @@ export default function RehearsalSchedulePage() {
 
                     <s-button
   href={`/app/rehearsals/schedule/${registration.id}`}
+  loading={
+    loadingRegistrationId ===
+    registration.id
+  }
+  disabled={
+    loadingRegistrationId ===
+    registration.id
+  }
 >
-  View Scheduling Options
+  {loadingRegistrationId ===
+  registration.id
+    ? "Checking Availability..."
+    : "View Scheduling Options"}
 </s-button>
                   </s-stack>
                 </s-box>
