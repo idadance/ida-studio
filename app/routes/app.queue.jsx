@@ -59,6 +59,11 @@ const requestedEventId =
     "event",
   );
 
+  const soloDuetSelected =
+  url.searchParams.get(
+    "soloDuet",
+  ) === "true";
+
   const eventChecks =
   await prisma.eventReservation.findMany({
     where: {
@@ -80,6 +85,30 @@ const requestedEventId =
         },
       },
     },
+    orderBy: {
+      createdAt: "asc",
+    },
+  });
+
+  const soloDuetChecks =
+  await prisma.soloDuetRegistration.findMany({
+    where: {
+      studioCode: account,
+      paymentMethod: "CHECK",
+      paymentStatus: "PENDING",
+      paymentResponsibility: {
+        not: "PARTNER",
+      },
+      shopifyOrderId: {
+        not: null,
+      },
+    },
+
+    include: {
+      teacher: true,
+      genre: true,
+    },
+
     orderBy: {
       createdAt: "asc",
     },
@@ -136,7 +165,8 @@ const selectedPerformanceId =
       requestedPerformanceId,
   )
     ? requestedPerformanceId
-    : selectedEventId
+    : selectedEventId ||
+        soloDuetSelected
       ? null
       : performances[0]?.id ?? null;
 
@@ -149,13 +179,15 @@ return {
 
   selectedPerformanceId,
 selectedEventId,
+soloDuetSelected,
 
   waiting:
     await getWaitingForCheckQueue(
       account,
     ),
 
-  eventChecks,
+    eventChecks,
+  soloDuetChecks,
 };
 };
 
@@ -255,10 +287,12 @@ export default function QueuePage() {
   const {
   waiting,
   eventChecks,
+  soloDuetChecks,
   performances,
   events,
   selectedPerformanceId,
   selectedEventId,
+  soloDuetSelected,
   account,
 } = useLoaderData();
 
@@ -387,15 +421,24 @@ const filteredWaiting =
 
     <select
       value={
-        selectedEventId
-          ? `event:${selectedEventId}`
-          : selectedPerformanceId
-            ? `performance:${selectedPerformanceId}`
-            : ""
-      }
+  soloDuetSelected
+    ? "solo-duet"
+    : selectedEventId
+      ? `event:${selectedEventId}`
+      : selectedPerformanceId
+        ? `performance:${selectedPerformanceId}`
+        : ""
+}
       onChange={(event) => {
         const value =
           event.target.value;
+
+          if (value === "solo-duet") {
+  navigate(
+    "/app/queue?soloDuet=true",
+  );
+  return;
+}
 
         if (
           value.startsWith(
@@ -460,6 +503,11 @@ const filteredWaiting =
           ),
         )}
       </optgroup>
+      <optgroup label="SOLO / DUET">
+  <option value="solo-duet">
+    Solo/Duet Registration
+  </option>
+</optgroup>
     </select>
   </label>
 </div>
@@ -498,7 +546,78 @@ const filteredWaiting =
           </label>
         </div>
 
-        {selectedEventId ? (
+        {soloDuetSelected ? (
+  soloDuetChecks.length === 0 ? (
+    <p>
+      🎉 No Solo/Duet registrations are currently waiting for checks.
+    </p>
+  ) : (
+    <div
+      style={{
+        display: "grid",
+        gap: "16px",
+      }}
+    >
+      {soloDuetChecks.map(
+        (registration) => (
+          <div
+            key={registration.id}
+            style={{
+              border: "1px solid #ddd",
+              borderRadius: "12px",
+              padding: "16px",
+            }}
+          >
+            <h3
+              style={{
+                marginTop: 0,
+              }}
+            >
+              {registration.studentFirstName}{" "}
+              {registration.studentLastName}
+            </h3>
+
+            {registration.customerEmail && (
+              <p>
+                {registration.customerEmail}
+              </p>
+            )}
+
+            <p>
+              <strong>
+                Solo/Duet Registration
+              </strong>
+            </p>
+
+            <p>
+              {registration.entryType}
+              {registration.genre?.name
+                ? ` · ${registration.genre.name}`
+                : ""}
+            </p>
+
+            <p>
+              Grade {registration.grade}
+            </p>
+
+            <p>
+              💲
+              {registration.totalAmount.toFixed(
+                2,
+              )}
+            </p>
+
+            <p>
+              Shopify:{" "}
+              {registration.shopifyOrderNumber ??
+                "Draft Order"}
+            </p>
+          </div>
+        ),
+      )}
+    </div>
+  )
+) : selectedEventId ? (
   filteredEventChecks.length === 0 ? (
     <p>
       {searchTerm
