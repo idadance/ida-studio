@@ -212,6 +212,9 @@ export const action = async ({
   const formData =
     await request.formData();
 
+    const checkNumber =
+  formData.get("checkNumber");
+
   const reservationId =
     formData.get(
       "reservationId",
@@ -240,13 +243,16 @@ export const action = async ({
   }
 
   await receiveSoloDuetCheck({
-    registrationId:
-      String(reservationId),
+  registrationId:
+    String(reservationId),
 
-    admin,
+  checkNumber:
+    String(checkNumber || "").trim(),
 
-    account,
-  });
+  admin,
+
+  account,
+});
 
   return redirect(
     "/app/queue?soloDuet=true",
@@ -779,6 +785,38 @@ const filteredWaiting =
               </div>
             )}
             <Form method="post">
+              <div
+  style={{
+    marginBottom: "12px",
+    maxWidth: "220px",
+  }}
+>
+  <label
+    htmlFor={`check-number-${registration.id}`}
+    style={{
+      display: "block",
+      marginBottom: "6px",
+      fontWeight: "600",
+    }}
+  >
+    Check Number
+  </label>
+
+  <input
+    id={`check-number-${registration.id}`}
+    name="checkNumber"
+    type="text"
+    inputMode="numeric"
+    placeholder="Enter check number"
+    required
+    style={{
+      width: "100%",
+      padding: "8px 10px",
+      border: "1px solid #ccc",
+      borderRadius: "6px",
+    }}
+  />
+</div>
   <input
     type="hidden"
     name="reservationId"
