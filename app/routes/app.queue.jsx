@@ -995,7 +995,7 @@ if (value === "photo-sales") {
   }}
 >
   <label
-    htmlFor={`check-number-${registration.id}`}
+    htmlFor={`check-number-${reservation.id}`}
     style={{
       display: "block",
       marginBottom: "6px",
@@ -1006,7 +1006,7 @@ if (value === "photo-sales") {
   </label>
 
   <input
-    id={`check-number-${registration.id}`}
+    id={`check-number-${reservation.id}`}
     name="checkNumber"
     type="text"
     inputMode="numeric"
