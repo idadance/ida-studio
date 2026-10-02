@@ -64,6 +64,11 @@ const requestedEventId =
     "soloDuet",
   ) === "true";
 
+  const photoSalesSelected =
+  url.searchParams.get(
+    "photoSales",
+  ) === "true";
+
   const eventChecks =
   await prisma.eventReservation.findMany({
     where: {
@@ -107,6 +112,26 @@ const requestedEventId =
     include: {
       teacher: true,
       genre: true,
+    },
+
+    orderBy: {
+      createdAt: "asc",
+    },
+  });
+
+  const photoChecks =
+  await prisma.photoOrder.findMany({
+    where: {
+      studioCode: account,
+      paymentMethod: "CHECK",
+      status: "PENDING",
+      shopifyOrderId: {
+        not: null,
+      },
+    },
+
+    include: {
+      photos: true,
     },
 
     orderBy: {
@@ -166,7 +191,8 @@ const selectedPerformanceId =
   )
     ? requestedPerformanceId
     : selectedEventId ||
-        soloDuetSelected
+    soloDuetSelected ||
+    photoSalesSelected
       ? null
       : performances[0]?.id ?? null;
 
@@ -180,6 +206,7 @@ return {
   selectedPerformanceId,
 selectedEventId,
 soloDuetSelected,
+photoSalesSelected,
 
   waiting:
     await getWaitingForCheckQueue(
@@ -188,6 +215,7 @@ soloDuetSelected,
 
     eventChecks,
   soloDuetChecks,
+  photoChecks,
 };
 };
 
@@ -322,11 +350,13 @@ export default function QueuePage() {
   waiting,
   eventChecks,
   soloDuetChecks,
+  photoChecks,
   performances,
   events,
   selectedPerformanceId,
   selectedEventId,
   soloDuetSelected,
+  photoSalesSelected,
   account,
 } = useLoaderData();
 
@@ -455,13 +485,15 @@ const filteredWaiting =
 
     <select
       value={
-  soloDuetSelected
-    ? "solo-duet"
-    : selectedEventId
-      ? `event:${selectedEventId}`
-      : selectedPerformanceId
-        ? `performance:${selectedPerformanceId}`
-        : ""
+  photoSalesSelected
+    ? "photo-sales"
+    : soloDuetSelected
+      ? "solo-duet"
+      : selectedEventId
+        ? `event:${selectedEventId}`
+        : selectedPerformanceId
+          ? `performance:${selectedPerformanceId}`
+          : ""
 }
       onChange={(event) => {
         const value =
@@ -470,6 +502,13 @@ const filteredWaiting =
           if (value === "solo-duet") {
   navigate(
     "/app/queue?soloDuet=true",
+  );
+  return;
+}
+
+if (value === "photo-sales") {
+  navigate(
+    "/app/queue?photoSales=true",
   );
   return;
 }
@@ -542,6 +581,11 @@ const filteredWaiting =
     Solo/Duet Registration
   </option>
 </optgroup>
+<optgroup label="PHOTO SALES">
+  <option value="photo-sales">
+    Senior REP Photos
+  </option>
+</optgroup>
     </select>
   </label>
 </div>
@@ -580,7 +624,69 @@ const filteredWaiting =
           </label>
         </div>
 
-        {soloDuetSelected ? (
+        {photoSalesSelected ? (
+  photoChecks.length === 0 ? (
+    <p>
+      🎉 No photo orders are currently waiting for checks.
+    </p>
+  ) : (
+    <div
+      style={{
+        display: "grid",
+        gap: "16px",
+      }}
+    >
+      {photoChecks.map((order) => (
+        <div
+          key={order.id}
+          style={{
+            border: "1px solid #ddd",
+            borderRadius: "12px",
+            padding: "16px",
+          }}
+        >
+          <h3
+            style={{
+              marginTop: 0,
+            }}
+          >
+            {order.customerName}
+          </h3>
+
+          <p>{order.customerEmail}</p>
+
+          <p>
+            <strong>Dancer:</strong>{" "}
+            {order.dancerName}
+          </p>
+
+          <p>
+            <strong>Photos:</strong>{" "}
+            {order.photos
+              .map(
+                (photo) =>
+                  photo.photoNumber,
+              )
+              .join(", ")}
+          </p>
+
+          <p>
+            💲
+            {order.totalAmount.toFixed(
+              2,
+            )}
+          </p>
+
+          <p>
+            Shopify:{" "}
+            {order.shopifyOrderNumber ??
+              "Draft Order"}
+          </p>
+        </div>
+      ))}
+    </div>
+  )
+) : soloDuetSelected ? (
   soloDuetChecks.length === 0 ? (
     <p>
       🎉 No Solo/Duet registrations are currently waiting for checks.
