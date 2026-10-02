@@ -159,8 +159,11 @@ const requestedEventId =
 const events =
   await prisma.event.findMany({
     where: {
-      status: "PUBLISHED",
-    },
+  status: "PUBLISHED",
+  name: {
+    not: "Solo/Duet Registration",
+  },
+},
 
     select: {
       id: true,
