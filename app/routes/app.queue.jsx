@@ -225,6 +225,7 @@ export const action = async ({
   const {
   receiveEventCheck,
   receiveSoloDuetCheck,
+  receivePhotoCheck,
 } = await import(
   "../services/queue.server"
 );
@@ -284,6 +285,35 @@ export const action = async ({
 
   return redirect(
     "/app/queue?soloDuet=true",
+  );
+}
+
+if (
+  reservationType === "photo"
+) {
+  if (!reservationId) {
+    throw new Response(
+      "Photo order ID is required.",
+      {
+        status: 400,
+      },
+    );
+  }
+
+  await receivePhotoCheck({
+    photoOrderId:
+      String(reservationId),
+
+    checkNumber:
+      String(checkNumber || "").trim(),
+
+    admin,
+
+    account,
+  });
+
+  return redirect(
+    "/app/queue?photoSales=true",
   );
 }
 
@@ -682,6 +712,70 @@ if (value === "photo-sales") {
             {order.shopifyOrderNumber ??
               "Draft Order"}
           </p>
+          <Form method="post">
+  <div
+    style={{
+      marginBottom: "12px",
+      maxWidth: "220px",
+    }}
+  >
+    <label
+      htmlFor={`photo-check-number-${order.id}`}
+      style={{
+        display: "block",
+        marginBottom: "6px",
+        fontWeight: "600",
+      }}
+    >
+      Check Number
+    </label>
+
+    <input
+      id={`photo-check-number-${order.id}`}
+      name="checkNumber"
+      type="text"
+      inputMode="numeric"
+      placeholder="Enter check number"
+      required
+      style={{
+        width: "100%",
+        padding: "8px 10px",
+        border: "1px solid #ccc",
+        borderRadius: "6px",
+      }}
+    />
+  </div>
+
+  <input
+    type="hidden"
+    name="reservationId"
+    value={order.id}
+  />
+
+  <input
+    type="hidden"
+    name="reservationType"
+    value="photo"
+  />
+
+  <s-button
+    type="submit"
+    variant="primary"
+    disabled={
+      navigation.state === "submitting" &&
+      submittingReservationId === order.id
+    }
+    loading={
+      navigation.state === "submitting" &&
+      submittingReservationId === order.id
+    }
+  >
+    {navigation.state === "submitting" &&
+    submittingReservationId === order.id
+      ? "Receiving Check..."
+      : "Receive Check"}
+  </s-button>
+</Form>
         </div>
       ))}
     </div>

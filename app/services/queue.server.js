@@ -744,3 +744,209 @@ if (completedOrderId) {
       result.draftOrder.order?.name,
   };
 }
+
+export async function receivePhotoCheck({
+  photoOrderId,
+  checkNumber,
+  admin,
+  account,
+}) {
+  if (
+    account !== "FW" &&
+    account !== "PM"
+  ) {
+    throw new Error(
+      "Invalid studio account.",
+    );
+  }
+
+  const normalizedCheckNumber =
+    String(checkNumber || "").trim();
+
+  if (!normalizedCheckNumber) {
+    throw new Error(
+      "Check number is required.",
+    );
+  }
+
+  const photoOrder =
+    await prisma.photoOrder.findUnique({
+      where: {
+        id: photoOrderId,
+      },
+    });
+
+  if (!photoOrder) {
+    throw new Error(
+      "Photo order not found.",
+    );
+  }
+
+  if (
+    photoOrder.studioCode !== account
+  ) {
+    throw new Error(
+      `This photo order belongs to ${photoOrder.studioCode} and cannot be received from the ${account} dashboard.`,
+    );
+  }
+
+  if (
+    photoOrder.paymentMethod !== "CHECK"
+  ) {
+    throw new Error(
+      "This photo order is not a check payment.",
+    );
+  }
+
+  if (photoOrder.status !== "PENDING") {
+    throw new Error(
+      "This photo order is already paid or is no longer awaiting payment.",
+    );
+  }
+
+  if (!photoOrder.shopifyOrderId) {
+    throw new Error(
+      "Shopify Draft Order ID was not found.",
+    );
+  }
+
+  const response =
+    await admin.graphql(
+      `#graphql
+        mutation DraftOrderComplete($id: ID!) {
+          draftOrderComplete(id: $id) {
+            draftOrder {
+              id
+              name
+              status
+              order {
+                id
+                name
+                displayFinancialStatus
+              }
+            }
+            userErrors {
+              field
+              message
+            }
+          }
+        }
+      `,
+      {
+        variables: {
+          id: photoOrder.shopifyOrderId,
+        },
+      },
+    );
+
+  const json =
+    await response.json();
+
+  if (json.errors) {
+    throw new Error(
+      JSON.stringify(
+        json.errors,
+        null,
+        2,
+      ),
+    );
+  }
+
+  const result =
+    json.data?.draftOrderComplete;
+
+  if (!result) {
+    throw new Error(
+      "Shopify returned no draft order completion result.",
+    );
+  }
+
+  if (result.userErrors?.length > 0) {
+    throw new Error(
+      result.userErrors
+        .map(
+          (error) => error.message,
+        )
+        .join(", "),
+    );
+  }
+
+  const completedOrderId =
+    result.draftOrder?.order?.id;
+
+  if (completedOrderId) {
+    const noteResponse =
+      await admin.graphql(
+        `#graphql
+          mutation OrderUpdate($input: OrderInput!) {
+            orderUpdate(input: $input) {
+              order {
+                id
+                note
+              }
+              userErrors {
+                field
+                message
+              }
+            }
+          }
+        `,
+        {
+          variables: {
+            input: {
+              id: completedOrderId,
+              note: `Check #${normalizedCheckNumber}`,
+            },
+          },
+        },
+      );
+
+    const noteJson =
+      await noteResponse.json();
+
+    if (noteJson.errors) {
+      throw new Error(
+        JSON.stringify(
+          noteJson.errors,
+          null,
+          2,
+        ),
+      );
+    }
+
+    const noteErrors =
+      noteJson.data?.orderUpdate
+        ?.userErrors ?? [];
+
+    if (noteErrors.length > 0) {
+      throw new Error(
+        noteErrors
+          .map(
+            (error) => error.message,
+          )
+          .join(", "),
+      );
+    }
+  }
+
+  await prisma.photoOrder.update({
+    where: {
+      id: photoOrder.id,
+    },
+    data: {
+      status: "PAID",
+      checkNumber:
+        normalizedCheckNumber,
+      checkReceivedAt: new Date(),
+    },
+  });
+
+  return {
+    success: true,
+    photoOrderId: photoOrder.id,
+    shopifyOrderId:
+      result.draftOrder.order?.id,
+    shopifyOrderName:
+      result.draftOrder.order?.name,
+  };
+}
