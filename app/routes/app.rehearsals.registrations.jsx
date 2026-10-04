@@ -10,12 +10,17 @@ import {
   approveRegistration,
 } from "../services/registration.server";
 
+import {
+  getTeachers,
+} from "../services/teacher.server.js";
+
 export const loader = async ({ request }) => {
   await authenticate.admin(request);
 
   return {
-    registrations: await getRegistrations(),
-  };
+  registrations: await getRegistrations(),
+  teachers: await getTeachers(),
+};
 };
 
 export const action = async ({ request }) => {
@@ -26,6 +31,8 @@ export const action = async ({ request }) => {
   const intent = formData.get("intent");
   const registrationId =
     formData.get("registrationId");
+    const teacherId =
+  formData.get("teacherId");
 
   if (
     intent === "approve" &&
@@ -36,13 +43,33 @@ export const action = async ({ request }) => {
     );
   }
 
+  if (
+  intent === "change-teacher" &&
+  registrationId &&
+  teacherId
+) {
+  const {
+    assignRegistrationTeacher,
+  } = await import(
+    "../services/registration.server"
+  );
+
+  await assignRegistrationTeacher(
+    registrationId,
+    teacherId,
+  );
+}
+
   return {
     success: true,
   };
 };
 
 export default function RegistrationsPage() {
-  const { registrations } = useLoaderData();
+  const {
+  registrations,
+  teachers,
+} = useLoaderData();
 
   const groupedRegistrations = registrations.reduce(
     (groups, registration) => {
@@ -421,46 +448,110 @@ export default function RegistrationsPage() {
                                   </td>
 
                                   <td
-                                    style={{
-                                      padding:
-                                        "14px 16px",
-                                    }}
-                                  >
-                                    {registration.status ===
-                                    "REGISTERED" ? (
-                                      <Form method="post">
-                                        <input
-                                          type="hidden"
-                                          name="intent"
-                                          value="approve"
-                                        />
+  style={{
+    padding: "14px 16px",
+  }}
+>
+  <div
+    style={{
+      display: "flex",
+      flexDirection: "column",
+      gap: "8px",
+      minWidth: "170px",
+    }}
+  >
+    {registration.status ===
+    "REGISTERED" ? (
+      <Form method="post">
+        <input
+          type="hidden"
+          name="intent"
+          value="approve"
+        />
 
-                                        <input
-                                          type="hidden"
-                                          name="registrationId"
-                                          value={
-                                            registration.id
-                                          }
-                                        />
+        <input
+          type="hidden"
+          name="registrationId"
+          value={registration.id}
+        />
 
-                                        <s-button
-                                          type="submit"
-                                          variant="primary"
-                                        >
-                                          Approve
-                                        </s-button>
-                                      </Form>
-                                    ) : (
-                                      <span
-                                        style={{
-                                          color:
-                                            "#666",
-                                        }}
-                                      >
-                                        Approved
-                                      </span>
-                                    )}
-                                  </td>
+        <s-button
+          type="submit"
+          variant="primary"
+        >
+          Approve
+        </s-button>
+      </Form>
+    ) : (
+      <span
+        style={{
+          color: "#666",
+        }}
+      >
+        Approved
+      </span>
+    )}
+
+    <Form method="post">
+      <input
+        type="hidden"
+        name="intent"
+        value="change-teacher"
+      />
+
+      <input
+        type="hidden"
+        name="registrationId"
+        value={registration.id}
+      />
+
+      <select
+        name="teacherId"
+        defaultValue={
+          registration.teacherId ?? ""
+        }
+        style={{
+          width: "100%",
+          padding: "7px 8px",
+          border: "1px solid #bbb",
+          borderRadius: "6px",
+          background: "white",
+        }}
+      >
+        <option value="" disabled>
+          Select teacher
+        </option>
+
+        {teachers
+          .filter(
+            (teacher) =>
+              teacher.active,
+          )
+          .map((teacher) => (
+            <option
+              key={teacher.id}
+              value={teacher.id}
+            >
+              {teacher.firstName}
+              {teacher.lastName
+                ? ` ${teacher.lastName}`
+                : ""}
+            </option>
+          ))}
+      </select>
+
+      <div
+        style={{
+          marginTop: "6px",
+        }}
+      >
+        <s-button type="submit">
+          Change Teacher
+        </s-button>
+      </div>
+    </Form>
+  </div>
+</td>
                                 </tr>
                               ),
                             )}
