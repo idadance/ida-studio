@@ -596,6 +596,34 @@ model PhotoOrderItem {
   @@index([photoNumber])
 }
 
+model PhotoBatch {
+  id        String   @id @default(cuid())
+  batchNumber Int    @unique
+  sentAt    DateTime @default(now())
+
+  items PhotoBatchItem[]
+
+  createdAt DateTime @default(now())
+
+  @@index([sentAt])
+}
+
+model PhotoBatchItem {
+  id String @id @default(cuid())
+
+  batchId String
+  batch   PhotoBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  photoOrderId String
+  photoNumber  String
+
+  createdAt DateTime @default(now())
+
+  @@unique([batchId, photoOrderId, photoNumber])
+  @@index([photoOrderId])
+  @@index([photoNumber])
+}
+
 enum PhotoOrderStatus {
   PENDING
   PAID

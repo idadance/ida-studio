@@ -1,4 +1,5 @@
 import {
+  Form,
   useLoaderData,
 } from "react-router";
 
@@ -49,6 +50,27 @@ export const loader = async ({
       },
     });
 
+    const batches =
+  await prisma.photoBatch.findMany({
+    include: {
+      items: true,
+    },
+
+    orderBy: {
+      batchNumber: "desc",
+    },
+  });
+
+const batchedOrderPhotos =
+  new Set(
+    batches.flatMap((batch) =>
+      batch.items.map(
+        (item) =>
+          `${item.photoOrderId}:${item.photoNumber}`,
+      ),
+    ),
+  );
+
   const paidOrders =
     orders.filter(
       (order) =>
@@ -56,14 +78,24 @@ export const loader = async ({
     );
 
   const photoCounts = {};
+let currentPurchaseCount = 0;
 
-  for (const order of paidOrders) {
-    for (const photo of order.photos) {
-      photoCounts[photo.photoNumber] =
-        (photoCounts[photo.photoNumber] || 0) +
-        1;
+for (const order of paidOrders) {
+  for (const photo of order.photos) {
+    const key =
+      `${order.id}:${photo.photoNumber}`;
+
+    if (batchedOrderPhotos.has(key)) {
+      continue;
     }
+
+    photoCounts[photo.photoNumber] =
+      (photoCounts[photo.photoNumber] || 0) +
+      1;
+
+    currentPurchaseCount += 1;
   }
+}
 
   const photographerPhotos =
     Object.keys(photoCounts).sort(
@@ -74,6 +106,7 @@ export const loader = async ({
   return {
     account,
     orders,
+    batches,
     summary: {
       paidOrders:
         paidOrders.length,
@@ -86,19 +119,124 @@ export const loader = async ({
         ).length,
 
       purchasedPhotos:
-        paidOrders.reduce(
-          (total, order) =>
-            total + order.photos.length,
-          0,
-        ),
+  currentPurchaseCount,
 
-      uniquePhotos:
-        photographerPhotos.length,
+uniquePhotos:
+  photographerPhotos.length,
     },
 
     photographerPhotos,
     photoCounts,
   };
+};
+
+export const action = async ({
+  request,
+}) => {
+  await authenticate.admin(request);
+
+  const formData =
+    await request.formData();
+
+  const intent =
+    formData.get("intent");
+
+  if (intent !== "mark-sent") {
+    return {
+      success: false,
+      error: "Unknown action.",
+    };
+  }
+
+  const result =
+    await prisma.$transaction(
+      async (tx) => {
+        const paidOrders =
+          await tx.photoOrder.findMany({
+            where: {
+              status: "PAID",
+            },
+            include: {
+              photos: true,
+            },
+          });
+
+        const existingItems =
+          await tx.photoBatchItem.findMany({
+            select: {
+              photoOrderId: true,
+              photoNumber: true,
+            },
+          });
+
+        const alreadyBatched =
+          new Set(
+            existingItems.map(
+              (item) =>
+                `${item.photoOrderId}:${item.photoNumber}`,
+            ),
+          );
+
+        const unsentItems = [];
+
+        for (const order of paidOrders) {
+          for (const photo of order.photos) {
+            const key =
+              `${order.id}:${photo.photoNumber}`;
+
+            if (!alreadyBatched.has(key)) {
+              unsentItems.push({
+                photoOrderId: order.id,
+                photoNumber:
+                  photo.photoNumber,
+              });
+            }
+          }
+        }
+
+        if (unsentItems.length === 0) {
+          return {
+            success: false,
+            error:
+              "There are no new paid photos to mark as sent.",
+          };
+        }
+
+        const latestBatch =
+          await tx.photoBatch.findFirst({
+            orderBy: {
+              batchNumber: "desc",
+            },
+            select: {
+              batchNumber: true,
+            },
+          });
+
+        const nextBatchNumber =
+          (latestBatch?.batchNumber ??
+            0) + 1;
+
+        const batch =
+          await tx.photoBatch.create({
+            data: {
+              batchNumber:
+                nextBatchNumber,
+
+              items: {
+                create: unsentItems,
+              },
+            },
+          });
+
+        return {
+          success: true,
+          batchNumber:
+            batch.batchNumber,
+        };
+      },
+    );
+
+  return result;
 };
 
 function SummaryCard({
@@ -150,6 +288,20 @@ function SummaryCard({
   );
 }
 
+function formatBatchDate(date) {
+  return new Intl.DateTimeFormat(
+    "en-US",
+    {
+      timeZone: "America/New_York",
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    },
+  ).format(new Date(date));
+}
+
 function getStatusLabel(order) {
   if (
     order.status === "PENDING" &&
@@ -199,17 +351,71 @@ function getStatusStyle(order) {
 
 export default function PhotoSalesPage() {
   const {
-    orders,
-    summary,
-    photographerPhotos,
-    photoCounts,
-  } = useLoaderData();
+  orders,
+  batches,
+  summary,
+  photographerPhotos,
+  photoCounts,
+} = useLoaderData();
 
   const [copied, setCopied] =
     useState(false);
 
   const photographerList =
     photographerPhotos.join(", ");
+
+    const previousBatchesByPhoto = {};
+
+for (const batch of batches) {
+  for (const item of batch.items) {
+    if (!previousBatchesByPhoto[item.photoNumber]) {
+      previousBatchesByPhoto[item.photoNumber] = [];
+    }
+
+    if (
+      !previousBatchesByPhoto[
+        item.photoNumber
+      ].includes(batch.batchNumber)
+    ) {
+      previousBatchesByPhoto[
+        item.photoNumber
+      ].push(batch.batchNumber);
+    }
+  }
+}
+
+const pastBatches =
+  batches.map((batch) => {
+    const counts = {};
+
+    for (const item of batch.items) {
+      counts[item.photoNumber] =
+        (counts[item.photoNumber] || 0) +
+        1;
+    }
+
+    const photos =
+      Object.keys(counts).sort(
+        (a, b) =>
+          Number(a) - Number(b),
+      );
+
+    const orderCount =
+      new Set(
+        batch.items.map(
+          (item) => item.photoOrderId,
+        ),
+      ).size;
+
+    return {
+      ...batch,
+      photos,
+      counts,
+      orderCount,
+      purchaseCount:
+        batch.items.length,
+    };
+  });
 
   async function copyList() {
     try {
@@ -419,6 +625,20 @@ export default function PhotoSalesPage() {
                 >
                   Download CSV
                 </s-button>
+
+                <Form method="post">
+  <input
+    type="hidden"
+    name="intent"
+    value="mark-sent"
+  />
+
+  <s-button
+    type="submit"
+  >
+    Mark List as Sent
+  </s-button>
+</Form>
               </div>
             </div>
 
@@ -480,6 +700,28 @@ export default function PhotoSalesPage() {
                         ? "purchase"
                         : "purchases"}
                     </div>
+                    {previousBatchesByPhoto[
+  photoNumber
+]?.length ? (
+  <div
+    style={{
+      fontSize: "12px",
+      color: "#b54708",
+      fontWeight: 600,
+      marginTop: "5px",
+    }}
+  >
+    Previously sent ·{" "}
+    {previousBatchesByPhoto[
+      photoNumber
+    ]
+      .map(
+        (batchNumber) =>
+          `Batch ${batchNumber}`,
+      )
+      .join(", ")}
+  </div>
+) : null}
                   </div>
                 ),
               )}
@@ -487,6 +729,101 @@ export default function PhotoSalesPage() {
           </div>
         )}
       </s-section>
+
+      <s-section heading="Past Batches">
+  {pastBatches.length === 0 ? (
+    <s-text>
+      No photographer lists have been sent yet.
+    </s-text>
+  ) : (
+    <div
+      style={{
+        display: "grid",
+        gap: "12px",
+      }}
+    >
+      {pastBatches.map((batch) => (
+        <div
+          key={batch.id}
+          style={{
+            border: "1px solid #e1e3e5",
+            borderRadius: "10px",
+            padding: "16px",
+            background: "#ffffff",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent:
+                "space-between",
+              alignItems: "flex-start",
+              gap: "16px",
+              flexWrap: "wrap",
+              marginBottom: "12px",
+            }}
+          >
+            <div>
+              <div
+                style={{
+                  fontWeight: 700,
+                  fontSize: "16px",
+                  marginBottom: "3px",
+                }}
+              >
+                Batch {batch.batchNumber}
+              </div>
+
+              <div
+                style={{
+                  fontSize: "12px",
+                  color: "#6d7175",
+                }}
+              >
+                Sent{" "}
+                {formatBatchDate(
+                  batch.sentAt,
+                )}
+              </div>
+            </div>
+
+            <div
+              style={{
+                fontSize: "13px",
+                color: "#616161",
+              }}
+            >
+              {batch.photos.length} unique{" "}
+              {batch.photos.length === 1
+                ? "photo"
+                : "photos"}{" "}
+              · {batch.purchaseCount}{" "}
+              {batch.purchaseCount === 1
+                ? "purchase"
+                : "purchases"}{" "}
+              · {batch.orderCount}{" "}
+              {batch.orderCount === 1
+                ? "order"
+                : "orders"}
+            </div>
+          </div>
+
+          <div
+            style={{
+              padding: "12px",
+              borderRadius: "8px",
+              background: "#f7f7f7",
+              fontWeight: 600,
+              lineHeight: 1.6,
+            }}
+          >
+            {batch.photos.join(", ")}
+          </div>
+        </div>
+      ))}
+    </div>
+  )}
+</s-section>
 
       <s-section heading="Orders">
         {orders.length === 0 ? (
