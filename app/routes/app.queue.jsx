@@ -850,6 +850,38 @@ if (value === "photo-sales") {
                 "Draft Order"}
             </p>
             <Form method="post">
+              <div
+  style={{
+    marginBottom: "12px",
+    maxWidth: "220px",
+  }}
+>
+  <label
+    htmlFor={`solo-duet-check-number-${registration.id}`}
+    style={{
+      display: "block",
+      marginBottom: "6px",
+      fontWeight: "600",
+    }}
+  >
+    Check Number
+  </label>
+
+  <input
+    id={`solo-duet-check-number-${registration.id}`}
+    name="checkNumber"
+    type="text"
+    inputMode="numeric"
+    placeholder="Enter check number"
+    required
+    style={{
+      width: "100%",
+      padding: "8px 10px",
+      border: "1px solid #ccc",
+      borderRadius: "6px",
+    }}
+  />
+</div>
   <input
     type="hidden"
     name="reservationId"
