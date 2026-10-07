@@ -419,6 +419,54 @@ export default function QueuePage() {
       .trim()
       .toLowerCase();
 
+      const filteredPhotoChecks =
+  normalizedSearch
+    ? photoChecks.filter((order) => {
+        const searchableText = [
+          order.customerName,
+          order.customerEmail,
+          order.dancerName,
+          ...(order.photos ?? []).map(
+            (photo) => photo.photoNumber,
+          ),
+          order.shopifyOrderNumber,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+
+        return searchableText.includes(
+          normalizedSearch,
+        );
+      })
+    : photoChecks;
+
+    const filteredSoloDuetChecks =
+  normalizedSearch
+    ? soloDuetChecks.filter(
+        (registration) => {
+          const searchableText = [
+            registration.studentFirstName,
+            registration.studentLastName,
+            registration.customerEmail,
+            registration.entryType,
+            registration.grade,
+            registration.genre?.name,
+            registration.teacher?.firstName,
+            registration.teacher?.lastName,
+            registration.shopifyOrderNumber,
+          ]
+            .filter(Boolean)
+            .join(" ")
+            .toLowerCase();
+
+          return searchableText.includes(
+            normalizedSearch,
+          );
+        },
+      )
+    : soloDuetChecks;
+
       const selectedEventChecks =
   selectedEventId
     ? eventChecks.filter(
@@ -669,7 +717,7 @@ if (value === "photo-sales") {
         gap: "16px",
       }}
     >
-      {photoChecks.map((order) => (
+      {filteredPhotoChecks.map((order) => (
         <div
           key={order.id}
           style={{
@@ -781,6 +829,7 @@ if (value === "photo-sales") {
 </Form>
         </div>
       ))}
+      
     </div>
   )
 ) : soloDuetSelected ? (
@@ -795,7 +844,7 @@ if (value === "photo-sales") {
         gap: "16px",
       }}
     >
-      {soloDuetChecks.map(
+      {filteredSoloDuetChecks.map(
         (registration) => (
           <div
             key={registration.id}
