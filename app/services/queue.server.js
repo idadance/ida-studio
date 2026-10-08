@@ -665,65 +665,6 @@ if (!normalizedCheckNumber) {
     );
   }
 
-  const completedOrderId =
-  result.draftOrder?.order?.id;
-
-if (completedOrderId) {
-  const noteResponse =
-    await admin.graphql(
-      `#graphql
-        mutation OrderUpdate($input: OrderInput!) {
-          orderUpdate(input: $input) {
-            order {
-              id
-              note
-            }
-            userErrors {
-              field
-              message
-            }
-          }
-        }
-      `,
-      {
-        variables: {
-          input: {
-            id: completedOrderId,
-            note: `Check #${normalizedCheckNumber}`,
-          },
-        },
-      },
-    );
-
-  const noteJson =
-    await noteResponse.json();
-
-  if (noteJson.errors) {
-    throw new Error(
-      JSON.stringify(
-        noteJson.errors,
-        null,
-        2,
-      ),
-    );
-  }
-
-  const noteErrors =
-    noteJson.data?.orderUpdate
-      ?.userErrors ?? [];
-
-  if (noteErrors.length > 0) {
-    throw new Error(
-      noteErrors
-        .map(
-          (error) =>
-            error.message,
-        )
-        .join(", "),
-    );
-  }
-}
-
   await prisma.soloDuetRegistration.update({
     where: {
       id: registration.id,
