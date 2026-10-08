@@ -92,12 +92,27 @@ genre,
         },
       });
 
-    if (!teacherRecord) {
-      throw new Error(
-        "Selected teacher was not found.",
-      );
-    }
-  }
+  if (!teacherRecord) {
+  throw new Error(
+    "Selected teacher was not found.",
+  );
+}
+
+const teacherCapacity =
+  await getSoloDuetTeacherCapacity();
+
+const selectedTeacherCapacity =
+  teacherCapacity.find(
+    (item) =>
+      item.id === teacherRecord.id,
+  );
+
+if (selectedTeacherCapacity?.full) {
+  throw new Error(
+    `${teacherRecord.firstName} has reached their maximum number of Solo/Duet entries. Please select another teacher or No Preference.`,
+  );
+}
+}
 
     // ======================================
   // VALIDATE REHEARSAL AVAILABILITY
@@ -204,5 +219,100 @@ teacherId: teacherRecord?.id ?? null,
       genre: true,
       availability: true,
     },
+  });
+}
+
+export async function getSoloDuetTeacherCapacity() {
+  const teachers =
+    await prisma.teacher.findMany({
+      where: {
+        active: true,
+      },
+      include: {
+        soloDuetRegistrations: true,
+      },
+      orderBy: {
+        firstName: "asc",
+      },
+    });
+
+  return teachers.map((teacher) => {
+    const registrations =
+      teacher.soloDuetRegistrations;
+
+    const requested =
+      registrations.reduce(
+        (
+          count,
+          registration,
+          index,
+          allRegistrations,
+        ) => {
+          if (
+            registration.entryType !== "DUET"
+          ) {
+            return count + 1;
+          }
+
+          const dancerLastName =
+            registration.studentLastName
+              ?.trim()
+              .toLowerCase();
+
+          const partnerLastName =
+            registration.partnerLastName
+              ?.trim()
+              .toLowerCase();
+
+          const matchingPartnerIndex =
+            allRegistrations.findIndex(
+              (other) => {
+                if (
+                  other.entryType !== "DUET" ||
+                  other.id === registration.id
+                ) {
+                  return false;
+                }
+
+                const otherDancerLastName =
+                  other.studentLastName
+                    ?.trim()
+                    .toLowerCase();
+
+                const otherPartnerLastName =
+                  other.partnerLastName
+                    ?.trim()
+                    .toLowerCase();
+
+                return (
+                  otherDancerLastName ===
+                    partnerLastName &&
+                  otherPartnerLastName ===
+                    dancerLastName
+                );
+              },
+            );
+
+          if (
+            matchingPartnerIndex !== -1 &&
+            matchingPartnerIndex < index
+          ) {
+            return count;
+          }
+
+          return count + 1;
+        },
+        0,
+      );
+
+    return {
+      id: teacher.id,
+      firstName: teacher.firstName,
+      lastName: teacher.lastName,
+      maxSoloDuets: teacher.maxSoloDuets,
+      requested,
+      full:
+        requested >= teacher.maxSoloDuets,
+    };
   });
 }

@@ -1,4 +1,7 @@
-import { createSoloDuetRegistration } from "../services/soloDuetRegistration.server";
+import {
+  createSoloDuetRegistration,
+  getSoloDuetTeacherCapacity,
+} from "../services/soloDuetRegistration.server";
 
 import { sendSoloDuetPartnerPayingConfirmation } from "../services/email.server";
 
@@ -25,10 +28,12 @@ function jsonResponse(data, status = 200) {
 }
 
 export async function loader() {
+  const teachers =
+    await getSoloDuetTeacherCapacity();
+
   return jsonResponse({
     success: true,
-    message:
-      "Solo/Duet registration API is running.",
+    teachers,
   });
 }
 
