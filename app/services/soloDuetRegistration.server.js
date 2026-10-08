@@ -229,8 +229,8 @@ export async function getSoloDuetTeacherCapacity() {
         active: true,
       },
       include: {
-        soloDuetRegistrations: true,
-      },
+  registrations: true,
+},
       orderBy: {
         firstName: "asc",
       },
@@ -238,7 +238,7 @@ export async function getSoloDuetTeacherCapacity() {
 
   return teachers.map((teacher) => {
     const registrations =
-      teacher.soloDuetRegistrations;
+  teacher.registrations;
 
     const requested =
       registrations.reduce(
