@@ -239,7 +239,8 @@ export default function RegistrationsPage() {
   </h2>
 
   <a
-    href="?download=csv"
+  href="?download=csv"
+  target="_blank"
     style={{
       display: "inline-block",
       padding: "9px 14px",
