@@ -802,15 +802,31 @@ export async function receivePhotoCheck({
     );
   }
 
-  if (result.userErrors?.length > 0) {
-    throw new Error(
-      result.userErrors
-        .map(
-          (error) => error.message,
-        )
-        .join(", "),
+  if (
+  result.userErrors?.length > 0
+) {
+  const errorMessage =
+    result.userErrors
+      .map(
+        (error) =>
+          error.message,
+      )
+      .join(", ");
+
+  const alreadyPaid =
+    result.userErrors.some(
+      (error) =>
+        error.message
+          ?.toLowerCase()
+          .includes(
+            "order has been paid",
+          ),
     );
+
+  if (!alreadyPaid) {
+    throw new Error(errorMessage);
   }
+}
 
   const completedOrderId =
     result.draftOrder?.order?.id;
