@@ -541,13 +541,32 @@ const actionData = useActionData();
                                     }}
                                   >
                                     {
-                                      registration.studentFirstName
-                                    }{" "}
-                                    {
-                                      registration.studentLastName
-                                    }
+  registration.studentFirstName
+}{" "}
+{
+  registration.studentLastName
+}
 
-                                    {registration.entryType ===
+{registration.isLateRegistration && (
+  <span
+    style={{
+      display: "inline-block",
+      marginLeft: "8px",
+      padding: "2px 7px",
+      borderRadius: "999px",
+      background: "#E25186",
+      color: "white",
+      fontSize: "10px",
+      fontWeight: "700",
+      letterSpacing: "0.04em",
+      verticalAlign: "middle",
+    }}
+  >
+    LATE
+  </span>
+)}
+
+{registration.entryType ===
                                       "DUET" &&
                                       registration.partnerFirstName && (
                                         <div

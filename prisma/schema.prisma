@@ -377,7 +377,9 @@ model SoloDuetRegistration {
 
   status String @default("REGISTERED")
 
-  availability SoloDuetRegistrationAvailability[]
+isLateRegistration Boolean @default(false)
+
+availability SoloDuetRegistrationAvailability[]
   scheduledRehearsals SoloDuetScheduledRehearsal[]
 
   createdAt DateTime @default(now())

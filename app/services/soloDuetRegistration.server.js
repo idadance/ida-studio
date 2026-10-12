@@ -18,10 +18,12 @@ teacher,
 genre,
 
     paymentResponsibility,
-    paymentMethod,
-    totalAmount,
+paymentMethod,
+totalAmount,
 
-    selectedRehearsals,
+lateRegistrationToken,
+
+selectedRehearsals,
   } = data;
 
   // ======================================
@@ -200,7 +202,10 @@ teacherId: teacherRecord?.id ?? null,
 
       status: "REGISTERED",
 
-      availability: {
+isLateRegistration:
+  Boolean(lateRegistrationToken),
+
+availability: {
         create: selectedRehearsals.map(
           (slot) => ({
             availabilityId: slot.id,
