@@ -316,3 +316,93 @@ export async function getSoloDuetTeacherCapacity() {
     };
   });
 }
+
+export async function createSoloDuetLateRegistrationLink({
+  familyName,
+  expiresAt = null,
+}) {
+  const token = crypto.randomUUID();
+
+  return prisma.soloDuetLateRegistrationLink.create({
+    data: {
+      token,
+      familyName:
+        familyName?.trim() || null,
+      expiresAt,
+    },
+  });
+}
+
+export async function getSoloDuetLateRegistrationLink(
+  token,
+) {
+  if (!token) {
+    return null;
+  }
+
+  const link =
+    await prisma.soloDuetLateRegistrationLink.findUnique({
+      where: {
+        token,
+      },
+    });
+
+  if (!link) {
+    return null;
+  }
+
+  if (link.usedAt) {
+    return null;
+  }
+
+  if (
+    link.expiresAt &&
+    link.expiresAt < new Date()
+  ) {
+    return null;
+  }
+
+  return link;
+}
+
+export async function useSoloDuetLateRegistrationLink(
+  token,
+) {
+  if (!token) {
+    throw new Error(
+      "This late registration link is invalid, expired, or has already been used.",
+    );
+  }
+
+  const now = new Date();
+
+  const result =
+    await prisma.soloDuetLateRegistrationLink.updateMany({
+      where: {
+        token,
+        usedAt: null,
+        OR: [
+          {
+            expiresAt: null,
+          },
+          {
+            expiresAt: {
+              gt: now,
+            },
+          },
+        ],
+      },
+      data: {
+        usedAt: now,
+      },
+    });
+
+  if (result.count !== 1) {
+    throw new Error(
+      "This late registration link is invalid, expired, or has already been used.",
+    );
+  }
+
+  return true;
+}
+  

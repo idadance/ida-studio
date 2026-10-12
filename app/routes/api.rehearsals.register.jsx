@@ -1,6 +1,8 @@
 import {
   createSoloDuetRegistration,
   getSoloDuetTeacherCapacity,
+  getSoloDuetLateRegistrationLink,
+  useSoloDuetLateRegistrationLink,
 } from "../services/soloDuetRegistration.server";
 
 import { sendSoloDuetPartnerPayingConfirmation } from "../services/email.server";
@@ -50,8 +52,30 @@ export async function action({ request }) {
 
     const data = await request.json();
 
+    const lateRegistrationToken =
+  data.lateRegistrationToken;
+
+const lateRegistrationLink =
+  await getSoloDuetLateRegistrationLink(
+    lateRegistrationToken,
+  );
+
+if (!lateRegistrationLink) {
+  return jsonResponse(
+    {
+      error:
+        "Solo/Duet registration is closed. This private registration link is invalid, expired, or has already been used.",
+    },
+    403,
+  );
+}
+
     const registration =
   await createSoloDuetRegistration(data);
+
+  await useSoloDuetLateRegistrationLink(
+  lateRegistrationToken,
+);
 
 if (
   registration.entryType === "DUET" &&

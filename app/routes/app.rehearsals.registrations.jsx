@@ -1,5 +1,6 @@
 import {
   Form,
+  useActionData,
   useLoaderData,
 } from "react-router";
 
@@ -36,6 +37,27 @@ export const action = async ({ request }) => {
   const formData = await request.formData();
 
   const intent = formData.get("intent");
+  if (intent === "create-late-registration-link") {
+  const familyName =
+    formData.get("familyName");
+
+  const {
+    createSoloDuetLateRegistrationLink,
+  } = await import(
+    "../services/soloDuetRegistration.server"
+  );
+
+  const link =
+    await createSoloDuetLateRegistrationLink({
+      familyName,
+    });
+
+  return {
+    success: true,
+    lateRegistrationToken: link.token,
+    familyName: link.familyName,
+  };
+}
   const registrationId =
     formData.get("registrationId");
     const teacherId =
@@ -77,6 +99,7 @@ export default function RegistrationsPage() {
   registrations,
   teachers,
 } = useLoaderData();
+const actionData = useActionData();
 
   const groupedRegistrations = registrations.reduce(
     (groups, registration) => {
@@ -111,6 +134,122 @@ export default function RegistrationsPage() {
 
   return (
     <s-page heading="Solo & Duet Registrations">
+      <s-section>
+  <div
+    style={{
+      padding: "20px",
+      border: "1px solid #e5e7eb",
+      borderRadius: "12px",
+    }}
+  >
+    <h2
+      style={{
+        marginTop: 0,
+        marginBottom: "8px",
+      }}
+    >
+      Late Registration
+    </h2>
+
+    <p
+      style={{
+        marginTop: 0,
+        marginBottom: "16px",
+        color: "#6b7280",
+      }}
+    >
+      Create a private, single-use registration
+      link for an approved family.
+    </p>
+
+    <Form method="post">
+      <input
+        type="hidden"
+        name="intent"
+        value="create-late-registration-link"
+      />
+
+      <div
+        style={{
+          display: "flex",
+          gap: "12px",
+          alignItems: "end",
+          flexWrap: "wrap",
+        }}
+      >
+        <div>
+          <label
+            htmlFor="familyName"
+            style={{
+              display: "block",
+              marginBottom: "6px",
+              fontWeight: "600",
+            }}
+          >
+            Family / Dancer Name
+          </label>
+
+          <input
+            id="familyName"
+            name="familyName"
+            type="text"
+            placeholder="Example: Smith"
+            required
+            style={{
+              padding: "10px 12px",
+              border: "1px solid #d1d5db",
+              borderRadius: "8px",
+              minWidth: "240px",
+            }}
+          />
+        </div>
+
+        <button
+          type="submit"
+          style={{
+            padding: "10px 16px",
+            border: "none",
+            borderRadius: "8px",
+            background: "#E25186",
+            color: "white",
+            fontWeight: "600",
+            cursor: "pointer",
+          }}
+        >
+          Create Private Link
+        </button>
+      </div>
+    </Form>
+
+    {actionData?.lateRegistrationToken && (
+      <div
+        style={{
+          marginTop: "20px",
+          padding: "16px",
+          background: "#f9fafb",
+          borderRadius: "8px",
+        }}
+      >
+        <strong>
+          Private link
+          {actionData.familyName
+            ? ` for ${actionData.familyName}`
+            : ""}
+          :
+        </strong>
+
+        <div
+          style={{
+            marginTop: "8px",
+            wordBreak: "break-all",
+          }}
+        >
+          {`https://events.instituteofdanceartistry.com/event/cmu0kt3ia0000t93ajcy98hi4?late=${actionData.lateRegistrationToken}`}
+        </div>
+      </div>
+    )}
+  </div>
+</s-section>
       <s-section>
         {registrations.length === 0 ? (
           <div

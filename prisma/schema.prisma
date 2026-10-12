@@ -390,6 +390,22 @@ model SoloDuetRegistration {
   @@index([shopifyOrderId])
 }
 
+model SoloDuetLateRegistrationLink {
+  id String @id @default(cuid())
+
+  token String @unique
+
+  familyName String?
+
+  usedAt DateTime?
+  expiresAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([token])
+  @@index([usedAt])
+}
+
 model SoloDuetRegistrationAvailability {
   id String @id @default(cuid())
 
