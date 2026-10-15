@@ -108,6 +108,31 @@ export async function getRehearsalCandidateSlots(
       )
       .filter(Boolean);
 
+      console.log("SCHEDULING MATCH DEBUG", {
+  registration:
+    `${registration.studentFirstName} ${registration.studentLastName}`,
+  teacher: registration.teacher.firstName,
+
+  parentSlots:
+    registration.availability.map(
+      (slot) => ({
+        date: slot.date,
+        timeSlot: slot.timeSlot,
+        preferredLocation:
+          slot.preferredLocation,
+      }),
+    ),
+
+  teacherSlots: teacherSlots.map(
+    (slot) => ({
+      date: slot.date,
+      timeSlot: slot.timeSlot,
+      preferredLocation:
+        slot.preferredLocation,
+    }),
+  ),
+});
+
   const matchingSlots =
   teacherSlots.length === 0
     ? registration.availability
