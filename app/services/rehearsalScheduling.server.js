@@ -175,22 +175,42 @@ export async function getRehearsalCandidateSlots(
     : registration.availability.flatMap(
         (parentSlot) => {
           return teacherSlots
-            .filter(
-              (teacherSlot) =>
-                teacherSlot.date ===
-                  parentSlot.date &&
-                teacherSlot.timeSlot ===
-                  parentSlot.timeSlot &&
-                teacherSlot.preferredLocation ===
-                  parentSlot.preferredLocation,
-            )
+            .filter((teacherSlot) => {
+  const parentLocation =
+    parentSlot.preferredLocation
+      ?.trim()
+      .toLowerCase();
+
+  const teacherLocation =
+    teacherSlot.preferredLocation
+      ?.trim()
+      .toUpperCase();
+
+  const locationMatches =
+    parentLocation ===
+      "fort washington or plymouth meeting" ||
+    (parentLocation ===
+      "fort washington" &&
+      teacherLocation === "FW") ||
+    (parentLocation ===
+      "plymouth meeting" &&
+      teacherLocation === "PM");
+
+  return (
+    teacherSlot.date ===
+      parentSlot.date &&
+    teacherSlot.timeSlot ===
+      parentSlot.timeSlot &&
+    locationMatches
+  );
+})
             .map((teacherSlot) => ({
               date: parentSlot.date,
               day: parentSlot.day,
               timeSlot:
                 parentSlot.timeSlot,
               location:
-                parentSlot.preferredLocation,
+  teacherSlot.preferredLocation,
               start: teacherSlot.start,
               end: teacherSlot.end,
             }));
