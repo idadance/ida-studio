@@ -58,6 +58,61 @@ function parseParentAvailabilitySlot(
   });
 }
 
+async function getDuetPartnerRegistration(
+  registration,
+) {
+  if (
+    registration.entryType !== "DUET" ||
+    !registration.partnerFirstName ||
+    !registration.partnerLastName
+  ) {
+    return null;
+  }
+
+  return prisma.soloDuetRegistration.findFirst({
+    where: {
+      entryType: "DUET",
+      status: "APPROVED",
+
+      studentFirstName: {
+        equals:
+          registration.partnerFirstName,
+        mode: "insensitive",
+      },
+
+      studentLastName: {
+        equals:
+          registration.partnerLastName,
+        mode: "insensitive",
+      },
+
+      partnerFirstName: {
+        equals:
+          registration.studentFirstName,
+        mode: "insensitive",
+      },
+
+      partnerLastName: {
+        equals:
+          registration.studentLastName,
+        mode: "insensitive",
+      },
+    },
+
+    include: {
+      teacher: true,
+      genre: true,
+      availability: true,
+
+      scheduledRehearsals: {
+        orderBy: {
+          startTime: "asc",
+        },
+      },
+    },
+  });
+}
+
 export async function getRehearsalCandidateSlots(
   registrationId,
 ) {
@@ -91,6 +146,82 @@ export async function getRehearsalCandidateSlots(
   ) {
     return [];
   }
+
+  const duetPartner =
+  await getDuetPartnerRegistration(
+    registration,
+  );
+
+if (
+  registration.entryType === "DUET" &&
+  !duetPartner
+) {
+  return [];
+}
+
+const parentAvailability =
+  registration.entryType === "DUET"
+    ? registration.availability.filter(
+        (slot) =>
+          duetPartner.availability.some(
+            (partnerSlot) => {
+              const sameDate =
+                partnerSlot.date ===
+                slot.date;
+
+              const sameTime =
+                partnerSlot.timeSlot ===
+                slot.timeSlot;
+
+              const dancerLocation =
+                slot.preferredLocation
+                  ?.trim()
+                  .toLowerCase();
+
+              const partnerLocation =
+                partnerSlot.preferredLocation
+                  ?.trim()
+                  .toLowerCase();
+
+              const dancerAllowsFW =
+                dancerLocation ===
+                  "fort washington" ||
+                dancerLocation ===
+                  "fort washington or plymouth meeting";
+
+              const dancerAllowsPM =
+                dancerLocation ===
+                  "plymouth meeting" ||
+                dancerLocation ===
+                  "fort washington or plymouth meeting";
+
+              const partnerAllowsFW =
+                partnerLocation ===
+                  "fort washington" ||
+                partnerLocation ===
+                  "fort washington or plymouth meeting";
+
+              const partnerAllowsPM =
+                partnerLocation ===
+                  "plymouth meeting" ||
+                partnerLocation ===
+                  "fort washington or plymouth meeting";
+
+              const sharedLocation =
+                (dancerAllowsFW &&
+                  partnerAllowsFW) ||
+                (dancerAllowsPM &&
+                  partnerAllowsPM);
+
+              return (
+                sameDate &&
+                sameTime &&
+                sharedLocation
+              );
+            },
+          ),
+      )
+    : registration.availability;
 
   const teacherAvailability =
     await getTeacherAvailability(
@@ -135,8 +266,8 @@ export async function getRehearsalCandidateSlots(
 
   const matchingSlots =
   teacherSlots.length === 0
-    ? registration.availability
-        .map((parentSlot) =>
+    ? parentAvailability
+    .map((parentSlot) =>
           parseParentAvailabilitySlot(
             parentSlot,
           ),
@@ -172,8 +303,8 @@ export async function getRehearsalCandidateSlots(
             }),
           );
         })
-    : registration.availability.flatMap(
-        (parentSlot) => {
+    : parentAvailability.flatMap(
+    (parentSlot) => {
           return teacherSlots
             .filter((teacherSlot) => {
   const parentLocation =
@@ -471,6 +602,20 @@ export async function createScheduledRehearsal({
   const start = new Date(startTime);
   const end = new Date(endTime);
 
+  const duetPartner =
+  await getDuetPartnerRegistration(
+    registration,
+  );
+
+if (
+  registration.entryType === "DUET" &&
+  !duetPartner
+) {
+  throw new Error(
+    "The matching duet partner registration could not be found.",
+  );
+}
+
   const teacherConflict =
     await checkTeacherSchedulingConflict(
       registration.teacher.id,
@@ -509,30 +654,52 @@ export async function createScheduledRehearsal({
   }
 
   const existingCount =
+  await prisma.soloDuetScheduledRehearsal.count({
+    where: {
+      registrationId,
+    },
+  });
+
+if (existingCount >= 3) {
+  throw new Error(
+    "This registration already has 3 scheduled rehearsals.",
+  );
+}
+
+if (duetPartner) {
+  const partnerExistingCount =
     await prisma.soloDuetScheduledRehearsal.count({
       where: {
-        registrationId,
+        registrationId:
+          duetPartner.id,
       },
     });
 
-  if (existingCount >= 3) {
+  if (partnerExistingCount >= 3) {
     throw new Error(
-      "This registration already has 3 scheduled rehearsals.",
+      "The duet partner already has 3 scheduled rehearsals for this duet.",
     );
   }
+}
 
-    await createStudioCalendarEvent({
-    calendarName:
-      studioCalendar,
+    const dancerNames =
+  duetPartner
+    ? `${registration.studentFirstName} ${registration.studentLastName} & ${duetPartner.studentFirstName} ${duetPartner.studentLastName}`
+    : `${registration.studentFirstName} ${registration.studentLastName}`;
 
-    title:
-  `${registration.teacher.firstName}-${registration.studentFirstName} ${registration.studentLastName}`,
+await createStudioCalendarEvent({
+  calendarName:
+    studioCalendar,
 
-    startTime: start,
-    endTime: end,
-  });
+  title:
+    `${registration.teacher.firstName}-${dancerNames}`,
 
-  return prisma.soloDuetScheduledRehearsal.create({
+  startTime: start,
+  endTime: end,
+});
+
+  const rehearsal =
+  await prisma.soloDuetScheduledRehearsal.create({
     data: {
       registrationId,
 
@@ -550,6 +717,30 @@ export async function createScheduledRehearsal({
       studioCalendar,
     },
   });
+
+if (duetPartner) {
+  await prisma.soloDuetScheduledRehearsal.create({
+    data: {
+      registrationId:
+        duetPartner.id,
+
+      teacherId:
+        registration.teacher.id,
+
+      startTime: start,
+      endTime: end,
+
+      location:
+        location
+          .trim()
+          .toUpperCase(),
+
+      studioCalendar,
+    },
+  });
+}
+
+return rehearsal;
 }
 
 export async function getRelatedDancerRehearsals(
