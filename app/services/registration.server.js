@@ -17,6 +17,12 @@ export async function getRegistrations() {
   teacher: true,
   genre: true,
   availability: true,
+
+  scheduledRehearsals: {
+    orderBy: {
+      startTime: "asc",
+    },
+  },
 },
 
     orderBy: [
