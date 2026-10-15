@@ -348,6 +348,17 @@ const parentAvailability =
         },
       );
 
+      console.log(
+  "MATCHING SLOTS DEBUG",
+  matchingSlots.map((slot) => ({
+    date: slot.date,
+    timeSlot: slot.timeSlot,
+    location: slot.location,
+    start: slot.start,
+    end: slot.end,
+  })),
+);
+
     const candidateSlots =
     await Promise.all(
       matchingSlots.map(
