@@ -318,14 +318,16 @@ const parentAvailability =
       .toUpperCase();
 
   const locationMatches =
-    parentLocation ===
-      "fort washington or plymouth meeting" ||
-    (parentLocation ===
-      "fort washington" &&
-      teacherLocation === "FW") ||
-    (parentLocation ===
-      "plymouth meeting" &&
-      teacherLocation === "PM");
+  parentLocation ===
+    "fort washington or plymouth meeting" ||
+  ((parentLocation ===
+      "fort washington" ||
+    parentLocation === "fw") &&
+    teacherLocation === "FW") ||
+  ((parentLocation ===
+      "plymouth meeting" ||
+    parentLocation === "pm") &&
+    teacherLocation === "PM");
 
   return (
     teacherSlot.date ===
