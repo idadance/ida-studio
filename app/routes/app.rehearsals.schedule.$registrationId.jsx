@@ -1,5 +1,6 @@
 import {
   Form,
+  useActionData,
   useLoaderData,
   useNavigation,
 } from "react-router";
@@ -12,6 +13,10 @@ import {
   assignRegistrationTeacher,
   getRegistrationById,
 } from "../services/registration.server.js";
+
+import {
+  createSoloDuetAvailabilityUpdateLink,
+} from "../services/soloDuetRegistration.server.js";
 
 import {
   getTeachers,
@@ -53,6 +58,18 @@ export async function action({
       success: true,
     };
   }
+
+  if (intent === "request-availability") {
+  const link =
+    await createSoloDuetAvailabilityUpdateLink({
+      registrationId: params.registrationId,
+    });
+
+  return {
+    success: true,
+    availabilityUpdateToken: link.token,
+  };
+}
 
   if (intent !== "schedule") {
     return null;
@@ -226,12 +243,19 @@ export default function RehearsalScheduleDetailPage() {
   coordinatingDancerRehearsals,
 } = useLoaderData();
 
+const actionData = useActionData();
+
 const navigation = useNavigation();
 
 const isAssigningTeacher =
   navigation.state === "submitting" &&
   navigation.formData?.get("intent") ===
     "assign-teacher";
+
+    const isRequestingAvailability =
+  navigation.state === "submitting" &&
+  navigation.formData?.get("intent") ===
+    "request-availability";
 
 const isScheduling =
   navigation.state === "submitting" &&
@@ -500,6 +524,45 @@ const getCoordinatingRehearsalMatch = (
             {registration.genre?.name ??
               "No Genre"}
           </s-paragraph>
+
+          <Form method="post">
+  <input
+    type="hidden"
+    name="intent"
+    value="request-availability"
+  />
+
+  <s-button
+    type="submit"
+    disabled={isRequestingAvailability}
+  >
+    {isRequestingAvailability
+      ? "Creating Link..."
+      : "Request New Availability"}
+  </s-button>
+</Form>
+
+{actionData?.availabilityUpdateToken && (
+  <s-box
+    padding="base"
+    borderWidth="base"
+    borderRadius="base"
+  >
+    <s-stack gap="small">
+      <s-heading>
+        New Availability Link
+      </s-heading>
+
+      <s-paragraph>
+        Send this private link to the family:
+      </s-paragraph>
+
+      <s-paragraph>
+        {`https://events.instituteofdanceartistry.com/rehearsal-availability?token=${actionData.availabilityUpdateToken}`}
+      </s-paragraph>
+    </s-stack>
+  </s-box>
+)}
 
           <s-paragraph>
             Choose 3 rehearsals from the

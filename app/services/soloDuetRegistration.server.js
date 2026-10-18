@@ -410,4 +410,149 @@ export async function useSoloDuetLateRegistrationLink(
 
   return true;
 }
+
+export async function createSoloDuetAvailabilityUpdateLink({
+  registrationId,
+  expiresAt = null,
+}) {
+  if (!registrationId) {
+    throw new Error("Registration is required.");
+  }
+
+  const registration =
+    await prisma.soloDuetRegistration.findUnique({
+      where: {
+        id: registrationId,
+      },
+    });
+
+  if (!registration) {
+    throw new Error("Registration not found.");
+  }
+
+  const token = crypto.randomUUID();
+
+  return prisma.soloDuetAvailabilityUpdateLink.create({
+    data: {
+      token,
+      registrationId,
+      expiresAt,
+    },
+  });
+}
+
+export async function getSoloDuetAvailabilityUpdateLink(
+  token,
+) {
+  if (!token) {
+    return null;
+  }
+
+  const link =
+    await prisma.soloDuetAvailabilityUpdateLink.findUnique({
+      where: {
+        token,
+      },
+      include: {
+        registration: {
+          include: {
+            teacher: true,
+            genre: true,
+            availability: true,
+          },
+        },
+      },
+    });
+
+  if (!link) {
+    return null;
+  }
+
+  if (link.usedAt) {
+    return null;
+  }
+
+  if (
+    link.expiresAt &&
+    link.expiresAt < new Date()
+  ) {
+    return null;
+  }
+
+  return link;
+}
+
+export async function updateSoloDuetAvailability({
+  token,
+  selectedRehearsals,
+}) {
+  if (!token) {
+    throw new Error(
+      "This availability update link is invalid, expired, or has already been used.",
+    );
+  }
+
+  if (
+    !Array.isArray(selectedRehearsals) ||
+    selectedRehearsals.length === 0
+  ) {
+    throw new Error(
+      "Please select at least one rehearsal time.",
+    );
+  }
+
+  const now = new Date();
+
+  return prisma.$transaction(async (tx) => {
+    const link =
+      await tx.soloDuetAvailabilityUpdateLink.findUnique({
+        where: {
+          token,
+        },
+      });
+
+    if (
+      !link ||
+      link.usedAt ||
+      (link.expiresAt &&
+        link.expiresAt < now)
+    ) {
+      throw new Error(
+        "This availability update link is invalid, expired, or has already been used.",
+      );
+    }
+
+    await tx.soloDuetRegistrationAvailability.deleteMany({
+      where: {
+        registrationId: link.registrationId,
+      },
+    });
+
+    await tx.soloDuetRegistrationAvailability.createMany({
+      data: selectedRehearsals.map((slot) => ({
+        registrationId: link.registrationId,
+        availabilityId: slot.id,
+        day: slot.day,
+        date: slot.date,
+        timeSlot: slot.timeSlot,
+        preferredLocation:
+          slot.preferredLocation,
+      })),
+    });
+
+    await tx.soloDuetAvailabilityUpdateLink.update({
+      where: {
+        id: link.id,
+      },
+      data: {
+        usedAt: now,
+      },
+    });
+
+    return {
+      success: true,
+      registrationId: link.registrationId,
+    };
+  });
+}
   

@@ -380,7 +380,8 @@ model SoloDuetRegistration {
 isLateRegistration Boolean @default(false)
 
 availability SoloDuetRegistrationAvailability[]
-  scheduledRehearsals SoloDuetScheduledRehearsal[]
+availabilityUpdateLinks SoloDuetAvailabilityUpdateLink[]
+scheduledRehearsals SoloDuetScheduledRehearsal[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -405,6 +406,24 @@ model SoloDuetLateRegistrationLink {
   createdAt DateTime @default(now())
 
   @@index([token])
+  @@index([usedAt])
+}
+
+model SoloDuetAvailabilityUpdateLink {
+  id String @id @default(cuid())
+
+  token String @unique
+
+  registrationId String
+  registration SoloDuetRegistration @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+
+  usedAt DateTime?
+  expiresAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([token])
+  @@index([registrationId])
   @@index([usedAt])
 }
 
