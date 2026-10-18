@@ -1,33 +1,48 @@
+
 import {
   getSoloDuetAvailabilityUpdateLink,
   updateSoloDuetAvailability,
 } from "../services/soloDuetRegistration.server";
 
+const corsHeaders = {
+  "Access-Control-Allow-Origin":
+    "https://events.instituteofdanceartistry.com",
+  "Access-Control-Allow-Methods":
+    "GET, POST, OPTIONS",
+  "Access-Control-Allow-Headers":
+    "Content-Type",
+};
+
 function jsonResponse(data, init = {}) {
-  return new Response(
-    JSON.stringify(data),
-    {
-      ...init,
-      headers: {
-        "Content-Type": "application/json",
-        ...(init.headers || {}),
-      },
+  return new Response(JSON.stringify(data), {
+    ...init,
+    headers: {
+      "Content-Type": "application/json",
+      ...corsHeaders,
+      ...(init.headers || {}),
     },
-  );
+  });
+}
+
+function optionsResponse() {
+  return new Response(null, {
+    status: 204,
+    headers: corsHeaders,
+  });
 }
 
 export async function loader({ request }) {
+  if (request.method === "OPTIONS") {
+    return optionsResponse();
+  }
+
   const url = new URL(request.url);
   const token = url.searchParams.get("token");
 
   if (!token) {
     return jsonResponse(
-      {
-        valid: false,
-      },
-      {
-        status: 400,
-      },
+      { valid: false },
+      { status: 400 },
     );
   }
 
@@ -67,15 +82,17 @@ export async function loader({ request }) {
 }
 
 export async function action({ request }) {
+  if (request.method === "OPTIONS") {
+    return optionsResponse();
+  }
+
   if (request.method !== "POST") {
     return jsonResponse(
       {
         success: false,
         error: "Method not allowed.",
       },
-      {
-        status: 405,
-      },
+      { status: 405 },
     );
   }
 
@@ -104,9 +121,7 @@ export async function action({ request }) {
             ? error.message
             : "Unable to update availability.",
       },
-      {
-        status: 400,
-      },
+      { status: 400 },
     );
   }
 }
