@@ -136,12 +136,27 @@ const needsTeacherAssignment =
   !registration.teacherId ||
   registration.teacher?.firstName === "No Preference";
 
-const candidateSlots =
-  !needsTeacherAssignment
-    ? await getRehearsalCandidateSlots(
+
+let candidateSlots = [];
+let availabilityError = null;
+
+if (!needsTeacherAssignment) {
+  try {
+    candidateSlots =
+      await getRehearsalCandidateSlots(
         registration.id,
-      )
-    : [];
+      );
+  } catch (error) {
+    console.error(
+      "Unable to load rehearsal availability:",
+      error,
+    );
+
+    availabilityError =
+      "Studio availability could not be verified with Apple Calendar. Existing rehearsals are still available to view, but new rehearsals cannot be scheduled until the connection is restored.";
+  }
+}
+
 
     const relatedDancerRehearsals =
   await getRelatedDancerRehearsals(
@@ -155,6 +170,7 @@ const coordinatingDancerRehearsals =
 
 return {
   registration,
+availabilityError,
 
   teachers: teachers.filter(
     (teacher) => teacher.active,
@@ -237,6 +253,7 @@ return {
 export default function RehearsalScheduleDetailPage() {
   const {
   registration,
+availabilityError,
   teachers,
   candidateSlots,
   relatedDancerRehearsals,
@@ -514,6 +531,14 @@ const getCoordinatingRehearsalMatch = (
           <s-heading>
             Scheduling Options
           </s-heading>
+
+
+{availabilityError && (
+  <s-banner tone="warning">
+    {availabilityError}
+  </s-banner>
+)}
+
 
           <s-paragraph>
             {registration.entryType} ·{" "}
