@@ -16,6 +16,11 @@ export const action = async ({ request }) => {
   try {
     const name = String(formData.get("name") || "").trim();
 
+    const organization =
+  formData.get("organization") === "GENERATIONS"
+    ? "GENERATIONS"
+    : "IDA";
+
     console.log("Creating performance:", name);
 
     if (!name) {
@@ -46,10 +51,7 @@ export const action = async ({ request }) => {
     ).trim();
 
     const name = String(formData.get("name") || "").trim();
-const organization =
-  formData.get("organization") === "GENERATIONS"
-    ? "GENERATIONS"
-    : "IDA";
+
     const description = String(
       formData.get("description") || "",
     ).trim();
