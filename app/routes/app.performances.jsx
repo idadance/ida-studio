@@ -235,7 +235,7 @@ if (actionType === "restorePerformance") {
     await prisma.show.create({
       data: {
         name: showName,
-        date: showDate ? new Date(showDate) : null,
+        date: parseEasternDateTime(showDate),
         capacity,
         performanceId,
       },
@@ -286,7 +286,7 @@ const pmCreditTicketVariantId = String(
     },
     data: {
       name: showName,
-      date: showDate ? new Date(showDate) : null,
+      date: parseEasternDateTime(showDate),
       capacity,
 
       fwCheckTicketVariantId:
@@ -475,6 +475,66 @@ const studios = await prisma.studio.findMany({
 };
 };
 
+function parseEasternDateTime(dateValue) {
+  if (!dateValue) {
+    return null;
+  }
+
+  const match = dateValue.match(
+    /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/,
+  );
+
+  if (!match) {
+    return new Date(dateValue);
+  }
+
+  const [, year, month, day, hour, minute] = match;
+
+  const utcGuess = Date.UTC(
+    Number(year),
+    Number(month) - 1,
+    Number(day),
+    Number(hour),
+    Number(minute),
+  );
+
+  const getEasternParts = (timestamp) => {
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/New_York",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).formatToParts(new Date(timestamp));
+
+    return Object.fromEntries(
+      parts
+        .filter((part) => part.type !== "literal")
+        .map((part) => [part.type, part.value]),
+    );
+  };
+
+  let timestamp = utcGuess;
+
+  for (let i = 0; i < 2; i += 1) {
+    const parts = getEasternParts(timestamp);
+
+    const easternAsUtc = Date.UTC(
+      Number(parts.year),
+      Number(parts.month) - 1,
+      Number(parts.day),
+      Number(parts.hour),
+      Number(parts.minute),
+    );
+
+    timestamp += utcGuess - easternAsUtc;
+  }
+
+  return new Date(timestamp);
+}
+
 function formatShowDate(dateValue) {
   if (!dateValue) {
     return "Date not set";
@@ -493,6 +553,7 @@ function formatShowDate(dateValue) {
     year: "numeric",
     hour: "numeric",
     minute: "2-digit",
+timeZone: "America/New_York",
   }).format(date);
 }
 
@@ -501,9 +562,23 @@ function formatDateTimeInput(dateValue) {
     return "";
   }
 
-  return new Date(dateValue)
-    .toISOString()
-    .slice(0, 16);
+  const date = new Date(dateValue);
+
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  return new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  })
+    .format(date)
+    .replace(" ", "T");
 }
 
 function formatMoney(value) {
