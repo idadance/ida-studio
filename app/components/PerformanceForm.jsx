@@ -180,6 +180,66 @@ export default function PerformanceForm({
           </div>
         </div>
 
+        {/* GOOGLE DRIVE FOLDERS */}
+
+<div>
+  <div
+    style={{
+      marginBottom: "6px",
+      fontWeight: "600",
+    }}
+  >
+    Google Drive Performance Folder ID
+  </div>
+
+  <input
+    type="text"
+    name="driveFolderId"
+    defaultValue={performance.driveFolderId || ""}
+    style={fieldStyle}
+  />
+</div>
+
+<div>
+  <div
+    style={{
+      marginBottom: "6px",
+      fontWeight: "600",
+    }}
+  >
+    Google Drive Customers Folder ID
+  </div>
+
+  <input
+    type="text"
+    name="driveCustomersFolderId"
+    defaultValue={
+      performance.driveCustomersFolderId || ""
+    }
+    style={fieldStyle}
+  />
+</div>
+
+<div>
+  <div
+    style={{
+      marginBottom: "6px",
+      fontWeight: "600",
+    }}
+  >
+    Google Drive Videos Folder ID
+  </div>
+
+  <input
+    type="text"
+    name="driveVideosFolderId"
+    defaultValue={
+      performance.driveVideosFolderId || ""
+    }
+    style={fieldStyle}
+  />
+</div>
+
         {/* DIGITAL PROGRAM */}
 
 <div>

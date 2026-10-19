@@ -68,6 +68,18 @@ const programUrl = String(
   formData.get("programUrl") || "",
 ).trim();
 
+const driveFolderId = String(
+  formData.get("driveFolderId") || "",
+).trim();
+
+const driveCustomersFolderId = String(
+  formData.get("driveCustomersFolderId") || "",
+).trim();
+
+const driveVideosFolderId = String(
+  formData.get("driveVideosFolderId") || "",
+).trim();
+
 // ======================================
 // PERFORMANCE VIDEO VARIANT IDS
 // ======================================
@@ -122,6 +134,9 @@ const selectedStudios = formData
   coverImage: coverImage || null,
   rosterSheetGid: rosterSheetGid || null,
   programUrl: programUrl || null,
+  driveFolderId: driveFolderId || null,
+driveCustomersFolderId: driveCustomersFolderId || null,
+driveVideosFolderId: driveVideosFolderId || null,
 
   fwCheckVideoVariantId:
     fwCheckVideoVariantId || null,
