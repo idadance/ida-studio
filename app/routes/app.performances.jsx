@@ -25,8 +25,9 @@ export const action = async ({ request }) => {
 
     await prisma.performance.create({
       data: {
-        name,
-      },
+  name,
+  organization,
+},
     });
 
     console.log("Performance created");
@@ -45,6 +46,10 @@ export const action = async ({ request }) => {
     ).trim();
 
     const name = String(formData.get("name") || "").trim();
+const organization =
+  formData.get("organization") === "GENERATIONS"
+    ? "GENERATIONS"
+    : "IDA";
     const description = String(
       formData.get("description") || "",
     ).trim();
@@ -633,6 +638,30 @@ const archivedPerformances = performances.filter(
           style={fieldStyle}
         />
       </label>
+
+      <label style={{ minWidth: "220px" }}>
+  <div
+    style={{
+      marginBottom: "6px",
+      fontWeight: "600",
+    }}
+  >
+    Organization
+  </div>
+
+  <select
+    name="organization"
+    defaultValue="IDA"
+    style={fieldStyle}
+  >
+    <option value="IDA">
+      Institute of Dance Artistry
+    </option>
+    <option value="GENERATIONS">
+      Generations Dance Concert
+    </option>
+  </select>
+</label>
 
       <button type="submit">
         Create Performance
