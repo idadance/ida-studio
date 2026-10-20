@@ -94,22 +94,29 @@ export async function action({
     // ======================================
 
     const existingReservation =
-      await prisma.reservation.findUnique({
-        where: {
-          paypalOrderId,
-        },
-      });
+  await prisma.reservation.findUnique({
+    where: {
+      paypalOrderId,
+    },
 
-    if (existingReservation) {
-      return Response.json({
-        success: true,
-        reservationId:
-          existingReservation.id,
-        reservation:
-          existingReservation,
-        alreadyProcessed: true,
-      });
-    }
+    include: {
+      ticketOrders: true,
+    },
+  });
+
+if (
+  existingReservation &&
+  existingReservation.ticketOrders.length > 0
+) {
+  return Response.json({
+    success: true,
+    reservationId:
+      existingReservation.id,
+    reservation:
+      existingReservation,
+    alreadyProcessed: true,
+  });
+}
 
     // ======================================
     // Load authoritative show information
