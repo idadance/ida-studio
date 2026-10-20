@@ -738,6 +738,12 @@ export default function TicketSalesPage() {
   waitlist,
 } = useLoaderData();
 
+const selectedPerformance =
+  performances.find(
+    (performance) =>
+      performance.id === selectedPerformanceId,
+  );
+
 const exportEventAttendees = () => {
   if (!selectedEvent) return;
 
