@@ -49,7 +49,10 @@ export async function action({
 
     const quantity = Number(body.quantity);
 
-    const firstName =
+const digitalVideo =
+  body?.digitalVideo === true;
+
+const firstName =
       typeof body.firstName === "string"
         ? body.firstName.trim()
         : "";
@@ -279,11 +282,21 @@ if (
     // ======================================
 
     const ticketPrice = Number(
-      show.boxOffice.ticketPrice,
-    );
+  show.boxOffice.ticketPrice,
+);
 
-    const totalAmount =
-      ticketPrice * quantity;
+const videoPrice =
+  digitalVideo
+    ? Number(
+        show.boxOffice.digitalVideoPrice,
+      )
+    : 0;
+
+const ticketTotal =
+  ticketPrice * quantity;
+
+const totalAmount =
+  ticketTotal + videoPrice;
 
     if (
       !Number.isFinite(totalAmount) ||
@@ -400,11 +413,12 @@ try {
 ],
 
       subtotal: totalAmount,
-      fee: 0,
-      total: totalAmount,
-
-      video: false,
-      videoPrice: 0,
+fee: 0,
+total: totalAmount,
+video: digitalVideo,
+videoPrice: digitalVideo
+  ? videoPrice
+  : 0,
     };
 
     // ======================================

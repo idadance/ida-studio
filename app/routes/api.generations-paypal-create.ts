@@ -29,6 +29,9 @@ export async function action({
       body?.quantity,
     );
 
+    const digitalVideo =
+      body?.digitalVideo === true;
+
     if (
       !showId ||
       !Number.isInteger(quantity) ||
@@ -144,32 +147,44 @@ export async function action({
       );
     }
 
-   const reservedSeats =
-  show.ticketOrders.reduce(
-    (
-      total: number,
-      order: { quantity: number },
-    ) => total + order.quantity,
-    0,
-  );
+    const reservedSeats =
+      show.ticketOrders.reduce(
+        (
+          total: number,
+          order: {
+            quantity: number;
+          },
+        ) =>
+          total +
+          order.quantity,
+        0,
+      );
 
     const heldWaitlistSeats =
-  show.waitlistEntries.reduce(
-    (
-      total: number,
-      entry: { quantity: number },
-    ) => total + entry.quantity,
-    0,
-  );
+      show.waitlistEntries.reduce(
+        (
+          total: number,
+          entry: {
+            quantity: number;
+          },
+        ) =>
+          total +
+          entry.quantity,
+        0,
+      );
 
-    const remainingSeats = Math.max(
-      0,
-      show.capacity -
-        reservedSeats -
-        heldWaitlistSeats,
-    );
+    const remainingSeats =
+      Math.max(
+        0,
+        show.capacity -
+          reservedSeats -
+          heldWaitlistSeats,
+      );
 
-    if (quantity > remainingSeats) {
+    if (
+      quantity >
+      remainingSeats
+    ) {
       return Response.json(
         {
           error:
@@ -184,19 +199,44 @@ export async function action({
     }
 
     const ticketPrice =
-      show.boxOffice.ticketPrice;
+      Number(
+        show.boxOffice.ticketPrice,
+      );
+
+    const videoPrice =
+      digitalVideo
+        ? Number(
+            show.boxOffice
+              .digitalVideoPrice,
+          )
+        : 0;
+
+    const ticketTotal =
+      quantity *
+      ticketPrice;
 
     const totalAmount =
-      quantity * ticketPrice;
+      ticketTotal +
+      videoPrice;
 
     if (
-      !Number.isFinite(totalAmount) ||
+      !Number.isFinite(
+        ticketPrice,
+      ) ||
+      ticketPrice <= 0 ||
+      !Number.isFinite(
+        videoPrice,
+      ) ||
+      videoPrice < 0 ||
+      !Number.isFinite(
+        totalAmount,
+      ) ||
       totalAmount <= 0
     ) {
       return Response.json(
         {
           error:
-            "The ticket price for this show is invalid.",
+            "The price for this order is invalid.",
         },
         {
           status: 400,
@@ -217,12 +257,15 @@ export async function action({
 
       showId: show.id,
       quantity,
+      digitalVideo,
 
       performanceName:
         show.performance.name,
 
       showName: show.name,
+
       ticketPrice,
+      videoPrice,
       totalAmount,
     });
   } catch (error) {
