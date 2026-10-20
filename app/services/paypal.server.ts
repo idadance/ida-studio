@@ -155,3 +155,40 @@ export async function capturePayPalOrder(
 
   return data;
 }
+
+export async function getPayPalOrder(
+  paypalOrderId: string,
+) {
+  const accessToken =
+    await getPayPalAccessToken();
+
+  const response = await fetch(
+    `${getPayPalBaseUrl()}/v2/checkout/orders/${encodeURIComponent(
+      paypalOrderId,
+    )}`,
+    {
+      method: "GET",
+      headers: {
+        Authorization:
+          `Bearer ${accessToken}`,
+        "Content-Type":
+          "application/json",
+      },
+    },
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    console.error(
+      "PayPal get order error:",
+      data,
+    );
+
+    throw new Error(
+      "Unable to retrieve PayPal order.",
+    );
+  }
+
+  return data;
+}

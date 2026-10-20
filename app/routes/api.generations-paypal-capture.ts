@@ -2,6 +2,7 @@ import prisma from "../db.server";
 
 import {
   capturePayPalOrder,
+  getPayPalOrder,
 } from "../services/paypal.server";
 
 import {
@@ -290,10 +291,29 @@ export async function action({
     // Capture PayPal payment
     // ======================================
 
-    const paypalCapture =
-      await capturePayPalOrder(
-        paypalOrderId,
-      );
+    let paypalCapture;
+
+try {
+  paypalCapture =
+    await capturePayPalOrder(
+      paypalOrderId,
+    );
+} catch (captureError) {
+  // The payment may already have been captured
+  // successfully on an earlier attempt where
+  // our local reservation creation later failed.
+  // Retrieve the PayPal order so we can verify
+  // the existing capture without charging again.
+  console.warn(
+    "PayPal capture call failed; checking existing order:",
+    paypalOrderId,
+  );
+
+  paypalCapture =
+    await getPayPalOrder(
+      paypalOrderId,
+    );
+}
 
     const paypalPurchaseUnit =
       paypalCapture?.purchase_units?.[0];
@@ -363,13 +383,14 @@ export async function action({
         show.performance.name,
 
       shows: [
-        {
-          showId: show.id,
-          name: show.name,
-          quantity,
-          price: ticketPrice,
-        },
-      ],
+  {
+    showId: show.id,
+    name: show.name,
+    quantity,
+    price: ticketPrice,
+    ticketPrice,
+  },
+],
 
       subtotal: totalAmount,
       fee: 0,
