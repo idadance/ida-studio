@@ -145,7 +145,16 @@ export default function Ticket({
 </Text>
 
           <Text style={styles.time}>
-  {ticket.show.name}
+  {isGenerations && ticket.show.date
+    ? new Date(ticket.show.date).toLocaleTimeString(
+        "en-US",
+        {
+          timeZone: "America/New_York",
+          hour: "numeric",
+          minute: "2-digit",
+        },
+      )
+    : ticket.show.name}
 </Text>
 
         </View>
