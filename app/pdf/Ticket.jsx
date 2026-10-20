@@ -103,6 +103,9 @@ export default function Ticket({
   ticket,
   qrCode,
 }) {
+  const isGenerations =
+    ticket.performance.organization === "GENERATIONS";
+
   return (
     <Document>
       <Page size={[1080,1920]} style={styles.page}>
@@ -114,7 +117,11 @@ export default function Ticket({
         <View style={styles.header}>
 
 <Image
-  src="https://ida-tickets-app-tb5bj.ondigitalocean.app/circle-logo.png"
+  src={
+    isGenerations
+      ? "https://whale-app-moapa.ondigitalocean.app/generations-logo.png"
+      : "https://ida-tickets-app-tb5bj.ondigitalocean.app/circle-logo.png"
+  }
   style={styles.logo}
 />
 
@@ -211,10 +218,19 @@ for Fast Entry
         </View>
 
         <Text style={styles.footer}>
-          Institute of Dance Artistry{"\n"}
-          400 Commerce Drive{"\n"}
-          Fort Washington, PA 19034
-        </Text>
+  {isGenerations ? (
+    <>
+      Generations Dance Foundation{"\n"}
+      generationsdance.com
+    </>
+  ) : (
+    <>
+      Institute of Dance Artistry{"\n"}
+      400 Commerce Drive{"\n"}
+      Fort Washington, PA 19034
+    </>
+  )}
+</Text>
 
       </Page>
     </Document>
