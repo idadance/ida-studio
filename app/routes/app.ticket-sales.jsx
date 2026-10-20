@@ -2229,9 +2229,11 @@ const belongsToCurrentStudio =
                   flexWrap: "wrap",
                 }}
               >
-                <small>
-  ✓ Managed by this studio
-</small>
+                {!isGenerations && (
+  <small>
+    ✓ Managed by this studio
+  </small>
+)}
 
 <button
   type="button"
