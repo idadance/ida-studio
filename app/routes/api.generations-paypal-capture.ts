@@ -412,7 +412,8 @@ try {
     // ======================================
 
     const reservation =
-      await createReservation({
+  existingReservation ??
+  await createReservation({
         order,
 
         paymentMethod: "PAYPAL",
