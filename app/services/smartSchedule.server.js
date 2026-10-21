@@ -249,9 +249,15 @@ export function getSmartScheduleMatchingSlots(
     return [];
   }
 
-  const teacherSlots = teacherAvailability
-    .map(parseTeacherAvailabilitySlot)
-    .filter(Boolean);
+  const now = new Date();
+
+const teacherSlots = teacherAvailability
+  .map(parseTeacherAvailabilitySlot)
+  .filter(
+    (slot) =>
+      slot &&
+      new Date(slot.start).getTime() > now.getTime()
+  );
 
   const dancerSlotMaps = group.dancers.map((dancer) => {
     const slots = (dancer.availability ?? [])

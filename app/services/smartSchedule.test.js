@@ -407,3 +407,132 @@ test("Smart Schedule handles impossible schedules without double-booking", () =>
     1,
   );
 });
+
+test("Smart Schedule limits each group to one rehearsal per day", () => {
+  const makeRoom = (date, hour) => ({
+    start: new Date(`${date}T${hour}:00:00-05:00`),
+    end: new Date(`${date}T${hour + 1}:00:00-05:00`),
+    location: "FW",
+    studioCalendar: "FW Studio A",
+    competingGroupCount: 0,
+  });
+
+  const groups = [
+    {
+      type: "SOLO",
+      remainingCount: 3,
+      schedulingIssue: null,
+      scheduledAppointments: [],
+      availableRooms: [
+        makeRoom("2026-11-03", 16),
+        makeRoom("2026-11-03", 18),
+        makeRoom("2026-11-04", 16),
+        makeRoom("2026-11-05", 16),
+      ],
+    },
+  ];
+
+  const result = buildSmartScheduleRecommendations(groups);
+  const proposals = result[0].proposedRehearsals;
+
+  assert.equal(proposals.length, 3);
+
+  const dates = proposals.map((room) =>
+    room.start.toLocaleDateString("en-CA", {
+      timeZone: "America/New_York",
+    }),
+  );
+
+  assert.equal(new Set(dates).size, 3);
+  assert.equal(result[0].stillNeeded, 0);
+});
+
+test("Smart Schedule avoids days with existing rehearsals", () => {
+  const makeRoom = (date) => ({
+    start: new Date(`${date}T16:00:00-05:00`),
+    end: new Date(`${date}T17:00:00-05:00`),
+    location: "FW",
+    studioCalendar: "FW Studio A",
+    competingGroupCount: 0,
+  });
+
+  const groups = [
+    {
+      type: "SOLO",
+      remainingCount: 2,
+      schedulingIssue: null,
+      scheduledAppointments: [
+        {
+          startTime: new Date("2026-11-03T16:00:00-05:00"),
+          endTime: new Date("2026-11-03T17:00:00-05:00"),
+        },
+      ],
+      availableRooms: [
+        makeRoom("2026-11-03"),
+        makeRoom("2026-11-04"),
+        makeRoom("2026-11-05"),
+      ],
+    },
+  ];
+
+  const result = buildSmartScheduleRecommendations(groups);
+  const proposals = result[0].proposedRehearsals;
+
+  assert.equal(proposals.length, 2);
+
+  const dates = proposals.map((room) =>
+    room.start.toLocaleDateString("en-CA", {
+      timeZone: "America/New_York",
+    }),
+  );
+
+  assert.equal(dates.includes("11/3/2026"), false);
+  assert.equal(new Set(dates).size, 2);
+  assert.equal(result[0].stillNeeded, 0);
+});
+
+test("Smart Schedule handles many competing dancers", () => {
+  const rooms = Array.from({ length: 8 }, (_, index) => ({
+    start: new Date(
+      `2026-11-${String(index + 3).padStart(2, "0")}T16:00:00-05:00`
+    ),
+    end: new Date(
+      `2026-11-${String(index + 3).padStart(2, "0")}T17:00:00-05:00`
+    ),
+    location: "FW",
+    studioCalendar: "FW Studio A",
+    competingGroupCount: 10,
+  }));
+
+  const groups = Array.from({ length: 10 }, (_, index) => ({
+    type: "SOLO",
+    registrationIds: [`test-${index}`],
+    remainingCount: 3,
+    schedulingIssue: null,
+    scheduledAppointments: [],
+    availableRooms: rooms,
+  }));
+
+  const start = Date.now();
+  const results = buildSmartScheduleRecommendations(groups);
+  const elapsed = Date.now() - start;
+
+  assert.equal(results.length, 10);
+  assert.ok(elapsed < 5000, `Scheduling took ${elapsed}ms`);
+
+  const proposals = results.flatMap(
+    (group) => group.proposedRehearsals
+  );
+
+  for (let i = 0; i < proposals.length; i++) {
+    for (let j = i + 1; j < proposals.length; j++) {
+      assert.equal(
+        hasSmartScheduleAssignmentConflict(
+          proposals[i],
+          [proposals[j]]
+        ),
+        false
+      );
+    }
+  }
+});

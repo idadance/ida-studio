@@ -26,10 +26,29 @@ export function hasSmartScheduleAssignmentConflict(
   });
 }
 
-export function getSmartScheduleBestRoom(group, assignedRooms) {
+export function getSmartScheduleBestRoom(
+  group,
+  assignedRooms,
+  groupProposals = [],
+) {
+  const getEasternDate = (date) =>
+    new Date(date).toLocaleDateString("en-CA", {
+      timeZone: "America/New_York",
+    });
+
+  const usedDates = new Set(
+    [
+      ...(group.scheduledAppointments ?? []).map(
+        (appointment) => appointment.startTime,
+      ),
+      ...groupProposals.map((room) => room.start),
+    ].map(getEasternDate),
+  );
+
   const candidates = group.availableRooms
     .filter(
       (room) =>
+        !usedDates.has(getEasternDate(room.start)) &&
         !hasSmartScheduleAssignmentConflict(
           room,
           assignedRooms,
@@ -50,6 +69,7 @@ export function getSmartScheduleBestRoom(group, assignedRooms) {
 }
 
 export function buildSmartScheduleRecommendations(groups) {
+  findSmartScheduleAssignments.searchCount = 0;
 
   const assignedRooms = [];
 
@@ -74,9 +94,10 @@ export function buildSmartScheduleRecommendations(groups) {
         if (!assignments && !group.schedulingIssue) {
       for (let i = 0; i < group.remainingCount; i++) {
         const room = getSmartScheduleBestRoom(
-          group,
-          assignedRooms,
-        );
+  group,
+  assignedRooms,
+  proposedRehearsals,
+);
 
         if (!room) {
           break;
@@ -123,6 +144,15 @@ function findSmartScheduleAssignments(
   assignedRooms = [],
   assignments = [],
 ) {
+      if (!findSmartScheduleAssignments.searchCount) {
+    findSmartScheduleAssignments.searchCount = 0;
+  }
+
+  findSmartScheduleAssignments.searchCount++;
+
+  if (findSmartScheduleAssignments.searchCount > 1000) {
+    return null;
+  }
   if (groupIndex === groups.length) {
     return assignments;
   }
@@ -139,6 +169,11 @@ function findSmartScheduleAssignments(
   }
 
   function tryRooms(selectedRooms) {
+        findSmartScheduleAssignments.searchCount++;
+
+    if (findSmartScheduleAssignments.searchCount > 1000) {
+      return null;
+    }
     if (selectedRooms.length === group.remainingCount) {
       return findSmartScheduleAssignments(
         groups,
@@ -149,17 +184,42 @@ function findSmartScheduleAssignments(
     }
 
         for (const room of group.availableRooms || []) {
-      const alreadySelected = selectedRooms.some(
-        (selected) =>
-          new Date(selected.start).getTime() ===
-            new Date(room.start).getTime() &&
-          new Date(selected.end).getTime() ===
-            new Date(room.end).getTime(),
-      );
+     const roomDate = new Date(room.start).toLocaleDateString(
+  "en-CA",
+  { timeZone: "America/New_York" },
+);
+
+const alreadyScheduledThatDay = (
+  group.scheduledAppointments ?? []
+).some((appointment) => {
+  const appointmentDate = new Date(
+    appointment.startTime,
+  ).toLocaleDateString("en-CA", {
+    timeZone: "America/New_York",
+  });
+
+  return appointmentDate === roomDate;
+});
+            const alreadySelected = selectedRooms.some(
+  (selected) => {
+    const selectedDate = new Date(selected.start)
+      .toLocaleDateString("en-CA", {
+        timeZone: "America/New_York",
+      });
+
+    const roomDate = new Date(room.start)
+      .toLocaleDateString("en-CA", {
+        timeZone: "America/New_York",
+      });
+
+    return selectedDate === roomDate;
+  },
+);
 
       if (
-        alreadySelected ||
-        hasSmartScheduleAssignmentConflict(
+  alreadyScheduledThatDay ||
+  alreadySelected ||
+  hasSmartScheduleAssignmentConflict(
           room,
           [...assignedRooms, ...selectedRooms],
         )
