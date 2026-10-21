@@ -69,7 +69,7 @@ export function getSmartScheduleBestRoom(
 }
 
 export function buildSmartScheduleRecommendations(groups) {
-  findSmartScheduleAssignments.searchCount = 0;
+  const searchState = { count: 0 };
 
   const assignedRooms = [];
 
@@ -84,7 +84,13 @@ export function buildSmartScheduleRecommendations(groups) {
         getSmartScheduleGroupPriority(b),
     );
       const assignments =
-    findSmartScheduleAssignments(prioritizedGroups);
+  findSmartScheduleAssignments(
+    prioritizedGroups,
+    0,
+    [],
+    [],
+    searchState,
+  );
 
     const recommendations = prioritizedGroups.map((group, index) => {
   const proposedRehearsals = assignments
@@ -142,16 +148,13 @@ function findSmartScheduleAssignments(
   groupIndex = 0,
   assignedRooms = [],
   assignments = [],
+  searchState,
 ) {
-      if (!findSmartScheduleAssignments.searchCount) {
-    findSmartScheduleAssignments.searchCount = 0;
-  }
+      searchState.count++;
 
-  findSmartScheduleAssignments.searchCount++;
-
-  if (findSmartScheduleAssignments.searchCount > 1000) {
-    return null;
-  }
+if (searchState.count > 1000) {
+  return null;
+}
   if (groupIndex === groups.length) {
     return assignments;
   }
@@ -159,28 +162,30 @@ function findSmartScheduleAssignments(
   const group = groups[groupIndex];
 
   if (group.schedulingIssue || group.remainingCount === 0) {
-    return findSmartScheduleAssignments(
-      groups,
-      groupIndex + 1,
-      assignedRooms,
-      [...assignments, []],
-    );
-  }
+  return findSmartScheduleAssignments(
+    groups,
+    groupIndex + 1,
+    assignedRooms,
+    [...assignments, []],
+    searchState,
+  );
+}
 
   function tryRooms(selectedRooms) {
-        findSmartScheduleAssignments.searchCount++;
+        searchState.count++;
 
-    if (findSmartScheduleAssignments.searchCount > 1000) {
-      return null;
-    }
+if (searchState.count > 1000) {
+  return null;
+}
     if (selectedRooms.length === group.remainingCount) {
-      return findSmartScheduleAssignments(
-        groups,
-        groupIndex + 1,
-        [...assignedRooms, ...selectedRooms],
-        [...assignments, selectedRooms],
-      );
-    }
+  return findSmartScheduleAssignments(
+    groups,
+    groupIndex + 1,
+    [...assignedRooms, ...selectedRooms],
+    [...assignments, selectedRooms],
+    searchState,
+  );
+}
 
         for (const room of group.availableRooms || []) {
      const roomDate = new Date(room.start).toLocaleDateString(
