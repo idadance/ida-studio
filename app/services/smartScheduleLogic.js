@@ -104,7 +104,6 @@ export function buildSmartScheduleRecommendations(groups) {
         }
 
         proposedRehearsals.push(room);
-        assignedRooms.push(room);
       }
     }
 
