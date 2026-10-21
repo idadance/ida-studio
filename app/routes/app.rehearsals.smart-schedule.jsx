@@ -139,8 +139,17 @@ onChange={(event) => {
         }}
       >
         <p>
-          <strong>Group {index + 1}</strong>
-        </p>
+  <strong>
+    {group.dancers
+      .map(
+        (dancer) =>
+          `${dancer.studentFirstName} ${dancer.studentLastName}`,
+      )
+      .join(" & ")}
+  </strong>
+  {" — "}
+  {group.type === "DUET" ? "Duet" : "Solo"}
+</p>
 
         <p>
           Proposed rehearsals:{" "}
@@ -150,6 +159,37 @@ onChange={(event) => {
         <p>
           Still needed: {group.stillNeeded}
         </p>
+        {group.schedulingIssue && (
+  <p>
+    ⚠️ {group.schedulingIssue}
+  </p>
+)}
+
+{!group.schedulingIssue &&
+  group.stillNeeded > 0 &&
+  group.matchingSlotCount === 0 && (
+    <p>
+      No matching teacher and dancer availability.
+    </p>
+  )}
+
+{!group.schedulingIssue &&
+  group.stillNeeded > 0 &&
+  group.matchingSlotCount > 0 &&
+  group.usableTimeCount === 0 && (
+    <p>
+      Matching times exist, but no studio rooms are available.
+    </p>
+  )}
+
+{!group.schedulingIssue &&
+  group.stillNeeded > 0 &&
+  group.usableTimeCount > 0 && (
+    <p>
+      Some matching times are available, but not enough
+      rehearsals could be assigned without scheduling conflicts.
+    </p>
+  )}
 
         {group.proposedRehearsals.map((room, roomIndex) => (
           <p key={roomIndex}>
