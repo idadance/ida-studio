@@ -395,6 +395,7 @@ export async function getSmartScheduleAvailableRooms(match) {
 
 export async function getSmartSchedulePreview(teacherId) {
   const data = await getSmartScheduleTeacherData(teacherId);
+  const roomAvailabilityCache = new Map();
 
   const groups = groupSmartScheduleRegistrations(
     data.registrations,
@@ -432,8 +433,21 @@ export async function getSmartSchedulePreview(teacherId) {
           continue;
         }
 
-        const rooms =
-          await getSmartScheduleAvailableRooms(match);
+        const cacheKey = [
+  match.teacherId,
+  match.start.toISOString(),
+  match.end.toISOString(),
+  [...(match.allowedLocations ?? [])].sort().join(","),
+].join("|");
+
+if (!roomAvailabilityCache.has(cacheKey)) {
+  roomAvailabilityCache.set(
+    cacheKey,
+    getSmartScheduleAvailableRooms(match),
+  );
+}
+
+const rooms = await roomAvailabilityCache.get(cacheKey);
 
                 for (const room of rooms) {
           const duplicate = availableRooms.some(
