@@ -211,8 +211,10 @@ export async function getStudioOccupiedTimes(
         );
 
       if (!event) {
-        return [];
-      }
+  throw new Error(
+    `Could not read a calendar event in ${calendarName}.`,
+  );
+}
 
       return expandCalendarEvent(
         event,
