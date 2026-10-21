@@ -9,6 +9,7 @@ import {
 
 import {
   createStudioCalendarEvent,
+  deleteStudioCalendarEvent,
   getAvailableStudiosAtLocation,
 } from "./calendar.server.js";
 
@@ -461,6 +462,7 @@ export async function checkTeacherSchedulingConflict(
   proposedStart,
   proposedEnd,
   proposedLocation,
+  excludeRehearsalIds = [],
 ) {
   const start = new Date(proposedStart);
   const end = new Date(proposedEnd);
@@ -494,9 +496,17 @@ export async function checkTeacherSchedulingConflict(
   const nearbyRehearsals =
     await prisma.soloDuetScheduledRehearsal.findMany({
       where: {
-        teacherId,
+  teacherId,
 
-        startTime: {
+  ...(excludeRehearsalIds.length > 0
+    ? {
+        id: {
+          notIn: excludeRehearsalIds,
+        },
+      }
+    : {}),
+
+  startTime: {
           lt: bufferEnd,
         },
 
@@ -700,7 +710,7 @@ if (duetPartner) {
     ? `${registration.studentFirstName} ${registration.studentLastName} & ${duetPartner.studentFirstName} ${duetPartner.studentLastName}`
     : `${registration.studentFirstName} ${registration.studentLastName}`;
 
-await createStudioCalendarEvent({
+const calendarEvent = await createStudioCalendarEvent({
   calendarName:
     studioCalendar,
 
@@ -711,49 +721,73 @@ await createStudioCalendarEvent({
   endTime: end,
 });
 
-  const rehearsal =
-  await prisma.soloDuetScheduledRehearsal.create({
-    data: {
-      registrationId,
+  
+let rehearsal;
 
-      teacherId:
-        registration.teacher.id,
-
+try {
+  rehearsal = await prisma.$transaction(async (tx) => {
+    const rehearsalData = {
+      teacherId: registration.teacher.id,
       startTime: start,
       endTime: end,
-
-      location:
-        location
-          .trim()
-          .toUpperCase(),
-
+      location: location.trim().toUpperCase(),
       studioCalendar,
-    },
+      appleCalendarUid: calendarEvent.uid,
+      appleCalendarUrl: calendarEvent.url,
+    };
+
+    const savedRehearsal =
+      await tx.soloDuetScheduledRehearsal.create({
+        data: {
+          ...rehearsalData,
+          registrationId,
+        },
+      });
+
+    if (duetPartner) {
+      await tx.soloDuetScheduledRehearsal.create({
+        data: {
+          ...rehearsalData,
+          registrationId: duetPartner.id,
+        },
+      });
+    }
+
+    return savedRehearsal;
   });
+} catch (databaseError) {
+  console.error(
+    "Rehearsal database save failed:",
+    databaseError,
+  );
 
-if (duetPartner) {
-  await prisma.soloDuetScheduledRehearsal.create({
-    data: {
-      registrationId:
-        duetPartner.id,
+  try {
+    await deleteStudioCalendarEvent({
+      url: calendarEvent.url,
+      uid: calendarEvent.uid,
+    });
+  } catch (cleanupError) {
+    console.error(
+      "CRITICAL: Rehearsal calendar cleanup failed:",
+      {
+        calendarUrl: calendarEvent.url,
+        calendarUid: calendarEvent.uid,
+        cleanupError,
+      },
+    );
 
-      teacherId:
-        registration.teacher.id,
+    throw new Error(
+      "The rehearsal could not be saved, and its Apple Calendar event could not be removed. Please contact the administrator before trying again.",
+    );
+  }
 
-      startTime: start,
-      endTime: end,
-
-      location:
-        location
-          .trim()
-          .toUpperCase(),
-
-      studioCalendar,
-    },
-  });
+  throw new Error(
+    "The rehearsal could not be saved. The newly created Apple Calendar event was removed. Please try again.",
+  );
 }
 
 return rehearsal;
+
 }
 
 export async function getRelatedDancerRehearsals(

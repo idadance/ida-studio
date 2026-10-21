@@ -55,6 +55,10 @@ export default function App() {
   Teachers
 </s-link>
 
+<s-link href="/app/rehearsals/smart-schedule">
+  Smart Schedule
+</s-link>
+
   <s-link href="/app/live-checkin">
     Live Check-In
   </s-link>

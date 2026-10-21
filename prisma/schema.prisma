@@ -470,6 +470,8 @@ model SoloDuetScheduledRehearsal {
 
   location       String
   studioCalendar String
+appleCalendarUid String?
+appleCalendarUrl String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

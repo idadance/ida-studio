@@ -211,8 +211,10 @@ export async function getStudioOccupiedTimes(
         );
 
       if (!event) {
-        return [];
-      }
+  throw new Error(
+    `Could not read a calendar event in ${calendarName}.`,
+  );
+}
 
       return expandCalendarEvent(
         event,
@@ -459,6 +461,8 @@ export async function createStudioCalendarEvent({
   const filename =
     `${event.uid}.ics`;
 
+  
+const response =
   await client.createCalendarObject({
     calendar,
     filename,
@@ -466,9 +470,153 @@ export async function createStudioCalendarEvent({
       component.toString(),
   });
 
-  return {
-    calendar: calendarName,
-    uid: event.uid,
+if (!response.ok) {
+  throw new Error(
+    `Apple Calendar could not create the rehearsal event (HTTP ${response.status}).`,
+  );
+}
+
+const eventUrl =
+  new URL(
     filename,
-  };
+    calendar.url.endsWith("/")
+      ? calendar.url
+      : `${calendar.url}/`,
+  ).href;
+
+return {
+  calendar: calendarName,
+  uid: event.uid,
+  filename,
+  url: eventUrl,
+};
+}
+
+
+export async function deleteStudioCalendarEvent({
+  url,
+  uid,
+}) {
+  if (!url || !uid) {
+    throw new Error(
+      "Missing Apple Calendar event identifiers.",
+    );
+  }
+
+  const client = await getCalendarClient();
+  const calendars = await client.fetchCalendars();
+
+  const studioCalendar = calendars.find(
+    (calendar) =>
+      STUDIO_CALENDAR_NAMES.includes(calendar.displayName) &&
+      url.startsWith(
+        calendar.url.endsWith("/")
+          ? calendar.url
+          : `${calendar.url}/`,
+      ),
+  );
+
+  if (!studioCalendar) {
+    throw new Error(
+      "The Apple Calendar event does not belong to a recognized studio calendar.",
+    );
+  }
+
+  const objects = await client.fetchCalendarObjects({
+    calendar: studioCalendar,
+  });
+
+  const matchingObject = objects.find(
+    (object) =>
+      object.url === url &&
+      parseCalendarEvent(object.data)?.uid === uid,
+  );
+
+  if (!matchingObject) {
+    throw new Error(
+      "The original Apple Calendar event could not be verified. No event was deleted.",
+    );
+  }
+
+  if (!matchingObject.etag) {
+    throw new Error(
+      "Apple Calendar did not provide an event version. No event was deleted.",
+    );
+  }
+
+  const response = await client.deleteCalendarObject({
+    calendarObject: matchingObject,
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      `Apple Calendar could not delete the event (HTTP ${response.status}).`,
+    );
+  }
+}
+export async function findExistingStudioCalendarEvents({
+  calendarName,
+  startTime,
+  endTime,
+}) {
+  if (!STUDIO_CALENDAR_NAMES.includes(calendarName)) {
+    throw new Error(`Unknown studio calendar: ${calendarName}`);
+  }
+
+  const client = await getCalendarClient();
+  const calendars = await client.fetchCalendars();
+
+  const calendar = calendars.find(
+    (item) => item.displayName === calendarName,
+  );
+
+  if (!calendar) {
+    throw new Error(`${calendarName} calendar was not found.`);
+  }
+
+  const targetStart = new Date(startTime);
+  const targetEnd = new Date(endTime);
+
+  if (
+    !Number.isFinite(targetStart.getTime()) ||
+    !Number.isFinite(targetEnd.getTime()) ||
+    targetEnd <= targetStart
+  ) {
+    throw new Error("Invalid rehearsal date or time.");
+  }
+
+  const objects = await client.fetchCalendarObjects({
+    calendar,
+    timeRange: {
+      start: targetStart.toISOString(),
+      end: targetEnd.toISOString(),
+    },
+  });
+
+  return objects.flatMap((object) => {
+    const event = parseCalendarEvent(object.data);
+
+    if (!event || event.isRecurring()) {
+      return [];
+    }
+
+    const eventStart = event.startDate.toJSDate();
+    const eventEnd = event.endDate.toJSDate();
+
+    if (
+      eventStart.getTime() !== targetStart.getTime() ||
+      eventEnd.getTime() !== targetEnd.getTime()
+    ) {
+      return [];
+    }
+
+    return [{
+      calendarName,
+      title: event.summary,
+      startTime: eventStart.toISOString(),
+      endTime: eventEnd.toISOString(),
+      uid: event.uid,
+      url: object.url,
+    }];
+  });
 }
