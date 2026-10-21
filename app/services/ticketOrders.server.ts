@@ -5,7 +5,10 @@ interface CreateTicketOrderArgs {
   show: any;
   quantity: number;
 
-  paymentMethod: "CHECK" | "CREDIT_CARD";
+  paymentMethod:
+    | "CHECK"
+    | "CREDIT_CARD"
+    | "PAYPAL";
 
   digitalVideo: boolean;
 
@@ -24,7 +27,7 @@ interface CreateTicketOrderArgs {
 
   status?: "PENDING" | "CONFIRMED";
 
-generateAssets?: boolean;
+  generateAssets?: boolean;
 }
 
 export async function createReservation({
@@ -32,12 +35,19 @@ export async function createReservation({
   paymentMethod,
   shopifyOrderId,
   shopifyOrderNumber,
+  paypalOrderId,
+  paypalCaptureId,
   status = "PENDING",
 }: {
   order: any;
-  paymentMethod: "CHECK" | "CREDIT_CARD";
+  paymentMethod:
+    | "CHECK"
+    | "CREDIT_CARD"
+    | "PAYPAL";
   shopifyOrderId?: string;
   shopifyOrderNumber?: string;
+  paypalOrderId?: string;
+  paypalCaptureId?: string;
   status?: "PENDING" | "CONFIRMED";
 }) {
   return prisma.reservation.create({
@@ -63,6 +73,8 @@ export async function createReservation({
 
       shopifyOrderId,
       shopifyOrderNumber,
+      paypalOrderId,
+      paypalCaptureId,
     },
   });
 }
@@ -154,7 +166,8 @@ interface CreateTicketOrdersArgs {
 
   paymentMethod:
     | "CHECK"
-    | "CREDIT_CARD";
+    | "CREDIT_CARD"
+    | "PAYPAL";
 
   shopifyOrderId?: string;
   shopifyOrderNumber?: string;
@@ -179,34 +192,43 @@ export async function createTicketOrders({
   status = "PENDING",
 }: CreateTicketOrdersArgs) {
   for (const show of order.shows) {
-  for (let i = 0; i < show.quantity; i++) {
-    await createTicketOrder({
-      show,
+    for (
+      let i = 0;
+      i < show.quantity;
+      i++
+    ) {
+      await createTicketOrder({
+        show,
 
-      performanceId: order.performanceId,
+        performanceId:
+          order.performanceId,
 
-      quantity: 1,
+        quantity: 1,
 
-      paymentMethod,
+        paymentMethod,
 
-      digitalVideo: order.video,
+        digitalVideo:
+          order.video,
 
-      customerName:
-        `${order.firstName} ${order.lastName}`,
+        customerName:
+          `${order.firstName} ${order.lastName}`,
 
-      customerEmail: order.email,
+        customerEmail:
+          order.email,
 
-      ticketPrice: show.ticketPrice,
+        ticketPrice:
+          show.ticketPrice,
 
-      videoPrice: order.videoPrice,
+        videoPrice:
+          order.videoPrice,
 
-      shopifyOrderId,
-      shopifyOrderNumber,
+        shopifyOrderId,
+        shopifyOrderNumber,
 
-      reservationId,
+        reservationId,
 
-      status,
-    });
+        status,
+      });
+    }
   }
-}
 }

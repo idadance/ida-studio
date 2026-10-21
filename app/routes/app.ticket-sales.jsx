@@ -141,11 +141,12 @@ console.log(
       },
 
       select: {
-        id: true,
-        name: true,
-        rosterSheetGid: true,
-        createdAt: true,
-      },
+  id: true,
+  name: true,
+  organization: true,
+  rosterSheetGid: true,
+  createdAt: true,
+},
 
       orderBy: {
         createdAt: "desc",
@@ -736,6 +737,12 @@ export default function TicketSalesPage() {
   familyCoverage,
   waitlist,
 } = useLoaderData();
+
+const selectedPerformance =
+  performances.find(
+    (performance) =>
+      performance.id === selectedPerformanceId,
+  );
 
 const exportEventAttendees = () => {
   if (!selectedEvent) return;
@@ -2078,13 +2085,16 @@ const [editingOrderId, setEditingOrderId] =
   >
     {filteredCustomers.map(
       (customer) => {
-        const customerStudio =
-          customer.account === "FW"
-            ? "Fort Washington"
-            : "Plymouth Meeting";
+        const isGenerations =
+  selectedPerformance?.organization === "GENERATIONS";
 
-        const belongsToCurrentStudio =
-          customer.account === account;
+const customerStudio =
+  customer.account === "FW"
+    ? "Fort Washington"
+    : "Plymouth Meeting";
+
+const belongsToCurrentStudio =
+  customer.account === account;
 
         return (
           <div
@@ -2121,16 +2131,18 @@ const [editingOrderId, setEditingOrderId] =
                   {customer.customerEmail}
                 </div>
 
-                <div
-                  style={{
-                    marginTop: "6px",
-                  }}
-                >
-                  Studio:{" "}
-                  <strong>
-                    {customerStudio}
-                  </strong>
-                </div>
+                {!isGenerations && (
+  <div
+    style={{
+      marginTop: "6px",
+    }}
+  >
+    Studio:{" "}
+    <strong>
+      {customerStudio}
+    </strong>
+  </div>
+)}
               </div>
 
               <div
@@ -2193,12 +2205,13 @@ const [editingOrderId, setEditingOrderId] =
               }}
             >
               Payment:{" "}
-              <strong>
-                {customer.paymentMethod ===
-                "CREDIT_CARD"
-                  ? "Credit Card"
-                  : "Check"}
-              </strong>
+<strong>
+  {customer.paymentMethod === "CREDIT_CARD"
+    ? "Credit Card"
+    : customer.paymentMethod === "PAYPAL"
+      ? "PayPal"
+      : "Check"}
+</strong>
             </div>
 
             {belongsToCurrentStudio && (
@@ -2216,9 +2229,11 @@ const [editingOrderId, setEditingOrderId] =
                   flexWrap: "wrap",
                 }}
               >
-                <small>
-  ✓ Managed by this studio
-</small>
+                {!isGenerations && (
+  <small>
+    ✓ Managed by this studio
+  </small>
+)}
 
 <button
   type="button"

@@ -1,10 +1,16 @@
 import prisma from "../db.server";
 
-export async function loader() {
+export async function loader({ request }) {
+  const url = new URL(request.url);
+  const organization =
+    url.searchParams.get("organization") === "GENERATIONS"
+      ? "GENERATIONS"
+      : "IDA";
   const performances = await prisma.performance.findMany({
     where: {
-      status: "PUBLISHED",
-    },
+  status: "PUBLISHED",
+  organization,
+},
     include: {
   studios: true,
 

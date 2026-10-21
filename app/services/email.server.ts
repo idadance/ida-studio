@@ -710,3 +710,129 @@ ${studioName}`,
     `📧 Solo/Duet partner-paying confirmation sent to ${registration.customerEmail}`,
   );
 }
+
+export async function sendGenerationsTicketConfirmation({
+  order,
+  driveFolderLink,
+}: {
+  order: any;
+  driveFolderLink: string;
+}) {
+  setupSendGrid();
+
+  const fromEmail =
+    "admin@generationsdance.com";
+
+  const organizationName =
+    "Generations Dance Concert";
+
+  const ticketLines = order.shows
+    .map(
+      (show: any) =>
+        `${show.name}: ${show.quantity} ticket${
+          show.quantity === 1 ? "" : "s"
+        }`,
+    )
+    .join("\n");
+
+  const ticketLinesHtml = order.shows
+    .map(
+      (show: any) =>
+        `<li><strong>${show.name}</strong>: ${show.quantity} ticket${
+          show.quantity === 1 ? "" : "s"
+        }</li>`,
+    )
+    .join("");
+
+  const formattedTotal =
+    Number(order.total).toFixed(2);
+
+  await sgMail.send({
+    to: order.email,
+
+    from: {
+      email: fromEmail,
+      name: organizationName,
+    },
+
+    replyTo: fromEmail,
+
+    subject:
+      `Your ${order.performanceName} Tickets`,
+
+    text: `Hi ${order.firstName},
+
+Thank you for your ticket purchase for ${order.performanceName}.
+
+Your purchase supports the Generations Dance Foundation.
+
+Tickets:
+${ticketLines}
+
+Total Paid: $${formattedTotal}
+
+Your tickets are ready here:
+
+${driveFolderLink}
+
+Please save this link. Each ticket contains a QR code that will be scanned at the door.
+
+Thank you for supporting the Generations Dance Foundation!
+
+Generations Dance Concert`,
+
+    html: `
+      <p>Hi ${order.firstName},</p>
+
+      <p>
+        Thank you for your ticket purchase for
+        <strong>${order.performanceName}</strong>.
+      </p>
+
+      <p>
+        Your purchase supports the
+        <strong>Generations Dance Foundation</strong>.
+      </p>
+
+      <p><strong>Your Tickets:</strong></p>
+
+      <ul>
+        ${ticketLinesHtml}
+      </ul>
+
+      <p>
+        <strong>Total Paid:</strong>
+        $${formattedTotal}
+      </p>
+
+      <p>
+        Your tickets are ready in your personal
+        ticket folder:
+      </p>
+
+      <p>
+        <a href="${driveFolderLink}">
+          Open Your Tickets
+        </a>
+      </p>
+
+      <p>
+        Please save this link. Each ticket contains
+        a QR code that will be scanned at the door.
+      </p>
+
+      <p>
+        Thank you for supporting the
+        Generations Dance Foundation!
+      </p>
+
+      <p>
+        Generations Dance Concert
+      </p>
+    `,
+  });
+
+  console.log(
+    `📧 Generations ticket confirmation sent to ${order.email}`,
+  );
+}
