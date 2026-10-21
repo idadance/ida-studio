@@ -195,13 +195,13 @@ export async function getStudioOccupiedTimes(
   }
 
   const calendarObjects =
-    await calendarClient.fetchCalendarObjects({
-      calendar,
-      timeRange: {
-        start: rangeStart,
-        end: rangeEnd,
-      },
-    });
+  await calendarClient.fetchCalendarObjects({
+    calendar,
+    timeRange: {
+      start: new Date(rangeStart).toISOString(),
+      end: new Date(rangeEnd).toISOString(),
+    },
+  });
 
   return calendarObjects.flatMap(
     (calendarObject) => {
