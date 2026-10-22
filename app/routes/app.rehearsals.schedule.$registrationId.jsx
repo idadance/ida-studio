@@ -23,6 +23,7 @@ import {
 } from "../services/teacher.server.js";
 
 import {
+  cancelScheduledRehearsal,
   createScheduledRehearsal,
   getCoordinatingDancerRehearsals,
   getRehearsalCandidateSlots,
@@ -69,6 +70,41 @@ export async function action({
     success: true,
     availabilityUpdateToken: link.token,
   };
+}
+
+if (intent === "cancel-rehearsal") {
+  const rehearsalId = formData.get("rehearsalId");
+
+  if (
+    typeof rehearsalId !== "string" ||
+    !rehearsalId.trim()
+  ) {
+    throw new Error(
+      "Missing rehearsal information for cancellation."
+    );
+  }
+
+  try {
+  await cancelScheduledRehearsal({
+    registrationId: params.registrationId,
+    rehearsalId,
+  });
+
+  return {
+    success: true,
+    message: "Rehearsal canceled successfully.",
+  };
+} catch (error) {
+  console.error("Rehearsal cancellation failed:", error);
+
+  return {
+    success: false,
+    cancellationError:
+      error instanceof Error
+        ? error.message
+        : "The rehearsal could not be canceled. Please contact an administrator.",
+  };
+}
 }
 
   if (intent !== "schedule") {
@@ -260,7 +296,19 @@ availabilityError,
   coordinatingDancerRehearsals,
 } = useLoaderData();
 
+const activeRehearsals =
+  registration.scheduledRehearsals.filter(
+    (rehearsal) =>
+      rehearsal.cancellationStatus !== "CANCELED"
+  );
+
 const actionData = useActionData();
+
+const cancellationError =
+  actionData?.cancellationError;
+
+const cancellationSuccess =
+  actionData?.message;
 
 const navigation = useNavigation();
 
@@ -278,6 +326,11 @@ const isScheduling =
   navigation.state === "submitting" &&
   navigation.formData?.get("intent") ===
     "schedule";
+
+    const isCanceling =
+  navigation.state !== "idle" &&
+  navigation.formData?.get("intent") ===
+    "cancel-rehearsal";
 
 const schedulingStartTime =
   isScheduling
@@ -594,17 +647,41 @@ const getCoordinatingRehearsalMatch = (
             available options below.
           </s-paragraph>
 
+          {cancellationError && (
+  <s-box
+    padding="base"
+    borderWidth="base"
+    borderRadius="base"
+  >
+    <s-paragraph>
+      ⚠️ {cancellationError}
+    </s-paragraph>
+  </s-box>
+)}
+
+{cancellationSuccess && (
+  <s-box
+    padding="base"
+    borderWidth="base"
+    borderRadius="base"
+  >
+    <s-paragraph>
+      ✅ {cancellationSuccess}
+    </s-paragraph>
+  </s-box>
+)}
+
           <s-heading>
   Scheduled Rehearsals —{" "}
-  {registration.scheduledRehearsals.length} of 3
+  {activeRehearsals.length} of 3
 </s-heading>
 
-{registration.scheduledRehearsals.length === 0 ? (
+{activeRehearsals.length === 0 ? (
   <s-paragraph>
     No rehearsals scheduled yet.
   </s-paragraph>
 ) : (
-  registration.scheduledRehearsals.map(
+  activeRehearsals.map(
     (rehearsal) => (
       <s-box
         key={rehearsal.id}
@@ -633,6 +710,39 @@ const getCoordinatingRehearsalMatch = (
           <s-paragraph>
             {rehearsal.studioCalendar}
           </s-paragraph>
+          {rehearsal.cancellationStatus === "ACTIVE" && (
+  <Form
+    method="post"
+    onSubmit={(event) => {
+      const confirmed = window.confirm(
+        "Are you sure you want to cancel this rehearsal? This will also remove its Apple Calendar event. If this is a duet, both dancers' rehearsal records will be canceled."
+      );
+
+      if (!confirmed) {
+        event.preventDefault();
+      }
+    }}
+  >
+    <input
+      type="hidden"
+      name="intent"
+      value="cancel-rehearsal"
+    />
+    <input
+      type="hidden"
+      name="rehearsalId"
+      value={rehearsal.id}
+    />
+    <button
+  type="submit"
+  disabled={isCanceling}
+>
+  {isCanceling
+    ? "Canceling..."
+    : "Cancel Rehearsal"}
+</button>
+  </Form>
+)}
         </s-stack>
       </s-box>
     ),
