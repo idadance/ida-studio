@@ -765,7 +765,11 @@ const exportEventAttendees = () => {
   ];
 
   for (const reservation of location.reservations ?? []) {
-    let paymentMethod = "Credit Card";
+  if (reservation.status === "CANCELED") {
+    continue;
+  }
+
+  let paymentMethod = "Credit Card";
     let paymentStatus = "Paid";
 
     if (reservation.paymentMethod === "CHECK") {
