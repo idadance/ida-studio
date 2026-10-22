@@ -393,16 +393,40 @@ const parentAvailability =
               slot.end.toISOString(),
             );
 
-          const availableStudios =
-            studios
-              .filter(
-                (studio) =>
-                  studio.available,
-              )
-              .map(
-                (studio) =>
-                  studio.calendar,
-              );
+          const unresolvedCancellations =
+  await prisma.soloDuetScheduledRehearsal.findMany({
+    where: {
+      studioCalendar: {
+        in: studios.map((studio) => studio.calendar),
+      },
+      cancellationStatus: {
+        in: ["CANCEL_PENDING", "CANCEL_REVIEW"],
+      },
+      startTime: {
+        lt: slot.end,
+      },
+      endTime: {
+        gt: slot.start,
+      },
+    },
+    select: {
+      studioCalendar: true,
+    },
+  });
+
+const blockedStudios = new Set(
+  unresolvedCancellations.map(
+    (rehearsal) => rehearsal.studioCalendar
+  )
+);
+
+const availableStudios = studios
+  .filter(
+    (studio) =>
+      studio.available &&
+      !blockedStudios.has(studio.calendar)
+  )
+  .map((studio) => studio.calendar);
 
           if (
             availableStudios.length === 0
@@ -423,7 +447,13 @@ const parentAvailability =
       ),
     );
 
-  return candidateSlots.filter(Boolean);
+  const now = new Date();
+
+return candidateSlots.filter(
+  (slot) =>
+    slot !== null &&
+    slot.start > now
+);
 }
 
 export async function getTeacherScheduledRehearsals(
@@ -682,6 +712,28 @@ if (
       "That studio is no longer available for this rehearsal time.",
     );
   }
+
+  const unresolvedStudioCancellation =
+  await prisma.soloDuetScheduledRehearsal.findFirst({
+    where: {
+      studioCalendar,
+      cancellationStatus: {
+        in: ["CANCEL_PENDING", "CANCEL_REVIEW"],
+      },
+      startTime: {
+        lt: end,
+      },
+      endTime: {
+        gt: start,
+      },
+    },
+  });
+
+if (unresolvedStudioCancellation) {
+  throw new Error(
+    "This studio has a rehearsal cancellation awaiting confirmation or review at the requested time. Please resolve it before scheduling another rehearsal."
+  );
+}
 
   const existingCount =
   await prisma.soloDuetScheduledRehearsal.count({
