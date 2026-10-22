@@ -662,6 +662,22 @@ export async function createScheduledRehearsal({
   const start = new Date(startTime);
   const end = new Date(endTime);
 
+  if (
+  !Number.isFinite(start.getTime()) ||
+  !Number.isFinite(end.getTime()) ||
+  end <= start
+) {
+  throw new Error(
+    "Please select a valid rehearsal start and end time."
+  );
+}
+
+if (start <= new Date()) {
+  throw new Error(
+    "Rehearsals cannot be scheduled in the past."
+  );
+}
+
   const duetPartner =
   await getDuetPartnerRegistration(
     registration,
