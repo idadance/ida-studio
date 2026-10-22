@@ -37,13 +37,13 @@ model Studio {
 }
 
 model Performance {
-  id                         String            @id @default(cuid())
+  id                         String             @id @default(cuid())
   name                       String
   description                String?
   coverImage                 String?
-  status                     PerformanceStatus @default(DRAFT)
-  createdAt                  DateTime          @default(now())
-  updatedAt                  DateTime          @updatedAt
+  status                     PerformanceStatus  @default(DRAFT)
+  createdAt                  DateTime           @default(now())
+  updatedAt                  DateTime           @updatedAt
   driveCustomersFolderId     String?
   driveFolderId              String?
   driveVideosFolderId        String?
@@ -52,13 +52,13 @@ model Performance {
   pmCheckVideoVariantId      String?
   pmCreditVideoVariantId     String?
   rosterSheetGid             String?
-  extraTicketRequestsEnabled Boolean           @default(false)
+  extraTicketRequestsEnabled Boolean            @default(false)
   programUrl                 String?
   reservations               Reservation[]
   shows                      Show[]
   orders                     TicketOrder[]
-  studios                    Studio[]          @relation("PerformanceToStudio")
-    organization TicketOrganization @default(IDA)
+  studios                    Studio[]           @relation("PerformanceToStudio")
+  organization               TicketOrganization @default(IDA)
 }
 
 model Show {
@@ -111,7 +111,7 @@ model Reservation {
   totalAmount          Float               @default(0)
   shopifyOrderId       String?
   shopifyOrderNumber   String?
-    paypalOrderId        String? @unique
+  paypalOrderId        String?             @unique
   paypalCaptureId      String?
   performanceId        String
   createdAt            DateTime            @default(now())
@@ -132,7 +132,7 @@ model Reservation {
   @@index([customerEmail])
   @@index([status])
   @@index([shopifyOrderId])
-    @@index([paypalCaptureId])
+  @@index([paypalCaptureId])
 }
 
 model TicketOrder {
@@ -366,8 +366,8 @@ model SoloDuetRegistration {
 
   entryType String
 
-  partnerFirstName String?
-  partnerLastName  String?
+  partnerFirstName       String?
+  partnerLastName        String?
   coordinatingDancerName String?
 
   teacherId String?
@@ -387,11 +387,11 @@ model SoloDuetRegistration {
 
   status String @default("REGISTERED")
 
-isLateRegistration Boolean @default(false)
+  isLateRegistration Boolean @default(false)
 
-availability SoloDuetRegistrationAvailability[]
-availabilityUpdateLinks SoloDuetAvailabilityUpdateLink[]
-scheduledRehearsals SoloDuetScheduledRehearsal[]
+  availability            SoloDuetRegistrationAvailability[]
+  availabilityUpdateLinks SoloDuetAvailabilityUpdateLink[]
+  scheduledRehearsals     SoloDuetScheduledRehearsal[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -410,7 +410,7 @@ model SoloDuetLateRegistrationLink {
 
   familyName String?
 
-  usedAt DateTime?
+  usedAt    DateTime?
   expiresAt DateTime?
 
   createdAt DateTime @default(now())
@@ -425,9 +425,9 @@ model SoloDuetAvailabilityUpdateLink {
   token String @unique
 
   registrationId String
-  registration SoloDuetRegistration @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+  registration   SoloDuetRegistration @relation(fields: [registrationId], references: [id], onDelete: Cascade)
 
-  usedAt DateTime?
+  usedAt    DateTime?
   expiresAt DateTime?
 
   createdAt DateTime @default(now())
@@ -468,11 +468,11 @@ model SoloDuetScheduledRehearsal {
   startTime DateTime
   endTime   DateTime
 
-  location       String
-  studioCalendar String
-appleCalendarUid String?
-appleCalendarUrl String?
-  cancellationStatus String @default("ACTIVE")
+  location           String
+  studioCalendar     String
+  appleCalendarUid   String?
+  appleCalendarUrl   String?
+  cancellationStatus String  @default("ACTIVE")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -485,6 +485,7 @@ appleCalendarUrl String?
 enum EventType {
   STANDARD
   SOLO_DUET
+  TICKET_SALE
 }
 
 model Event {
@@ -504,8 +505,29 @@ model Event {
 
   locations EventLocation[]
 
+  ticketTiers EventTicketTier[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model EventTicketTier {
+  id String @id @default(cuid())
+
+  eventId String
+  event   Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  name     String
+  price    Float
+  capacity Int
+
+  reservations EventReservation[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([eventId])
+  @@index([eventId, price])
 }
 
 model EventLocation {
@@ -542,6 +564,9 @@ model EventReservation {
   customerEmail String
 
   quantity Int
+
+  ticketTierId String?
+  ticketTier   EventTicketTier? @relation(fields: [ticketTierId], references: [id])
 
   paymentMethod TicketPaymentMethod
   status        EventReservationStatus @default(PENDING)
@@ -647,9 +672,9 @@ model PhotoOrderItem {
 }
 
 model PhotoBatch {
-  id        String   @id @default(cuid())
-  batchNumber Int    @unique
-  sentAt    DateTime @default(now())
+  id          String   @id @default(cuid())
+  batchNumber Int      @unique
+  sentAt      DateTime @default(now())
 
   items PhotoBatchItem[]
 
