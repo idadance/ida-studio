@@ -199,3 +199,52 @@ export function getEventCapacitySummary(event) {
     ),
   };
 }
+// Create a ticket-sale event with inventory shared across studios.
+// Ticket tiers, not studio locations, control available inventory.
+export async function createTicketSaleEvent({
+  name,
+  description,
+  date,
+  ticketTiers,
+}) {
+  return prisma.event.create({
+    data: {
+      name,
+      description: description || null,
+      date: date ? new Date(date) : null,
+      type: "TICKET_SALE",
+      status: "DRAFT",
+      creditCardEnabled: true,
+      checkEnabled: true,
+
+      locations: {
+        create: [
+          {
+            studioCode: "FW",
+            name: "Fort Washington",
+            capacity: 0,
+            price: 0,
+          },
+          {
+            studioCode: "PM",
+            name: "Plymouth Meeting",
+            capacity: 0,
+            price: 0,
+          },
+        ],
+      },
+
+      ticketTiers: {
+        create: ticketTiers.map((tier) => ({
+          name: tier.name,
+          price: Number(tier.price),
+          capacity: Number(tier.capacity),
+        })),
+      },
+    },
+    include: {
+      locations: true,
+      ticketTiers: true,
+    },
+  });
+}

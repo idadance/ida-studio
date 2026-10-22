@@ -521,6 +521,11 @@ model EventTicketTier {
   price    Float
   capacity Int
 
+  fwCreditVariantId String?
+  fwCheckVariantId  String?
+  pmCreditVariantId String?
+  pmCheckVariantId  String?
+
   reservations EventReservation[]
 
   createdAt DateTime @default(now())
@@ -587,6 +592,7 @@ model EventReservation {
   updatedAt DateTime @updatedAt
 
   @@index([eventLocationId])
+  @@index([ticketTierId])
   @@index([customerEmail])
   @@index([status])
   @@index([shopifyOrderId])

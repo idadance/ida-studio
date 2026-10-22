@@ -16,6 +16,10 @@ export async function createDraftOrder(
   order: any,
 ) {
 
+  if (order.orderType === "sixers") {
+    return createSixersDraftOrder(admin, order);
+  }
+
   if (order.orderType === "event") {
   return createEventDraftOrder(
     admin,

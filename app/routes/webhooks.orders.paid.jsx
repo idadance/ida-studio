@@ -47,6 +47,127 @@ export const action = async ({ request }) => {
       ? payload.note_attributes
       : [];
 
+  // ======================================
+  // SIXERS TICKET SALE — CREDIT PAYMENT
+  // No IDA tickets or QR codes are generated.
+  // ======================================
+
+  const sixersReservationId = noteAttributes
+    .find((attribute) =>
+      attribute.name === "Sixers Reservation ID"
+    )?.value?.trim();
+
+  if (sixersReservationId) {
+    const account =
+      shop === "ida-dance-store.myshopify.com"
+        ? "FW"
+        : shop === "ida-dance-store-pm.myshopify.com"
+          ? "PM"
+          : null;
+
+    if (!account) {
+      console.error("Unknown Sixers Shopify store:", shop);
+      return new Response();
+    }
+
+    const reservation =
+      await prisma.eventReservation.findUnique({
+        where: { id: sixersReservationId },
+        include: {
+          eventLocation: true,
+          ticketTier: {
+            include: { event: true },
+          },
+        },
+      });
+
+    if (
+      !reservation ||
+      !reservation.ticketTier ||
+      reservation.ticketTier.event.type !== "TICKET_SALE" ||
+      reservation.eventLocation.studioCode !== account ||
+      reservation.ticketTier.eventId !==
+        reservation.eventLocation.eventId ||
+      reservation.paymentMethod !== "CREDIT_CARD"
+    ) {
+      console.error("Invalid Sixers reservation:", sixersReservationId);
+      return new Response();
+    }
+
+    const tier = reservation.ticketTier;
+
+    const expectedVariantId =
+      account === "FW"
+        ? tier.fwCreditVariantId
+        : tier.pmCreditVariantId;
+
+    const matchingItems = (payload.line_items || []).filter(
+      (item) =>
+        item.variant_id?.toString() === expectedVariantId
+    );
+
+    if (
+      !expectedVariantId ||
+      matchingItems.length !== 1 ||
+      Number(matchingItems[0].quantity) !== reservation.quantity
+    ) {
+      console.error("Sixers Shopify item mismatch:", payload.name);
+      return new Response();
+    }
+
+    // Verify the paid Shopify order matches this reservation.
+    // Compare integer cents to avoid floating-point differences.
+    const expectedCents = Math.round(reservation.totalAmount * 100);
+    const paidCents = Math.round(
+      Number(payload.total_price) * 100
+    );
+
+    const orderItems = Array.isArray(payload.line_items)
+      ? payload.line_items
+      : [];
+
+    if (
+      !Number.isFinite(paidCents) ||
+      paidCents !== expectedCents ||
+      orderItems.length !== 1 ||
+      payload.currency !== "USD"
+    ) {
+      console.error(
+        "Sixers payment amount or order contents mismatch:",
+        payload.name,
+        { expectedCents, paidCents }
+      );
+      return new Response();
+    }
+
+    if (reservation.status === "CONFIRMED") {
+      console.log("Sixers reservation already confirmed:", reservation.id);
+      return new Response();
+    }
+
+    if (reservation.status !== "PENDING") {
+      console.error("Sixers reservation not pending:", reservation.id);
+      return new Response();
+    }
+
+    await prisma.eventReservation.update({
+      where: { id: reservation.id },
+      data: {
+        status: "CONFIRMED",
+        shopifyOrderId: String(payload.id),
+        shopifyOrderNumber: payload.name,
+      },
+    });
+
+    console.log(
+      "Sixers reservation confirmed:",
+      reservation.id,
+      payload.name,
+    );
+
+    return new Response();
+  }
+
   const soloDuetRegistrationAttribute =
     noteAttributes.find(
       (attribute) =>

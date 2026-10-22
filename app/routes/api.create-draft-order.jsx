@@ -7,6 +7,16 @@ export async function action({ request }) {
   try {
     const order = await request.json();
 
+    if (
+      order?.orderType === "sixers" &&
+      !["FW", "PM"].includes(order.account)
+    ) {
+      return Response.json(
+        { error: "Please select a valid studio." },
+        { status: 400 },
+      );
+    }
+
     shop =
       order.account === "FW"
         ? "ida-dance-store.myshopify.com"

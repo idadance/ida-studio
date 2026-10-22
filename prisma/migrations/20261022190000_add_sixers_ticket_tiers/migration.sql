@@ -11,6 +11,10 @@ CREATE TABLE "EventTicketTier" (
     "name" TEXT NOT NULL,
     "price" DOUBLE PRECISION NOT NULL,
     "capacity" INTEGER NOT NULL,
+    "fwCreditVariantId" TEXT,
+    "fwCheckVariantId" TEXT,
+    "pmCreditVariantId" TEXT,
+    "pmCheckVariantId" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -22,6 +26,9 @@ CREATE INDEX "EventTicketTier_eventId_idx" ON "EventTicketTier"("eventId");
 
 -- CreateIndex
 CREATE INDEX "EventTicketTier_eventId_price_idx" ON "EventTicketTier"("eventId", "price");
+
+-- CreateIndex
+CREATE INDEX "EventReservation_ticketTierId_idx" ON "EventReservation"("ticketTierId");
 
 -- AddForeignKey
 ALTER TABLE "EventTicketTier" ADD CONSTRAINT "EventTicketTier_eventId_fkey" FOREIGN KEY ("eventId") REFERENCES "Event"("id") ON DELETE CASCADE ON UPDATE CASCADE;

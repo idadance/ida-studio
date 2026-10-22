@@ -42,6 +42,9 @@ export default function EventsPage() {
         <s-link href="/app/events/new">
           + Add Event
         </s-link>
+        <s-link href="/app/events/new-ticket-sale">
+          + Add Ticket Sale
+        </s-link>
       </div>
 
       <s-section>
