@@ -393,16 +393,40 @@ const parentAvailability =
               slot.end.toISOString(),
             );
 
-          const availableStudios =
-            studios
-              .filter(
-                (studio) =>
-                  studio.available,
-              )
-              .map(
-                (studio) =>
-                  studio.calendar,
-              );
+          const unresolvedCancellations =
+  await prisma.soloDuetScheduledRehearsal.findMany({
+    where: {
+      studioCalendar: {
+        in: studios.map((studio) => studio.calendar),
+      },
+      cancellationStatus: {
+        in: ["CANCEL_PENDING", "CANCEL_REVIEW"],
+      },
+      startTime: {
+        lt: slot.end,
+      },
+      endTime: {
+        gt: slot.start,
+      },
+    },
+    select: {
+      studioCalendar: true,
+    },
+  });
+
+const blockedStudios = new Set(
+  unresolvedCancellations.map(
+    (rehearsal) => rehearsal.studioCalendar
+  )
+);
+
+const availableStudios = studios
+  .filter(
+    (studio) =>
+      studio.available &&
+      !blockedStudios.has(studio.calendar)
+  )
+  .map((studio) => studio.calendar);
 
           if (
             availableStudios.length === 0
@@ -423,7 +447,13 @@ const parentAvailability =
       ),
     );
 
-  return candidateSlots.filter(Boolean);
+  const now = new Date();
+
+return candidateSlots.filter(
+  (slot) =>
+    slot !== null &&
+    slot.start > now
+);
 }
 
 export async function getTeacherScheduledRehearsals(
@@ -435,12 +465,16 @@ export async function getTeacherScheduledRehearsals(
   const end = new Date(rangeEnd);
 
   return prisma.soloDuetScheduledRehearsal.findMany({
-    where: {
-      teacherId,
+   where: {
+  teacherId,
 
-      startTime: {
-        lt: end,
-      },
+  cancellationStatus: {
+    not: "CANCELED",
+  },
+
+  startTime: {
+    lt: end,
+  },
 
       endTime: {
         gt: start,
@@ -497,6 +531,9 @@ export async function checkTeacherSchedulingConflict(
     await prisma.soloDuetScheduledRehearsal.findMany({
       where: {
   teacherId,
+        cancellationStatus: {
+  in: ["ACTIVE", "CANCEL_PENDING", "CANCEL_REVIEW"],
+},
 
   ...(excludeRehearsalIds.length > 0
     ? {
@@ -625,6 +662,22 @@ export async function createScheduledRehearsal({
   const start = new Date(startTime);
   const end = new Date(endTime);
 
+  if (
+  !Number.isFinite(start.getTime()) ||
+  !Number.isFinite(end.getTime()) ||
+  end <= start
+) {
+  throw new Error(
+    "Please select a valid rehearsal start and end time."
+  );
+}
+
+if (start <= new Date()) {
+  throw new Error(
+    "Rehearsals cannot be scheduled in the past."
+  );
+}
+
   const duetPartner =
   await getDuetPartnerRegistration(
     registration,
@@ -676,10 +729,35 @@ if (
     );
   }
 
+  const unresolvedStudioCancellation =
+  await prisma.soloDuetScheduledRehearsal.findFirst({
+    where: {
+      studioCalendar,
+      cancellationStatus: {
+        in: ["CANCEL_PENDING", "CANCEL_REVIEW"],
+      },
+      startTime: {
+        lt: end,
+      },
+      endTime: {
+        gt: start,
+      },
+    },
+  });
+
+if (unresolvedStudioCancellation) {
+  throw new Error(
+    "This studio has a rehearsal cancellation awaiting confirmation or review at the requested time. Please resolve it before scheduling another rehearsal."
+  );
+}
+
   const existingCount =
   await prisma.soloDuetScheduledRehearsal.count({
     where: {
       registrationId,
+      cancellationStatus: {
+        in: ["ACTIVE", "CANCEL_PENDING", "CANCEL_REVIEW"],
+      },
     },
   });
 
@@ -691,12 +769,14 @@ if (existingCount >= 3) {
 
 if (duetPartner) {
   const partnerExistingCount =
-    await prisma.soloDuetScheduledRehearsal.count({
-      where: {
-        registrationId:
-          duetPartner.id,
+  await prisma.soloDuetScheduledRehearsal.count({
+    where: {
+      registrationId: duetPartner.id,
+      cancellationStatus: {
+        in: ["ACTIVE", "CANCEL_PENDING", "CANCEL_REVIEW"],
       },
-    });
+    },
+  });
 
   if (partnerExistingCount >= 3) {
     throw new Error(
@@ -790,6 +870,157 @@ return rehearsal;
 
 }
 
+export async function cancelScheduledRehearsal({
+  registrationId,
+  rehearsalId,
+}) {
+  const rehearsal =
+    await prisma.soloDuetScheduledRehearsal.findFirst({
+      where: {
+        id: rehearsalId,
+        registrationId,
+        cancellationStatus: "ACTIVE",
+      },
+    });
+
+  if (!rehearsal) {
+    throw new Error(
+      "This rehearsal was not found or is already canceled."
+    );
+  }
+
+  if (
+    !rehearsal.appleCalendarUid ||
+    !rehearsal.appleCalendarUrl
+  ) {
+    throw new Error(
+      "Apple Calendar identifiers are missing. Please review this rehearsal manually."
+    );
+  }
+
+  const linkedRehearsals =
+    await prisma.soloDuetScheduledRehearsal.findMany({
+      where: {
+        appleCalendarUid: rehearsal.appleCalendarUid,
+        appleCalendarUrl: rehearsal.appleCalendarUrl,
+      },
+    });
+
+  const validGroup =
+    linkedRehearsals.length >= 1 &&
+    linkedRehearsals.length <= 2 &&
+    linkedRehearsals.every(
+      (item) =>
+        item.cancellationStatus === "ACTIVE" &&
+        item.teacherId === rehearsal.teacherId &&
+        item.startTime.getTime() ===
+          rehearsal.startTime.getTime() &&
+        item.endTime.getTime() ===
+          rehearsal.endTime.getTime() &&
+        item.studioCalendar ===
+          rehearsal.studioCalendar
+    );
+
+  if (!validGroup) {
+    throw new Error(
+      "The linked rehearsal records need manual review before cancellation."
+    );
+  }
+
+  const rehearsalIds = linkedRehearsals.map(
+    (item) => item.id
+  );
+
+  // Preserve records before contacting Apple Calendar.
+  await prisma.$transaction(async (tx) => {
+  const pendingUpdate =
+    await tx.soloDuetScheduledRehearsal.updateMany({
+      where: {
+        id: { in: rehearsalIds },
+        cancellationStatus: "ACTIVE",
+      },
+      data: {
+        cancellationStatus: "CANCEL_PENDING",
+      },
+    });
+
+  if (pendingUpdate.count !== rehearsalIds.length) {
+    throw new Error(
+      "The rehearsal cancellation could not be started safely. No Apple Calendar event was deleted. Please refresh and try again."
+    );
+  }
+});
+
+  try {
+    await deleteStudioCalendarEvent({
+      url: rehearsal.appleCalendarUrl,
+      uid: rehearsal.appleCalendarUid,
+    });
+  } catch (calendarError) {
+    console.error(
+      "Rehearsal cancellation needs review:",
+      {
+        rehearsalIds,
+        calendarUrl: rehearsal.appleCalendarUrl,
+        calendarUid: rehearsal.appleCalendarUid,
+        calendarError,
+      }
+    );
+
+    // Keep the records and calendar identifiers for recovery.
+    await prisma.soloDuetScheduledRehearsal.updateMany({
+      where: {
+        id: { in: rehearsalIds },
+      },
+      data: {
+        cancellationStatus: "CANCEL_REVIEW",
+      },
+    });
+
+    throw new Error(
+      "Apple Calendar could not confirm cancellation. The rehearsal has been flagged for review. Do not schedule another rehearsal in this studio until the issue is resolved."
+    );
+  }
+
+  try {
+  const completed =
+    await prisma.soloDuetScheduledRehearsal.updateMany({
+      where: {
+        id: { in: rehearsalIds },
+        cancellationStatus: "CANCEL_PENDING",
+      },
+      data: {
+        cancellationStatus: "CANCELED",
+      },
+    });
+
+  if (completed.count !== rehearsalIds.length) {
+    throw new Error(
+      "Not all linked rehearsal records were finalized."
+    );
+  }
+} catch (databaseError) {
+  console.error(
+    "CRITICAL: Apple Calendar event deleted, but cancellation database update failed:",
+    {
+      rehearsalIds,
+      calendarUrl: rehearsal.appleCalendarUrl,
+      calendarUid: rehearsal.appleCalendarUid,
+      databaseError,
+    }
+  );
+
+  throw new Error(
+    "Apple Calendar cancellation succeeded, but IDA Studio could not finalize the records. Do not retry cancellation or reschedule this rehearsal until an administrator reviews it."
+  );
+}
+
+  return {
+    success: true,
+    canceledCount: rehearsalIds.length,
+  };
+}
+
 export async function getRelatedDancerRehearsals(
   registrationId,
 ) {
@@ -806,6 +1037,9 @@ export async function getRelatedDancerRehearsals(
 
   return prisma.soloDuetScheduledRehearsal.findMany({
     where: {
+      cancellationStatus: {
+  not: "CANCELED",
+},
       registration: {
         studentFirstName:
           registration.studentFirstName,
@@ -898,10 +1132,13 @@ export async function getCoordinatingDancerRehearsals(
 
   return prisma.soloDuetScheduledRehearsal.findMany({
     where: {
-      registrationId: {
-        in: matchingRegistrationIds,
-      },
-    },
+  registrationId: {
+    in: matchingRegistrationIds,
+  },
+  cancellationStatus: {
+    not: "CANCELED",
+  },
+},
 
     include: {
       registration: {

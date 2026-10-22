@@ -19,10 +19,15 @@ export async function getRegistrations() {
   availability: true,
 
   scheduledRehearsals: {
-    orderBy: {
-      startTime: "asc",
+  where: {
+    cancellationStatus: {
+      not: "CANCELED",
     },
   },
+  orderBy: {
+    startTime: "asc",
+  },
+},
 },
 
     orderBy: [
