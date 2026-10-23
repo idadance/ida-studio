@@ -50,29 +50,6 @@ if (process.env.SIXERS_CHECK_CHECKOUT_ENABLED !== "true") {
   throw new Error("Sixers check checkout is not available yet.");
 }
 
-if (
-  process.env.SIXERS_CHECK_TEST_MODE !== "false" &&
-  (
-    order.account !== "FW" ||
-    email.toLowerCase() !==
-      String(process.env.SIXERS_TEST_EMAIL || "").trim().toLowerCase()
-  )
-) {
-  throw new Error("Sixers checkout is currently restricted to testing.");
-}
-
-if (process.env.SIXERS_CHECK_TEST_MODE !== "false") {
-  const expectedToken = process.env.SIXERS_TEST_TOKEN;
-
-  if (
-    !expectedToken ||
-    expectedToken.length < 32 ||
-    order.testToken !== expectedToken
-  ) {
-    throw new Error("Sixers test checkout is not authorized.");
-  }
-}
-
   // Reserve tickets using a shared inventory lock.
   const reservation = await prisma.$transaction(
     async (tx: Prisma.TransactionClient) => {
