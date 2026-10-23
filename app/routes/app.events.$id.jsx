@@ -1,5 +1,9 @@
 import { Form, useLoaderData, useNavigation } from "react-router";
 
+import { receiveSixersCheck } from "../services/sixersCheckPayment.server";
+
+import { reconcileSixersPaidCheck } from "../services/sixersCheckReconciliation.server";
+
 import { authenticate } from "../shopify.server";
 import {
   getEvent,
@@ -19,17 +23,221 @@ export const loader = async ({ request, params }) => {
     });
   }
 
+  const { default: prisma } = await import("../db.server");
+
+  const paymentReviews =
+    event.type === "TICKET_SALE"
+      ? await prisma.sixersPaymentReview.findMany({
+          where: {
+            reservationId: {
+              in: event.ticketTiers.flatMap((tier) =>
+                tier.reservations.map((reservation) => reservation.id)
+              ),
+            },
+          },
+          orderBy: { createdAt: "desc" },
+        })
+      : [];
+
   return {
     event,
     capacitySummary: getEventCapacitySummary(event),
+    paymentReviews,
   };
 };
 
 export const action = async ({ request, params }) => {
-  await authenticate.admin(request);
+  const { admin, session } = await authenticate.admin(request);
 
   const formData = await request.formData();
   const intent = formData.get("intent");
+
+    if (intent === "reconcileSixersPaidCheck") {
+    const { default: prisma } = await import("../db.server");
+
+    const reservationId = String(
+      formData.get("reservationId") || ""
+    ).trim();
+
+    const shopifyOrderId = String(
+      formData.get("shopifyOrderId") || ""
+    ).trim();
+
+    const shopifyOrderNumber = String(
+      formData.get("shopifyOrderNumber") || ""
+    ).trim();
+
+    const checkNumber = String(
+      formData.get("checkNumber") || ""
+    ).trim();
+
+    const account =
+      session.shop === "ida-dance-store.myshopify.com"
+        ? "FW"
+        : session.shop === "ida-dance-store-pm.myshopify.com"
+          ? "PM"
+          : null;
+
+    if (!account) {
+      throw new Response("Unrecognized Shopify store.", {
+        status: 403,
+      });
+    }
+
+    if (
+      !reservationId ||
+      !shopifyOrderId.startsWith("gid://shopify/Order/")
+    ) {
+      throw new Response(
+        "A valid reservation and Shopify order ID are required.",
+        { status: 400 }
+      );
+    }
+
+    const reservation = await prisma.eventReservation.findUnique({
+      where: { id: reservationId },
+      include: {
+        eventLocation: true,
+        ticketTier: { include: { event: true } },
+      },
+    });
+
+    if (
+      !reservation ||
+      reservation.eventLocation.eventId !== params.id ||
+      reservation.eventLocation.studioCode !== account ||
+      reservation.paymentMethod !== "CHECK" ||
+      reservation.ticketTier?.event.type !== "TICKET_SALE"
+    ) {
+      throw new Response(
+        "The Sixers reservation does not match this event and store.",
+        { status: 400 }
+      );
+    }
+
+    await reconcileSixersPaidCheck({
+      reservationId,
+      shop: session.shop,
+      shopifyOrderId,
+      shopifyOrderNumber,
+      checkNumber,
+      admin,
+    });
+
+    return {
+      success: true,
+      intent: "reconcileSixersPaidCheck",
+    };
+  }
+
+    if (intent === "receiveSixersCheck") {
+    const { default: prisma } = await import("../db.server");
+
+    const reservationId = String(
+      formData.get("reservationId") || ""
+    ).trim();
+
+    const checkNumber = String(
+      formData.get("checkNumber") || ""
+    ).trim();
+
+    const account =
+      session.shop === "ida-dance-store.myshopify.com"
+        ? "FW"
+        : session.shop === "ida-dance-store-pm.myshopify.com"
+          ? "PM"
+          : null;
+
+    if (!account) {
+      throw new Response("Unrecognized Shopify store.", {
+        status: 403,
+      });
+    }
+
+    if (!reservationId || !checkNumber) {
+      throw new Response(
+        "Reservation ID and check number are required.",
+        { status: 400 }
+      );
+    }
+
+    const reservation = await prisma.eventReservation.findUnique({
+      where: { id: reservationId },
+      include: { eventLocation: true },
+    });
+
+    if (
+      !reservation ||
+      reservation.eventLocation.eventId !== params.id ||
+      reservation.eventLocation.studioCode !== account
+    ) {
+      throw new Response(
+        "Reservation not found for this event and studio.",
+        { status: 404 }
+      );
+    }
+
+    await receiveSixersCheck({
+      reservationId,
+      checkNumber,
+      account,
+      admin,
+    });
+
+    return { success: true, intent: "receiveSixersCheck" };
+  }
+
+  if (intent === "updateSixersTier") {
+    const { default: prisma } = await import("../db.server");
+
+    const tierId = String(formData.get("tierId") || "").trim();
+
+    const event = await prisma.event.findUnique({
+      where: { id: params.id },
+      select: { type: true },
+    });
+
+    if (!event || event.type !== "TICKET_SALE") {
+      throw new Response("Not a ticket sale.", { status: 400 });
+    }
+
+    const tier = await prisma.eventTicketTier.findFirst({
+      where: { id: tierId, eventId: params.id },
+    });
+
+    if (!tier) {
+      throw new Response("Ticket tier not found.", { status: 404 });
+    }
+
+    const fields = [
+      "fwCreditVariantId",
+      "fwCheckVariantId",
+      "pmCreditVariantId",
+      "pmCheckVariantId",
+    ];
+
+    const data = {};
+
+    for (const field of fields) {
+      const value = String(formData.get(field) || "").trim();
+
+      if (value && !/^\\d+$/.test(value)) {
+        throw new Response(
+          "Shopify variant IDs must contain only numbers.",
+          { status: 400 },
+        );
+      }
+
+      data[field] = value || null;
+    }
+
+    await prisma.eventTicketTier.update({
+      where: { id: tier.id },
+      data,
+    });
+
+    return { success: true };
+  }
 
   if (intent === "updateDate") {
   const dateValue = formData.get("date");
@@ -277,6 +485,13 @@ if (intent === "cancelReservation") {
     });
   }
 
+  if (reservation.ticketTierId) {
+    throw new Response(
+      "Sixers reservations require payment verification before cancellation.",
+      { status: 400 },
+    );
+  }
+
   if (reservation.status === "CANCELED") {
     return { success: true };
   }
@@ -334,7 +549,7 @@ if (intent === "delete") {
 };
 
 export default function ManageEventPage() {
-  const { event, capacitySummary } = useLoaderData();
+  const { event, capacitySummary, paymentReviews } = useLoaderData();
   const navigation = useNavigation();
 
   const isSubmitting = navigation.state === "submitting";
@@ -607,6 +822,102 @@ export default function ManageEventPage() {
   </Form>
 </s-section>
 
+      {event.type === "TICKET_SALE" && (
+        <s-section heading="Sixers Ticket Setup">
+          <p>
+            Ticket inventory is shared between Fort Washington
+            and Plymouth Meeting. Enter the Shopify variant IDs
+            for each ticket price and studio.
+          </p>
+
+          {(event.ticketTiers || []).map((tier) => {
+            const reserved = (tier.reservations || [])
+              .filter((reservation) =>
+                ["PENDING", "CONFIRMED"].includes(reservation.status)
+              )
+              .reduce(
+                (total, reservation) => total + reservation.quantity,
+                0
+              );
+
+            return (
+              <div
+                key={tier.id}
+                style={{
+                  border: "1px solid #ddd",
+                  borderRadius: "12px",
+                  padding: "20px",
+                  marginTop: "16px",
+                }}
+              >
+                <h3>{tier.name}</h3>
+                <p>
+                  <strong>{Math.max(0, tier.capacity - reserved)}</strong>
+                  {" "}of {tier.capacity} tickets remaining
+                </p>
+
+                <Form method="post">
+                  <input
+                    type="hidden"
+                    name="intent"
+                    value="updateSixersTier"
+                  />
+                  <input
+                    type="hidden"
+                    name="tierId"
+                    value={tier.id}
+                  />
+
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns:
+                        "repeat(auto-fit, minmax(220px, 1fr))",
+                      gap: "14px",
+                    }}
+                  >
+                    {[
+                      ["fwCreditVariantId", "FW Credit Card"],
+                      ["fwCheckVariantId", "FW Check"],
+                      ["pmCreditVariantId", "PM Credit Card"],
+                      ["pmCheckVariantId", "PM Check"],
+                    ].map(([field, label]) => (
+                      <label key={field}>
+                        <div style={{ marginBottom: "5px" }}>
+                          {label} Variant ID
+                        </div>
+                        <input
+                          type="text"
+                          name={field}
+                          defaultValue={tier[field] || ""}
+                          placeholder="Shopify numeric variant ID"
+                          style={{
+                            width: "100%",
+                            padding: "9px",
+                            boxSizing: "border-box",
+                          }}
+                        />
+                      </label>
+                    ))}
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    style={{ marginTop: "16px" }}
+                  >
+                    {isSubmitting
+                      ? "Saving..."
+                      : "Save Ticket Setup"}
+                  </button>
+                </Form>
+              </div>
+            );
+          })}
+        </s-section>
+      )}
+
+      {event.type !== "TICKET_SALE" && (
       <s-section heading="Studio Locations">
         <div
           style={{
@@ -828,6 +1139,9 @@ export default function ManageEventPage() {
         )}
       </s-section>
 
+      )}
+
+      {event.type !== "TICKET_SALE" && (
       <s-section heading="Add Registration">
   <Form
     method="post"
@@ -992,6 +1306,192 @@ export default function ManageEventPage() {
   </Form>
 </s-section>
 
+      )}
+
+      {event.type === "TICKET_SALE" && (
+        <s-section heading="Sixers Reservations">
+          {event.ticketTiers.every(tier => tier.reservations.length === 0) ? (
+            <p>No Sixers reservations yet.</p>
+          ) : (
+            event.ticketTiers.flatMap(tier =>
+              tier.reservations.map(reservation => {
+                const studio = event.locations.find(
+                  location => location.id === reservation.eventLocationId
+                );
+                return (
+                  <div key={reservation.id} style={{
+                    border: "1px solid #ddd",
+                    borderRadius: "10px",
+                    padding: "16px",
+                    marginBottom: "12px"
+                  }}>
+                    <strong>{reservation.customerName}</strong>
+                    <div>{reservation.customerEmail}</div>
+                    <div>Ticket Level: {tier.name}</div>
+                    <div>Tickets: {reservation.quantity}</div>
+                    <div>Studio: {studio?.studioCode || "Unknown"}</div>
+                    <div>Payment: {reservation.paymentMethod === "CREDIT_CARD" ? "Credit Card" : "Check"}</div>
+                    <div>Status: {reservation.status}</div>
+                    <div>
+  Reserved: {new Date(reservation.createdAt).toLocaleString("en-US", {
+    timeZone: "America/New_York",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  })} ET
+</div>
+                    {reservation.shopifyOrderNumber && (
+                      <div>
+                        Shopify Order: {reservation.shopifyOrderNumber}
+                      </div>
+                    )}
+                    {reservation.paymentMethod === "CREDIT_CARD" &&
+                      reservation.status === "PENDING" &&
+                      Date.now() - new Date(reservation.createdAt).getTime() >
+                        30 * 60 * 1000 && (
+                        <div style={{ color: "#b45309", fontWeight: "bold" }}>
+                          ⚠️ Credit card checkout pending over 30 minutes.
+                          Verify payment in Shopify before taking action.
+                        </div>
+                      )}
+                    <div>Total: ${Number(reservation.totalAmount).toFixed(2)}</div>
+                 {reservation.paymentMethod === "CHECK" &&
+  reservation.status === "PENDING" && (
+    <Form method="post" style={{ marginTop: "12px" }}>
+      <input
+        type="hidden"
+        name="intent"
+        value="receiveSixersCheck"
+      />
+
+      <input
+        type="hidden"
+        name="reservationId"
+        value={reservation.id}
+      />
+
+      <label style={{ display: "block", marginBottom: "6px" }}>
+        Check Number
+      </label>
+
+      <input
+        type="text"
+        name="checkNumber"
+        required
+        placeholder="Enter check number"
+        style={{
+          display: "block",
+          width: "100%",
+          padding: "8px",
+          border: "1px solid #ccc",
+          borderRadius: "6px",
+          marginBottom: "8px",
+        }}
+      />
+
+      <button
+        type="submit"
+        disabled={isSubmitting}
+        style={{
+          padding: "10px 16px",
+          borderRadius: "6px",
+          cursor: isSubmitting ? "default" : "pointer",
+        }}
+      >
+        {isSubmitting ? "Processing..." : "Receive Check"}
+      </button>
+    </Form>
+  )}
+                  </div>
+                );
+              })
+            )
+          )}
+        </s-section>
+      )}
+
+      {event.type === "TICKET_SALE" && (
+        <s-section heading="Sixers Payment Reviews">
+          {paymentReviews.length === 0 ? (
+            <p>No payment reviews linked to this event.</p>
+          ) : (
+            paymentReviews.map((review) => (
+              <div
+                key={review.id}
+                style={{
+                  border: "1px solid #ddd",
+                  borderRadius: "10px",
+                  padding: "16px",
+                  marginBottom: "12px",
+                }}
+              >
+                <strong>
+                  {review.shopifyOrderNumber || review.shopifyOrderId}
+                </strong>
+                <div>Store: {review.shop}</div>
+                <div>Reason: {review.reason}</div>
+                <div>Status: {review.status}</div>
+                <div>Reservation ID: {review.reservationId || "Not linked"}</div>
+                <div>
+                  Flagged: {new Date(review.createdAt).toLocaleString()}
+                </div>
+                {review.status === "OPEN" && review.reservationId && (
+  <Form method="post" style={{ marginTop: "12px" }}>
+    <input
+      type="hidden"
+      name="intent"
+      value="reconcileSixersPaidCheck"
+    />
+
+    <input
+      type="hidden"
+      name="reservationId"
+      value={review.reservationId}
+    />
+
+    <input
+      type="hidden"
+      name="shopifyOrderId"
+      value={`gid://shopify/Order/${review.shopifyOrderId}`}
+    />
+
+    <input
+      type="hidden"
+      name="shopifyOrderNumber"
+      value={review.shopifyOrderNumber || ""}
+    />
+
+    <label style={{ display: "block", marginBottom: "6px" }}>
+      Check Number
+    </label>
+
+    <input
+      type="text"
+      name="checkNumber"
+      required
+      placeholder="Enter check number"
+      style={{
+        display: "block",
+        width: "100%",
+        padding: "8px",
+        marginBottom: "8px",
+      }}
+    />
+
+    <button type="submit" disabled={isSubmitting}>
+      {isSubmitting ? "Processing..." : "Reconcile Paid Order"}
+    </button>
+  </Form>
+)}
+              </div>
+            ))
+          )}
+        </s-section>
+      )}
+
+      {event.type !== "TICKET_SALE" && (
       <s-section heading="Reservations">
         {capacitySummary.totalReserved === 0 ? (
           <div
@@ -1150,6 +1650,7 @@ export default function ManageEventPage() {
           </div>
         )}
       </s-section>
+      )}
     </s-page>
   );
 }

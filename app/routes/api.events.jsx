@@ -6,6 +6,20 @@ export async function loader() {
       status: "PUBLISHED",
     },
     include: {
+      ticketTiers: {
+        include: {
+          reservations: {
+            where: {
+              status: {
+                in: ["PENDING", "CONFIRMED"],
+              },
+            },
+          },
+        },
+        orderBy: {
+          price: "asc",
+        },
+      },
       locations: {
         include: {
           reservations: {
@@ -33,8 +47,25 @@ description: event.description,
 imageUrl: event.imageUrl,
 date: event.date,
 
+    eventType: event.eventType,
+
     creditCardEnabled: event.creditCardEnabled,
     checkEnabled: event.checkEnabled,
+
+    ticketTiers: event.ticketTiers.map((tier) => {
+      const reserved = tier.reservations.reduce(
+        (total, reservation) => total + reservation.quantity,
+        0,
+      );
+
+      return {
+        id: tier.id,
+        name: tier.name,
+        price: tier.price,
+        capacity: tier.capacity,
+        remaining: Math.max(0, tier.capacity - reserved),
+      };
+    }),
 
     locations: event.locations.map((location) => {
       const reservedSpots = location.reservations.reduce(

@@ -16,11 +16,24 @@ export async function action({ request }) {
       account,
       firstName,
       lastName,
-      email,
+            email,
       quantity,
+      checkoutRequestId,
     } = body;
 
     const ticketQuantity = Number(quantity);
+
+        if (
+      typeof checkoutRequestId !== "string" ||
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        checkoutRequestId
+      )
+    ) {
+      return Response.json(
+        { error: "Invalid checkout request ID." },
+        { status: 400 },
+      );
+    }
 
     if (!["FW", "PM"].includes(account)) {
       return Response.json(
@@ -29,9 +42,10 @@ export async function action({ request }) {
       );
     }
 
-    if (
+        if (
       !Number.isSafeInteger(ticketQuantity) ||
-      ticketQuantity < 1
+      ticketQuantity < 1 ||
+      ticketQuantity > 20
     ) {
       return Response.json(
         { error: "Please select a valid ticket quantity." },
@@ -53,6 +67,76 @@ export async function action({ request }) {
         { error: "Please provide your name, email, and ticket selection." },
         { status: 400 },
       );
+    }
+
+            const existingReservation =
+      await prisma.eventReservation.findUnique({
+        where: { checkoutRequestId },
+                include: {
+          eventLocation: true,
+          ticketTier: {
+            include: { event: true },
+          },
+        },
+      });
+
+    if (existingReservation) {
+      const sameReservation =
+        existingReservation.ticketTierId === ticketTierId &&
+        existingReservation.quantity === ticketQuantity &&
+        existingReservation.eventLocation?.studioCode === account &&
+        existingReservation.customerName ===
+          `${firstName.trim()} ${lastName.trim()}` &&
+        existingReservation.customerEmail.toLowerCase() ===
+          email.trim().toLowerCase() &&
+        existingReservation.paymentMethod === "CREDIT_CARD" &&
+        existingReservation.status === "PENDING";
+
+      if (!sameReservation) {
+        return Response.json(
+          {
+            error:
+              "This checkout request cannot be reused. Please start a new ticket selection.",
+          },
+          { status: 409 },
+        );
+      }
+
+            if (
+        !existingReservation.ticketTier ||
+        existingReservation.ticketTier.event.type !== "TICKET_SALE" ||
+        existingReservation.ticketTier.event.status !== "PUBLISHED" ||
+        !existingReservation.ticketTier.event.creditCardEnabled
+      ) {
+        return Response.json(
+          {
+            error: "This ticket sale is no longer available for checkout.",
+          },
+          { status: 409 },
+        );
+      }
+
+            const existingTier = existingReservation.ticketTier;
+
+      const shopifyVariantId =
+        account === "FW"
+          ? existingTier.fwCreditVariantId
+          : existingTier.pmCreditVariantId;
+
+      if (!shopifyVariantId) {
+        return Response.json(
+          { error: "Shopify checkout is not configured for this ticket price." },
+          { status: 409 },
+        );
+      }
+
+      return Response.json({
+        success: true,
+        reservationId: existingReservation.id,
+        quantity: existingReservation.quantity,
+        shopifyVariantId,
+        totalAmount: existingReservation.totalAmount,
+      });
     }
 
     const result = await prisma.$transaction(async (tx) => {
@@ -134,19 +218,21 @@ export async function action({ request }) {
         data: {
           eventLocationId: location.id,
           ticketTierId: tier.id,
+          checkoutRequestId,
           customerName: `${firstName.trim()} ${lastName.trim()}`,
           customerEmail: email.trim(),
           quantity: ticketQuantity,
           paymentMethod: "CREDIT_CARD",
           status: "PENDING",
-          totalAmount: Number(
-            (ticketQuantity * tier.price * 1.026).toFixed(2),
-          ),
+          totalAmount:
+            ticketQuantity *
+            Number((tier.price * 1.026).toFixed(2)),
         },
       });
 
       return {
         reservationId: reservation.id,
+        quantity: reservation.quantity,
         shopifyVariantId,
         totalAmount: reservation.totalAmount,
         remainingTickets: remaining - ticketQuantity,
@@ -159,6 +245,15 @@ export async function action({ request }) {
     });
   } catch (error) {
     console.error("Sixers reservation error:", error);
+        if (error?.code === "P2002") {
+      return Response.json(
+        {
+          error:
+            "This checkout request is already being processed. Please try again.",
+        },
+        { status: 409 },
+      );
+    }
 
     return Response.json(
       {

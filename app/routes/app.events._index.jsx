@@ -45,6 +45,9 @@ export default function EventsPage() {
         <s-link href="/app/events/new-ticket-sale">
           + Add Ticket Sale
         </s-link>
+        <s-link href="/app/events/payment-reviews">
+          Sixers Payment Reviews
+        </s-link>
       </div>
 
       <s-section>

@@ -35,3 +35,12 @@ ALTER TABLE "EventTicketTier" ADD CONSTRAINT "EventTicketTier_eventId_fkey" FORE
 
 -- AddForeignKey
 ALTER TABLE "EventReservation" ADD CONSTRAINT "EventReservation_ticketTierId_fkey" FOREIGN KEY ("ticketTierId") REFERENCES "EventTicketTier"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+ALTER TABLE "EventReservation"
+ADD COLUMN "checkoutRequestId" TEXT;
+
+CREATE UNIQUE INDEX "EventReservation_checkoutRequestId_key"
+ON "EventReservation"("checkoutRequestId");
+
+ALTER TABLE "EventReservation" ADD COLUMN "shopifyDraftStatus" TEXT;
+ALTER TABLE "EventReservation" ADD COLUMN "shopifyDraftOrderId" TEXT;

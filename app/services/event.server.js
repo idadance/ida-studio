@@ -24,6 +24,14 @@ export async function getEvent(id) {
   return prisma.event.findUnique({
     where: { id },
     include: {
+      ticketTiers: {
+        include: {
+          reservations: true,
+        },
+        orderBy: {
+          price: "asc",
+        },
+      },
       locations: {
         include: {
           reservations: {

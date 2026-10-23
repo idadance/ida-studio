@@ -573,13 +573,17 @@ model EventReservation {
   ticketTierId String?
   ticketTier   EventTicketTier? @relation(fields: [ticketTierId], references: [id])
 
+  checkoutRequestId String? @unique
+  shopifyDraftStatus String?
+
   paymentMethod TicketPaymentMethod
   status        EventReservationStatus @default(PENDING)
 
   totalAmount Float @default(0)
 
-  shopifyOrderId     String?
-  shopifyOrderNumber String?
+    shopifyDraftOrderId String?
+  shopifyOrderId      String?
+  shopifyOrderNumber  String?
 
   checkNumber     String?
   checkReceivedAt DateTime?
@@ -710,4 +714,26 @@ enum PhotoOrderStatus {
   PAID
   CANCELED
   REFUNDED
+}
+
+model SixersPaymentReview {
+  id String @id @default(cuid())
+
+  shopifyOrderId String
+  shopifyOrderNumber String?
+  shop String
+
+  reservationId String?
+  reason String @db.Text
+
+  status String @default("OPEN")
+  resolvedAt DateTime?
+  resolutionNotes String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([shop, shopifyOrderId])
+  @@index([status])
+  @@index([reservationId])
 }

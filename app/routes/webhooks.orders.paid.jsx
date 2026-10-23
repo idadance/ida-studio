@@ -1,5 +1,6 @@
 import { authenticate } from "../shopify.server";
 import { findShowByVariantId } from "../services/showLookup.server";
+import { recordSixersPaymentReview } from "../services/sixersPaymentReview.server";
 import { findEventLocationByVariantId } from "../services/eventLookup.server";
 import {
   createReservation,
@@ -48,6 +49,47 @@ export const action = async ({ request }) => {
       : [];
 
   // ======================================
+  // SAFETY: Identify Sixers products even if Shopify omits
+  // the Sixers Reservation ID cart attribute.
+  const paidVariantIds = (payload.line_items || [])
+    .map((item) => item.variant_id?.toString())
+    .filter(Boolean);
+
+  const sixersTier = paidVariantIds.length
+    ? await prisma.eventTicketTier.findFirst({
+        where: {
+          OR: [
+            { fwCreditVariantId: { in: paidVariantIds } },
+            { pmCreditVariantId: { in: paidVariantIds } },
+            { fwCheckVariantId: { in: paidVariantIds } },
+            { pmCheckVariantId: { in: paidVariantIds } },
+          ],
+        },
+      })
+    : null;
+
+  const hasSixersReservationId = noteAttributes.some(
+    (attribute) =>
+      attribute.name === "Sixers Reservation ID" &&
+      typeof attribute.value === "string" &&
+      attribute.value.trim()
+  );
+
+  if (sixersTier && !hasSixersReservationId) {
+    await recordSixersPaymentReview({
+      shop,
+      payload,
+      reason: "Missing Sixers Reservation ID",
+    });
+
+    console.error(
+      "SIXERS PAYMENT REQUIRES MANUAL REVIEW:",
+      payload.name,
+      "Missing Sixers Reservation ID."
+    );
+    return new Response();
+  }
+
   // SIXERS TICKET SALE — CREDIT PAYMENT
   // No IDA tickets or QR codes are generated.
   // ======================================
@@ -56,6 +98,32 @@ export const action = async ({ request }) => {
     .find((attribute) =>
       attribute.name === "Sixers Reservation ID"
     )?.value?.trim();
+
+      // Sixers check payments are handled separately.
+  // Never send a check order through the credit-card
+  // confirmation workflow or regular IDA ticket generation.
+  const hasSixersCheckVariant = paidVariantIds.some(
+    (variantId) =>
+      variantId === sixersTier?.fwCheckVariantId ||
+      variantId === sixersTier?.pmCheckVariantId
+  );
+
+  if (hasSixersCheckVariant) {
+    await recordSixersPaymentReview({
+      shop,
+      payload,
+      reservationId: sixersReservationId || null,
+      reason:
+        "Sixers check order paid in Shopify; manual reconciliation required",
+    });
+
+    console.warn(
+      "Sixers check payment requires reconciliation:",
+      payload.name
+    );
+
+    return new Response();
+  }
 
   if (sixersReservationId) {
     const account =
@@ -85,11 +153,18 @@ export const action = async ({ request }) => {
       !reservation ||
       !reservation.ticketTier ||
       reservation.ticketTier.event.type !== "TICKET_SALE" ||
-      reservation.eventLocation.studioCode !== account ||
+      reservation.eventLocation?.studioCode !== account ||
       reservation.ticketTier.eventId !==
         reservation.eventLocation.eventId ||
       reservation.paymentMethod !== "CREDIT_CARD"
     ) {
+      await recordSixersPaymentReview({
+        shop,
+        payload,
+        reservationId: reservation?.id || null,
+        reason: `Invalid Sixers reservation: ${sixersReservationId}`,
+      });
+
       console.error("Invalid Sixers reservation:", sixersReservationId);
       return new Response();
     }
@@ -111,6 +186,13 @@ export const action = async ({ request }) => {
       matchingItems.length !== 1 ||
       Number(matchingItems[0].quantity) !== reservation.quantity
     ) {
+      await recordSixersPaymentReview({
+        shop,
+        payload,
+        reservationId: reservation.id,
+        reason: "Sixers ticket tier, Shopify variant, or quantity mismatch",
+      });
+
       console.error("Sixers Shopify item mismatch:", payload.name);
       return new Response();
     }
@@ -132,6 +214,13 @@ export const action = async ({ request }) => {
       orderItems.length !== 1 ||
       payload.currency !== "USD"
     ) {
+      await recordSixersPaymentReview({
+        shop,
+        payload,
+        reservationId: reservation.id,
+        reason: `Payment or order contents mismatch: expected ${expectedCents} cents, received ${paidCents} cents`,
+      });
+
       console.error(
         "Sixers payment amount or order contents mismatch:",
         payload.name,
@@ -141,23 +230,62 @@ export const action = async ({ request }) => {
     }
 
     if (reservation.status === "CONFIRMED") {
+      if (reservation.shopifyOrderId !== String(payload.id)) {
+        await recordSixersPaymentReview({
+          shop,
+          payload,
+          reservationId: reservation.id,
+          reason: "Reservation already confirmed by a different Shopify order",
+        });
+
+        console.error(
+          "SIXERS PAYMENT REQUIRES MANUAL REVIEW:",
+          payload.name,
+          "Reservation already confirmed by a different Shopify order.",
+          reservation.id
+        );
+        return new Response();
+      }
+
       console.log("Sixers reservation already confirmed:", reservation.id);
       return new Response();
     }
 
     if (reservation.status !== "PENDING") {
+      await recordSixersPaymentReview({
+        shop,
+        payload,
+        reservationId: reservation.id,
+        reason: `Sixers reservation has unexpected status: ${reservation.status}`,
+      });
+
       console.error("Sixers reservation not pending:", reservation.id);
       return new Response();
     }
 
-    await prisma.eventReservation.update({
-      where: { id: reservation.id },
+    const confirmation = await prisma.eventReservation.updateMany({
+      where: {
+        id: reservation.id,
+        status: "PENDING",
+      },
       data: {
         status: "CONFIRMED",
         shopifyOrderId: String(payload.id),
         shopifyOrderNumber: payload.name,
       },
     });
+
+    if (confirmation.count !== 1) {
+      await recordSixersPaymentReview({
+        shop,
+        payload,
+        reservationId: reservation.id,
+        reason: "Reservation changed status during payment confirmation",
+      });
+
+      console.error("Sixers concurrent confirmation conflict:", reservation.id);
+      return new Response();
+    }
 
     console.log(
       "Sixers reservation confirmed:",
