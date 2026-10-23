@@ -47,7 +47,7 @@ description: event.description,
 imageUrl: event.imageUrl,
 date: event.date,
 
-    eventType: event.eventType,
+    eventType: event.type,
 
     creditCardEnabled: event.creditCardEnabled,
     checkEnabled: event.checkEnabled,
