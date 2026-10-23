@@ -44,8 +44,34 @@ export async function createSixersDraftOrder(
     throw new Error("Missing valid checkout request ID.");
   }
 
-   // SAFETY: Sixers check checkout remains disabled during development.
+   // SAFETY: Sixers check checkout is disabled by default.
+// A server-side setting is required before any draft order can be created.
+if (process.env.SIXERS_CHECK_CHECKOUT_ENABLED !== "true") {
   throw new Error("Sixers check checkout is not available yet.");
+}
+
+if (
+  process.env.SIXERS_CHECK_TEST_MODE !== "false" &&
+  (
+    order.account !== "FW" ||
+    email.toLowerCase() !==
+      String(process.env.SIXERS_TEST_EMAIL || "").trim().toLowerCase()
+  )
+) {
+  throw new Error("Sixers checkout is currently restricted to testing.");
+}
+
+if (process.env.SIXERS_CHECK_TEST_MODE !== "false") {
+  const expectedToken = process.env.SIXERS_TEST_TOKEN;
+
+  if (
+    !expectedToken ||
+    expectedToken.length < 32 ||
+    order.testToken !== expectedToken
+  ) {
+    throw new Error("Sixers test checkout is not authorized.");
+  }
+}
 
   // Reserve tickets using a shared inventory lock.
   const reservation = await prisma.$transaction(
@@ -184,10 +210,11 @@ export async function createSixersDraftOrder(
         mutation DraftOrderCreate($input: DraftOrderInput!) {
           draftOrderCreate(input: $input) {
             draftOrder {
-              id
-              name
-              invoiceUrl
-            }
+  id
+  name
+  invoiceUrl
+  totalPrice
+}
             userErrors {
               field
               message
@@ -276,6 +303,23 @@ export async function createSixersDraftOrder(
 
     if (!shopifyResult.draftOrder?.id) {
       throw new Error("Shopify did not create the draft order.");
+    }
+
+        const shopifyTotal = Number(
+      shopifyResult.draftOrder.totalPrice,
+    );
+
+    const expectedTotal = Number(reservation.totalAmount);
+
+    if (
+      !Number.isFinite(shopifyTotal) ||
+      !Number.isFinite(expectedTotal) ||
+      Math.round(shopifyTotal * 100) !==
+        Math.round(expectedTotal * 100)
+    ) {
+      throw new Error(
+        `Sixers draft order total mismatch. Expected ${expectedTotal}, Shopify returned ${shopifyResult.draftOrder.totalPrice}.`,
+      );
     }
 
     createdDraftOrder = shopifyResult.draftOrder;
