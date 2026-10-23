@@ -221,7 +221,7 @@ export const action = async ({ request, params }) => {
     for (const field of fields) {
       const value = String(formData.get(field) || "").trim();
 
-      if (value && !/^\\d+$/.test(value)) {
+      if (value && !/^\d+$/.test(value)) {
         throw new Response(
           "Shopify variant IDs must contain only numbers.",
           { status: 400 },
