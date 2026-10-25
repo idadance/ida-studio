@@ -155,11 +155,11 @@ if (selectedTeacherCapacity?.full) {
       },
     });
 
-  if (!genreRecord) {
-    throw new Error(
-      "Selected genre was not found.",
-    );
-  }
+ if (!genreRecord || !genreRecord.active) {
+  throw new Error(
+    "This genre is no longer available for registration. Please select another genre.",
+  );
+}
 
   // ======================================
   // CREATE REGISTRATION
