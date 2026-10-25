@@ -836,3 +836,90 @@ Generations Dance Concert`,
     `📧 Generations ticket confirmation sent to ${order.email}`,
   );
 }
+
+export async function sendSixersCheckReservationConfirmation({
+  order,
+  tierName,
+  quantity,
+  totalAmount,
+  draftOrderName,
+}: {
+  order: any;
+  tierName: string;
+  quantity: number;
+  totalAmount: number;
+  draftOrderName: string;
+}) {
+  setupSendGrid();
+
+  const isFW = order.account === "FW";
+  const fromEmail = isFW
+    ? "fwstudio@idadancer.com"
+    : "pmstudio@idadancer.com";
+  const studioName = isFW
+    ? "IDA Fort Washington"
+    : "IDA Plymouth Meeting";
+
+  const details = [
+    `Reservation Number: ${draftOrderName}`,
+    `Event: Philadelphia 76ers Game`,
+    `Ticket Type: ${tierName}`,
+    `Quantity: ${quantity}`,
+    `Studio: ${studioName}`,
+    `Payment Method: Check`,
+    `Amount Due: $${totalAmount.toFixed(2)}`,
+  ];
+
+  const message = `Hi ${order.firstName},
+
+Thank you for reserving your Philadelphia 76ers tickets!
+
+${details.join("\n")}
+
+Your reservation has been received. Payment by check is pending.
+
+Please drop off your check at the studio or mail it to:
+
+Institute of Dance Artistry
+PO Box 114
+Fort Washington, PA 19034
+
+IMPORTANT: Game tickets will be delivered separately through Ticketmaster. No game tickets or QR codes are issued by IDA at checkout.
+
+Thank you!
+${studioName}`;
+
+  await sgMail.send({
+    to: order.email,
+    from: {
+      email: fromEmail,
+      name: studioName,
+    },
+    replyTo: fromEmail,
+    subject: `IDA – Philadelphia 76ers Reservation ${draftOrderName}`,
+    text: message,
+    html: `<div style="font-family:Arial,sans-serif;line-height:1.6">
+      <p>Hi ${escapeSixersEmailHtml(String(order.firstName || ""))},</p>
+      <p>Thank you for reserving your <strong>Philadelphia 76ers tickets!</strong></p>
+      <p>${details.map((line) => escapeSixersEmailHtml(line)).join("<br>")}</p>
+      <p>Your reservation has been received. <strong>Payment by check is pending.</strong></p>
+      <p>Please drop off your check at the studio or mail it to:</p>
+      <p><strong>Institute of Dance Artistry</strong><br>PO Box 114<br>Fort Washington, PA 19034</p>
+      <p><strong>Important:</strong> Game tickets will be delivered separately through Ticketmaster. No game tickets or QR codes are issued by IDA at checkout.</p>
+      <p>Thank you!<br>${studioName}</p>
+    </div>`,
+  });
+}
+
+function escapeSixersEmailHtml(value: string) {
+  return value.replace(/[&<>"']/g, (character) => {
+    const replacements: Record<string, string> = {
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;",
+    };
+    return replacements[character];
+  });
+}

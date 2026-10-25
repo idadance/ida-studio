@@ -1,5 +1,6 @@
 import prisma from "../db.server";
 import type { Prisma } from "@prisma/client";
+import { sendSixersCheckReservationConfirmation } from "./email.server";
 
 export async function createSixersDraftOrder(
   admin: any,
@@ -322,6 +323,30 @@ if (process.env.SIXERS_CHECK_CHECKOUT_ENABLED !== "true") {
 
     throw new Error(
       "We could not verify your check reservation. Please contact IDA before trying again.",
+    );
+  }
+
+    try {
+    await sendSixersCheckReservationConfirmation({
+      order: {
+        ...order,
+        firstName,
+        lastName,
+        email,
+      },
+      tierName: tierForShopify.name,
+      quantity,
+      totalAmount: Number(reservation.totalAmount),
+      draftOrderName: createdDraftOrder.name,
+    });
+
+    console.log(
+      `Sixers confirmation email sent for ${reservation.id}`,
+    );
+  } catch (emailError) {
+    console.error(
+      `Sixers confirmation email failed for ${reservation.id}:`,
+      emailError,
     );
   }
 
