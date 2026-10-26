@@ -1,6 +1,5 @@
 import prisma from "../db.server";
 
-import { getSixersFamilyEmails } from "../services/sixersFamilyLimit.server";
 
 export async function action({ request }) {
   if (request.method !== "POST") {
@@ -47,7 +46,7 @@ export async function action({ request }) {
         if (
       !Number.isSafeInteger(ticketQuantity) ||
       ticketQuantity < 1 ||
-      ticketQuantity > 20
+      ticketQuantity > 2
     ) {
       return Response.json(
         { error: "Please select a valid ticket quantity." },
@@ -141,22 +140,7 @@ export async function action({ request }) {
       });
     }
 
-    const ticketTierForFamily = await prisma.eventTicketTier.findUnique({
-  where: { id: ticketTierId },
-  include: { event: true },
-});
-
-if (!ticketTierForFamily) {
-  throw new Error("Ticket price level not found.");
-}
-
-const familyEmails =
-  ticketTierForFamily.event.maxTicketsPerFamily != null
-    ? await getSixersFamilyEmails(
-        ticketTierForFamily.event.rosterSheetGid,
-        email,
-      )
-    : [];
+   
 
     const result = await prisma.$transaction(async (tx) => {
       const lockedTiers = await tx.$queryRaw`
@@ -192,50 +176,6 @@ const familyEmails =
       if (!tier.event.creditCardEnabled) {
         throw new Error("Credit card payment is unavailable.");
       }
-
-      if (tier.event.maxTicketsPerFamily != null) {
-  const lockedEvents = await tx.$queryRaw`
-    SELECT "id"
-    FROM "Event"
-    WHERE "id" = ${tier.eventId}
-    FOR UPDATE
-  `;
-
-  if (lockedEvents.length !== 1) {
-    throw new Error("Ticket sale event not found.");
-  }
-}
-if (tier.event.maxTicketsPerFamily != null) {
-  const familyReservations = await tx.eventReservation.aggregate({
-    where: {
-      ticketTier: {
-        eventId: tier.eventId,
-      },
-      customerEmail: {
-        in: familyEmails,
-        mode: "insensitive",
-      },
-      status: {
-        in: ["PENDING", "CONFIRMED"],
-      },
-    },
-    _sum: {
-      quantity: true,
-    },
-  });
-
-  const alreadyReserved = familyReservations._sum.quantity || 0;
-  const familyRemaining =
-    tier.event.maxTicketsPerFamily - alreadyReserved;
-
-  if (ticketQuantity > familyRemaining) {
-    throw new Error(
-      familyRemaining <= 0
-        ? "Your family has already reached the ticket limit for this event."
-        : `Your family can reserve only ${familyRemaining} more ticket(s) for this event.`,
-    );
-  }
-}
 
       const location = tier.event.locations.find(
         (item) => item.studioCode === account,
