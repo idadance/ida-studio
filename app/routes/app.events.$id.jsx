@@ -50,6 +50,40 @@ export const action = async ({ request, params }) => {
   const { admin, session } = await authenticate.admin(request);
 
   const formData = await request.formData();
+    if (intent === "updateFamilyTicketLimit") {
+    const rawLimit = String(
+      formData.get("maxTicketsPerFamily") ?? "",
+    ).trim();
+
+    const event = await getEvent(params.id);
+
+    if (!event || event.type !== "TICKET_SALE") {
+      throw new Response("Invalid ticket sale event.", {
+        status: 400,
+      });
+    }
+
+    if (
+      rawLimit !== "" &&
+      (!/^[1-9]\d*$/.test(rawLimit) ||
+        !Number.isSafeInteger(Number(rawLimit)))
+    ) {
+      throw new Response(
+        "Ticket limit must be a positive whole number.",
+        { status: 400 },
+      );
+    }
+
+    await updateEvent(params.id, {
+      maxTicketsPerFamily:
+        rawLimit === "" ? null : Number(rawLimit),
+    });
+
+    return {
+      success: true,
+      intent: "updateFamilyTicketLimit",
+    };
+  }
   const intent = formData.get("intent");
     if (intent === "updateRosterSheet") {
     const rosterSheetGid = String(
@@ -643,6 +677,53 @@ export default function ManageEventPage() {
                   disabled={isSubmitting}
                 >
                   Save Roster Sheet
+                </button>
+              </Form>
+            </div>
+          )}
+                    {event.type === "TICKET_SALE" && (
+            <div>
+              <strong>Maximum Tickets Per Family</strong>
+
+              <p>
+                Limit the total number of tickets a family
+                can reserve across all price levels and
+                payment methods. Leave blank for no limit.
+              </p>
+
+              <Form
+                method="post"
+                style={{
+                  display: "flex",
+                  gap: "10px",
+                  alignItems: "center",
+                  flexWrap: "wrap",
+                }}
+              >
+                <input
+                  type="hidden"
+                  name="intent"
+                  value="updateFamilyTicketLimit"
+                />
+
+                <input
+                  type="number"
+                  name="maxTicketsPerFamily"
+                  min="1"
+                  step="1"
+                  defaultValue={event.maxTicketsPerFamily ?? ""}
+                  placeholder="No limit"
+                  style={{
+                    padding: "10px",
+                    minWidth: "220px",
+                  }}
+                />
+
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                >
+                  Save Ticket Limit
                 </button>
               </Form>
             </div>

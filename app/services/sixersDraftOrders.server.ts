@@ -1,6 +1,7 @@
 import prisma from "../db.server";
 import type { Prisma } from "@prisma/client";
 import { sendSixersCheckReservationConfirmation } from "./email.server";
+import { getSixersFamilyEmails } from "./sixersFamilyLimit.server";
 
 export async function createSixersDraftOrder(
   admin: any,
@@ -50,6 +51,23 @@ export async function createSixersDraftOrder(
 if (process.env.SIXERS_CHECK_CHECKOUT_ENABLED !== "true") {
   throw new Error("Sixers check checkout is not available yet.");
 }
+
+const ticketTierForFamily = await prisma.eventTicketTier.findUnique({
+  where: { id: order.ticketTierId },
+  include: { event: true },
+});
+
+if (!ticketTierForFamily) {
+  throw new Error("Ticket price level not found.");
+}
+
+const familyEmails =
+  ticketTierForFamily.event.maxTicketsPerFamily != null
+    ? await getSixersFamilyEmails(
+        ticketTierForFamily.event.rosterSheetGid,
+        email,
+      )
+    : [];
 
   // Reserve tickets using a shared inventory lock.
   const reservation = await prisma.$transaction(
@@ -105,6 +123,52 @@ if (process.env.SIXERS_CHECK_CHECKOUT_ENABLED !== "true") {
           "This ticket sale is not available for check payment.",
         );
       }
+
+      if (tier.event.maxTicketsPerFamily != null) {
+  const lockedEvents = await tx.$queryRaw<{ id: string }[]>`
+    SELECT "id"
+    FROM "Event"
+    WHERE "id" = ${tier.eventId}
+    FOR UPDATE
+  `;
+
+  if (lockedEvents.length !== 1) {
+    throw new Error("Ticket sale event not found.");
+  }
+}
+
+if (tier.event.maxTicketsPerFamily != null) {
+  const familyReservations = await tx.eventReservation.aggregate({
+    where: {
+      ticketTier: {
+        eventId: tier.eventId,
+      },
+      customerEmail: {
+        in: familyEmails,
+        mode: "insensitive",
+      },
+      status: {
+        in: ["PENDING", "CONFIRMED"],
+      },
+    },
+    _sum: {
+      quantity: true,
+    },
+  });
+
+  const alreadyReserved = familyReservations._sum.quantity || 0;
+
+  const familyRemaining =
+    tier.event.maxTicketsPerFamily - alreadyReserved;
+
+  if (quantity > familyRemaining) {
+    throw new Error(
+      familyRemaining <= 0
+        ? "Your family has already reached the ticket limit for this event."
+        : `Your family can reserve only ${familyRemaining} more ticket(s) for this event.`,
+    );
+  }
+}
 
       const location = tier.event.locations.find(
         (item: { studioCode: string }) => item.studioCode === order.account,
@@ -358,3 +422,4 @@ if (process.env.SIXERS_CHECK_CHECKOUT_ENABLED !== "true") {
     invoiceUrl: createdDraftOrder.invoiceUrl,
   };
 }
+

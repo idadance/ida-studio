@@ -505,6 +505,7 @@ model Event {
   checkEnabled      Boolean @default(true)
 
   rosterSheetGid String?
+ maxTicketsPerFamily Int?
 
   locations EventLocation[]
 

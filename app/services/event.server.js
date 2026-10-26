@@ -123,6 +123,9 @@ export async function updateEvent(id, data) {
             ...(data.rosterSheetGid !== undefined && {
         rosterSheetGid: data.rosterSheetGid || null,
       }),
+      ...(data.maxTicketsPerFamily !== undefined && {
+  maxTicketsPerFamily: data.maxTicketsPerFamily,
+}),
     },
   });
 }
