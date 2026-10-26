@@ -869,11 +869,12 @@ const [editingOrderId, setEditingOrderId] =
       ? "Fort Washington"
       : "Plymouth Meeting";
 
-      const selectedEventLocation =
-  selectedEvent?.locations?.find(
-    (location) =>
-      location.studioCode === account,
-  ) ?? null;
+      const selectedEventLocations =
+  [...(selectedEvent?.locations ?? [])].sort(
+    (a, b) =>
+      (a.studioCode === "FW" ? 0 : 1) -
+      (b.studioCode === "FW" ? 0 : 1),
+  );
 
   return (
 <s-page heading="Ticket / Event Sales">
@@ -1052,8 +1053,9 @@ const [editingOrderId, setEditingOrderId] =
 >
   {selectedEvent.name}
     </p>
-    {selectedEventLocation && (
+   {selectedEventLocations.map((selectedEventLocation) => (
   <div
+    key={selectedEventLocation.id}
     style={{
       marginTop: "20px",
     }}
@@ -1169,13 +1171,12 @@ const [editingOrderId, setEditingOrderId] =
         </div>
       ),
     )}
+          </div>
+    )}
   </div>
-)}
-  </div>
-)}
- </div>
-)}
+))}
 </div>
+)}
 
 {!selectedEvent && (
   <>
@@ -2405,8 +2406,9 @@ const belongsToCurrentStudio =
 )}
 </div>
 )}
-  </>
+    </>
 )}
+</div>
 </s-section>
 </s-page>
 );
