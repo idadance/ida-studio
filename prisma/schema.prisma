@@ -501,8 +501,10 @@ model Event {
 
   type EventType @default(STANDARD)
 
-  creditCardEnabled Boolean @default(true)
+    creditCardEnabled Boolean @default(true)
   checkEnabled      Boolean @default(true)
+
+  rosterSheetGid String?
 
   locations EventLocation[]
 

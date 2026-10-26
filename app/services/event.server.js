@@ -119,6 +119,10 @@ export async function updateEvent(id, data) {
       ...(data.checkEnabled !== undefined && {
         checkEnabled: data.checkEnabled,
       }),
+
+            ...(data.rosterSheetGid !== undefined && {
+        rosterSheetGid: data.rosterSheetGid || null,
+      }),
     },
   });
 }

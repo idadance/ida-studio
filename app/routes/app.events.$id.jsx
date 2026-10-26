@@ -51,6 +51,35 @@ export const action = async ({ request, params }) => {
 
   const formData = await request.formData();
   const intent = formData.get("intent");
+    if (intent === "updateRosterSheet") {
+    const rosterSheetGid = String(
+      formData.get("rosterSheetGid") || "",
+    ).trim();
+
+    const event = await getEvent(params.id);
+
+    if (!event || event.type !== "TICKET_SALE") {
+      throw new Response("Invalid ticket sale event.", {
+        status: 400,
+      });
+    }
+
+    if (rosterSheetGid && !/^\d+$/.test(rosterSheetGid)) {
+      throw new Response(
+        "Google Sheet tab ID must contain only numbers.",
+        { status: 400 },
+      );
+    }
+
+    await updateEvent(params.id, {
+      rosterSheetGid,
+    });
+
+    return {
+      success: true,
+      intent: "updateRosterSheet",
+    };
+  }
 
     if (intent === "reconcileSixersPaidCheck") {
     const { default: prisma } = await import("../db.server");
@@ -566,13 +595,58 @@ export default function ManageEventPage() {
         </s-link>
       </div>
 
-      <s-section>
+            <s-section>
         <div
           style={{
             display: "grid",
             gap: "18px",
           }}
         >
+          {event.type === "TICKET_SALE" && (
+            <div>
+              <strong>Google Sheet Roster</strong>
+
+              <p>
+                Enter the tab ID (gid) from your dancer
+                roster in the master Google Sheet.
+              </p>
+
+              <Form
+                method="post"
+                style={{
+                  display: "flex",
+                  gap: "10px",
+                  alignItems: "center",
+                  flexWrap: "wrap",
+                }}
+              >
+                <input
+                  type="hidden"
+                  name="intent"
+                  value="updateRosterSheet"
+                />
+
+                <input
+                  type="text"
+                  name="rosterSheetGid"
+                  defaultValue={event.rosterSheetGid || ""}
+                  placeholder="Google Sheet tab ID"
+                  inputMode="numeric"
+                  style={{
+                    padding: "10px",
+                    minWidth: "220px",
+                  }}
+                />
+
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                >
+                  Save Roster Sheet
+                </button>
+              </Form>
+            </div>
+          )}
           <div>
             <strong>Status:</strong> {event.status}
           </div>
