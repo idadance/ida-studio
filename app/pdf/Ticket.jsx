@@ -156,6 +156,21 @@ export default function Ticket({
       )
     : ticket.show.name}
 </Text>
+{isGenerations && (
+  <Text
+    style={{
+      fontSize: 25,
+      color: "#555555",
+      textAlign: "center",
+      lineHeight: 1.4,
+      marginTop: -25,
+    }}
+  >
+    West Chester University{"\n"}
+    Emilie K. Asplundh Concert Hall{"\n"}
+    700 S. High Street · West Chester, PA 19383
+  </Text>
+)}
 
         </View>
 
