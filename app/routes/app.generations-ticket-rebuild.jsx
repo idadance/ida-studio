@@ -65,19 +65,14 @@ export const action = async ({ request }) => {
   const formData =
     await request.formData();
 
-  const reservationId =
-    String(
-      formData.get("reservationId") ||
-        "",
-    );
+  const intent = String(
+    formData.get("intent") || "",
+  );
 
   const confirmed =
     formData.get("confirmed");
 
-  if (
-    !reservationId ||
-    confirmed !== "yes"
-  ) {
+  if (confirmed !== "yes") {
     throw new Response(
       "Ticket rebuild was not confirmed.",
       {
@@ -86,40 +81,139 @@ export const action = async ({ request }) => {
     );
   }
 
-  const reservation =
-    await prisma.reservation.findFirst({
-      where: {
-        id: reservationId,
-        status: "CONFIRMED",
+  // ======================================
+  // REBUILD ONE RESERVATION
+  // ======================================
 
-        performance: {
-          organization: "GENERATIONS",
+  if (intent === "rebuild-one") {
+    const reservationId =
+      String(
+        formData.get(
+          "reservationId",
+        ) || "",
+      );
+
+    if (!reservationId) {
+      throw new Response(
+        "Reservation ID is required.",
+        {
+          status: 400,
         },
-      },
+      );
+    }
 
-      select: {
-        id: true,
-      },
-    });
+    const reservation =
+      await prisma.reservation.findFirst({
+        where: {
+          id: reservationId,
+          status: "CONFIRMED",
 
-  if (!reservation) {
-    throw new Response(
-      "Confirmed Generations reservation not found.",
-      {
-        status: 404,
-      },
+          performance: {
+            organization:
+              "GENERATIONS",
+          },
+        },
+
+        select: {
+          id: true,
+        },
+      });
+
+    if (!reservation) {
+      throw new Response(
+        "Confirmed Generations reservation not found.",
+        {
+          status: 404,
+        },
+      );
+    }
+
+    await rebuildReservationTicketAssets(
+      reservation.id,
     );
+
+    return {
+      success: true,
+      rebuilt: 1,
+    };
   }
 
-  await rebuildReservationTicketAssets(
-    reservation.id,
-  );
+  // ======================================
+  // REBUILD ALL GENERATIONS RESERVATIONS
+  // ======================================
 
-  return {
-    success: true,
-    reservationId:
-      reservation.id,
-  };
+  if (intent === "rebuild-all") {
+    const reservations =
+      await prisma.reservation.findMany({
+        where: {
+          status: "CONFIRMED",
+
+          driveFolderId: {
+            not: null,
+          },
+
+          performance: {
+            organization:
+              "GENERATIONS",
+          },
+        },
+
+        select: {
+          id: true,
+          driveFolderId: true,
+        },
+
+        orderBy: {
+          createdAt: "asc",
+        },
+      });
+
+    // One rebuild per customer Drive folder.
+    //
+    // rebuildReservationTicketAssets()
+    // already finds every confirmed
+    // reservation sharing that folder, so
+    // rebuilding the same folder twice
+    // would be unnecessary.
+    const uniqueFolders =
+      new Map();
+
+    for (const reservation of reservations) {
+      if (
+        reservation.driveFolderId &&
+        !uniqueFolders.has(
+          reservation.driveFolderId,
+        )
+      ) {
+        uniqueFolders.set(
+          reservation.driveFolderId,
+          reservation.id,
+        );
+      }
+    }
+
+    let rebuiltFolders = 0;
+
+    for (const reservationId of uniqueFolders.values()) {
+      await rebuildReservationTicketAssets(
+        reservationId,
+      );
+
+      rebuiltFolders += 1;
+    }
+
+    return {
+      success: true,
+      rebuiltFolders,
+    };
+  }
+
+  throw new Response(
+    "Unknown Generations ticket rebuild action.",
+    {
+      status: 400,
+    },
+  );
 };
 
 export default function GenerationsTicketRebuildPage() {
@@ -133,13 +227,23 @@ export default function GenerationsTicketRebuildPage() {
     navigation.state ===
     "submitting";
 
+  const submittingIntent =
+    navigation.formData?.get(
+      "intent",
+    );
+
+  const rebuildingAll =
+    isSubmitting &&
+    submittingIntent ===
+      "rebuild-all";
+
   return (
     <s-page heading="Generations Ticket PDF Rebuild">
       <s-section>
         <div
           style={{
             display: "grid",
-            gap: "16px",
+            gap: "20px",
           }}
         >
           <div>
@@ -149,7 +253,73 @@ export default function GenerationsTicketRebuildPage() {
             {reservations.length}
           </div>
 
-          {reservations.length === 0 ? (
+          {reservations.length >
+            0 && (
+            <div
+              style={{
+                border:
+                  "2px solid #222",
+                borderRadius:
+                  "12px",
+                padding: "18px",
+              }}
+            >
+              <div
+                style={{
+                  fontWeight:
+                    "bold",
+                  marginBottom:
+                    "8px",
+                }}
+              >
+                Rebuild All Generations Ticket PDFs
+              </div>
+
+              <div
+                style={{
+                  marginBottom:
+                    "14px",
+                  lineHeight:
+                    "1.5",
+                }}
+              >
+                This replaces the
+                existing ticket PDFs
+                in each customer Drive
+                folder using the
+                existing ticket records
+                and QR codes.
+              </div>
+
+              <Form method="post">
+                <input
+                  type="hidden"
+                  name="intent"
+                  value="rebuild-all"
+                />
+
+                <input
+                  type="hidden"
+                  name="confirmed"
+                  value="yes"
+                />
+
+                <button
+                  type="submit"
+                  disabled={
+                    isSubmitting
+                  }
+                >
+                  {rebuildingAll
+                    ? "Rebuilding All Ticket PDFs..."
+                    : "Rebuild All Generations Ticket PDFs"}
+                </button>
+              </Form>
+            </div>
+          )}
+
+          {reservations.length ===
+          0 ? (
             <div>
               No confirmed Generations
               reservations found.
@@ -159,11 +329,23 @@ export default function GenerationsTicketRebuildPage() {
               (reservation) => {
                 const ticketCount =
                   reservation.ticketOrders.reduce(
-                    (total, order) =>
+                    (
+                      total,
+                      order,
+                    ) =>
                       total +
                       order.quantity,
                     0,
                   );
+
+                const rebuildingThis =
+                  isSubmitting &&
+                  submittingIntent ===
+                    "rebuild-one" &&
+                  navigation.formData?.get(
+                    "reservationId",
+                  ) ===
+                    reservation.id;
 
                 return (
                   <div
@@ -221,6 +403,12 @@ export default function GenerationsTicketRebuildPage() {
                       <Form method="post">
                         <input
                           type="hidden"
+                          name="intent"
+                          value="rebuild-one"
+                        />
+
+                        <input
+                          type="hidden"
                           name="reservationId"
                           value={
                             reservation.id
@@ -240,7 +428,7 @@ export default function GenerationsTicketRebuildPage() {
                             !reservation.driveFolderId
                           }
                         >
-                          {isSubmitting
+                          {rebuildingThis
                             ? "Rebuilding..."
                             : "Rebuild Ticket PDFs"}
                         </button>
