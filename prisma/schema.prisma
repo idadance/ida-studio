@@ -611,6 +611,8 @@ enum SixersAdjustmentStatus {
   PENDING
   CREATING
   INVOICED
+  SENDING
+  SENT
   PAID
   CANCELED
 }
@@ -634,6 +636,8 @@ model SixersReservationAdjustment {
   shopifyDraftOrderId String? @unique
   shopifyOrderId String? @unique
   shopifyOrderNumber String?
+
+    resultingReservationId String? @unique
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

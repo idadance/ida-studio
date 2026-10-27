@@ -3,11 +3,14 @@ import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 
 export const loader = async ({ request }) => {
-  await authenticate.admin(request);
+  const { session } = await authenticate.admin(request);
 
   const reviews = await prisma.sixersPaymentReview.findMany({
-    orderBy: { createdAt: "desc" },
-  });
+  where: {
+    shop: session.shop,
+  },
+  orderBy: { createdAt: "desc" },
+});
 
   return { reviews };
 };

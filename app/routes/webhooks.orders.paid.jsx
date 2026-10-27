@@ -1,6 +1,7 @@
-import { authenticate } from "../shopify.server";
+import { authenticate, unauthenticated } from "../shopify.server";
 import { findShowByVariantId } from "../services/showLookup.server";
 import { recordSixersPaymentReview } from "../services/sixersPaymentReview.server";
+import { processSixersAdjustmentPayment } from "../services/sixersAdjustmentPayments.server";
 import { findEventLocationByVariantId } from "../services/eventLookup.server";
 import {
   createReservation,
@@ -42,6 +43,86 @@ export const action = async ({ request }) => {
   // Use that ID to update the exact
   // registration that was already created.
   // ======================================
+
+  // ======================================
+  // SIXERS ADJUSTMENT INVOICE PAYMENTS
+  // ======================================
+
+  const adjustmentTags =
+    typeof payload.tags === "string"
+      ? payload.tags.split(",").map((tag) => tag.trim())
+      : [];
+
+  const adjustmentTag = adjustmentTags.find((tag) =>
+    tag.startsWith("SIXERS_ADJ:")
+  );
+
+  if (adjustmentTag) {
+    const adjustmentId = adjustmentTag.slice(
+      "SIXERS_ADJ:".length
+    );
+
+        try {
+      const { admin } = await unauthenticated.admin(shop);
+
+      const result = await processSixersAdjustmentPayment({
+        shop,
+        payload,
+        adjustmentId,
+        admin,
+      });
+
+      console.log(
+        "Sixers adjustment payment verification:",
+        result
+      );
+           } catch (error) {
+      const reason =
+        error instanceof Error
+          ? error.message
+          : String(error);
+
+      console.error(
+        "SIXERS ADJUSTMENT REQUIRES MANUAL REVIEW:",
+        {
+          shop,
+          orderId: payload.id,
+          orderName: payload.name,
+          adjustmentId,
+          reason,
+        }
+      );
+
+      try {
+        const adjustment =
+  await prisma.sixersReservationAdjustment.findUnique({
+    where: { id: adjustmentId },
+    select: { reservationId: true },
+  });
+
+await recordSixersPaymentReview({
+  shop,
+  payload,
+  reservationId: adjustment?.reservationId ?? null,
+  reason: `Sixers adjustment ${adjustmentId}: ${reason}`,
+});
+      } catch (reviewError) {
+        console.error(
+          "Could not save Sixers adjustment payment review:",
+          reviewError
+        );
+      }
+
+      return new Response(
+        "Sixers adjustment payment requires review",
+        { status: 500 }
+      );
+    }
+
+    // Never process adjustment invoices as ordinary
+    // Sixers sales or Black Box ticket purchases.
+    return new Response();
+  }
 
   const noteAttributes =
     Array.isArray(payload.note_attributes)

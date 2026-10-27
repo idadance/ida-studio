@@ -213,7 +213,7 @@ export async function action({ request }) {
     where: {
       newTicketTierId: tier.id,
       status: {
-        in: ["PENDING", "INVOICED"],
+        in: ["PENDING", "CREATING", "INVOICED", "SENDING", "SENT"],
       },
     },
     _sum: {

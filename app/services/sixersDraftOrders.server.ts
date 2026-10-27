@@ -142,7 +142,7 @@ if (process.env.SIXERS_CHECK_CHECKOUT_ENABLED !== "true") {
     where: {
       newTicketTierId: tier.id,
       status: {
-        in: ["PENDING", "INVOICED"],
+        in: ["PENDING", "CREATING", "INVOICED", "SENDING", "SENT"],
       },
     },
     _sum: {
