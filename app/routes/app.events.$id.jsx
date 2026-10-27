@@ -50,6 +50,7 @@ export const action = async ({ request, params }) => {
   const { admin, session } = await authenticate.admin(request);
 
   const formData = await request.formData();
+  const intent = formData.get("intent");
     if (intent === "updateFamilyTicketLimit") {
     const rawLimit = String(
       formData.get("maxTicketsPerFamily") ?? "",
@@ -84,7 +85,6 @@ export const action = async ({ request, params }) => {
       intent: "updateFamilyTicketLimit",
     };
   }
-  const intent = formData.get("intent");
     if (intent === "updateRosterSheet") {
     const rosterSheetGid = String(
       formData.get("rosterSheetGid") || "",
@@ -248,6 +248,108 @@ export const action = async ({ request, params }) => {
     });
 
     return { success: true, intent: "receiveSixersCheck" };
+  }
+
+    if (intent === "cancelUnpaidSixersCheckout") {
+    const { default: prisma } = await import("../db.server");
+
+    const reservationId = String(
+      formData.get("reservationId") || ""
+    ).trim();
+
+    const verifiedUnpaid =
+      formData.get("verifiedUnpaid") === "yes";
+
+    if (!reservationId || !verifiedUnpaid) {
+      throw new Response(
+        "Confirm that the reservation is unpaid before canceling.",
+        { status: 400 }
+      );
+    }
+
+    const account =
+      session.shop === "ida-dance-store.myshopify.com"
+        ? "FW"
+        : session.shop === "ida-dance-store-pm.myshopify.com"
+          ? "PM"
+          : null;
+
+    if (!account) {
+      throw new Response("Unrecognized Shopify store.", {
+        status: 403,
+      });
+    }
+
+    const reservation = await prisma.eventReservation.findUnique({
+      where: { id: reservationId },
+      include: {
+        eventLocation: true,
+        ticketTier: { include: { event: true } },
+      },
+    });
+
+    if (
+      !reservation ||
+      reservation.eventLocation?.eventId !== params.id ||
+      reservation.eventLocation?.studioCode !== account ||
+      reservation.ticketTier?.event.type !== "TICKET_SALE" ||
+      reservation.paymentMethod !== "CREDIT_CARD" ||
+      reservation.status !== "PENDING" ||
+      reservation.shopifyOrderId ||
+      reservation.shopifyOrderNumber ||
+      reservation.shopifyDraftOrderId
+    ) {
+      throw new Response(
+        "This reservation cannot be canceled as an unpaid checkout.",
+        { status: 400 }
+      );
+    }
+
+    const openReview = await prisma.sixersPaymentReview.findFirst({
+      where: {
+        reservationId,
+        status: "OPEN",
+      },
+    });
+
+    if (openReview) {
+      throw new Response(
+        "This reservation has an unresolved Shopify payment review.",
+        { status: 400 }
+      );
+    }
+
+    const canceled = await prisma.eventReservation.updateMany({
+      where: {
+        id: reservationId,
+        status: "PENDING",
+        paymentMethod: "CREDIT_CARD",
+        shopifyOrderId: null,
+        shopifyOrderNumber: null,
+        shopifyDraftOrderId: null,
+      },
+      data: {
+        status: "CANCELED",
+        notes: [
+          reservation.notes,
+          "Unpaid Sixers checkout manually canceled after payment verification.",
+        ]
+          .filter(Boolean)
+          .join("\n"),
+      },
+    });
+
+    if (canceled.count !== 1) {
+      throw new Response(
+        "Reservation changed before cancellation. Please refresh.",
+        { status: 409 }
+      );
+    }
+
+    return {
+      success: true,
+      intent: "cancelUnpaidSixersCheckout",
+    };
   }
 
   if (intent === "updateSixersTier") {
@@ -1512,6 +1614,60 @@ export default function ManageEventPage() {
                         </div>
                       )}
                     <div>Total: ${Number(reservation.totalAmount).toFixed(2)}</div>
+                    {reservation.paymentMethod === "CREDIT_CARD" &&
+  reservation.status === "PENDING" &&
+  !reservation.shopifyOrderId &&
+  !reservation.shopifyOrderNumber &&
+  !reservation.shopifyDraftOrderId &&
+  !paymentReviews.some(
+    (review) =>
+      review.reservationId === reservation.id &&
+      review.status === "OPEN"
+  ) && (
+    <Form
+      method="post"
+      onSubmit={(event) => {
+        if (
+          !window.confirm(
+            `Cancel ${reservation.customerName}'s unpaid checkout for ${reservation.quantity} ticket(s)?\n\nOnly continue after verifying no Shopify payment was received. An old checkout link may still be usable.`
+          )
+        ) {
+          event.preventDefault();
+        }
+      }}
+      style={{ marginTop: "12px" }}
+    >
+      <input
+        type="hidden"
+        name="intent"
+        value="cancelUnpaidSixersCheckout"
+      />
+      <input
+        type="hidden"
+        name="reservationId"
+        value={reservation.id}
+      />
+      <input
+        type="hidden"
+        name="verifiedUnpaid"
+        value="yes"
+      />
+      <button
+        type="submit"
+        disabled={isSubmitting}
+        style={{
+          padding: "10px 16px",
+          borderRadius: "6px",
+          background: "#fff",
+          color: "#b91c1c",
+          border: "1px solid #b91c1c",
+          cursor: isSubmitting ? "default" : "pointer",
+        }}
+      >
+        {isSubmitting ? "Processing..." : "Cancel Unpaid Checkout"}
+      </button>
+    </Form>
+  )}
                  {reservation.paymentMethod === "CHECK" &&
   reservation.status === "PENDING" && (
     <Form method="post" style={{ marginTop: "12px" }}>
