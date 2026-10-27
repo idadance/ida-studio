@@ -609,6 +609,7 @@ model EventReservation {
 
 enum SixersAdjustmentStatus {
   PENDING
+  CREATING
   INVOICED
   PAID
   CANCELED
