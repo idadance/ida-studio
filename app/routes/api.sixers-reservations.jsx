@@ -208,8 +208,23 @@ export async function action({ request }) {
         },
       });
 
-      const remaining =
-        tier.capacity - (reserved._sum.quantity || 0);
+      const adjustmentHolds =
+  await tx.sixersReservationAdjustment.aggregate({
+    where: {
+      newTicketTierId: tier.id,
+      status: {
+        in: ["PENDING", "INVOICED"],
+      },
+    },
+    _sum: {
+      newQuantity: true,
+    },
+  });
+
+const remaining =
+  tier.capacity -
+  (reserved._sum.quantity || 0) -
+  (adjustmentHolds._sum.newQuantity || 0);
 
       if (ticketQuantity > remaining) {
         throw new Error(

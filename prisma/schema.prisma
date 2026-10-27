@@ -595,6 +595,7 @@ model EventReservation {
   notes String? @db.Text
 
   attendees EventAttendee[]
+  sixersAdjustments SixersReservationAdjustment[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -604,6 +605,40 @@ model EventReservation {
   @@index([customerEmail])
   @@index([status])
   @@index([shopifyOrderId])
+}
+
+enum SixersAdjustmentStatus {
+  PENDING
+  INVOICED
+  PAID
+  CANCELED
+}
+
+model SixersReservationAdjustment {
+  id String @id @default(cuid())
+
+  reservationId String
+  reservation EventReservation @relation(fields: [reservationId], references: [id], onDelete: Restrict)
+
+  originalTicketTierId String?
+  originalQuantity Int
+
+  newTicketTierId String
+  newQuantity Int
+
+  amountDue Float
+
+  status SixersAdjustmentStatus @default(PENDING)
+
+  shopifyDraftOrderId String? @unique
+  shopifyOrderId String? @unique
+  shopifyOrderNumber String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([reservationId])
+  @@index([newTicketTierId, status])
 }
 
 model EventAttendee {

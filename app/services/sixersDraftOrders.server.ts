@@ -137,8 +137,23 @@ if (process.env.SIXERS_CHECK_CHECKOUT_ENABLED !== "true") {
         _sum: { quantity: true },
       });
 
-      const remaining =
-        tier.capacity - (reserved._sum.quantity || 0);
+      const adjustmentHolds =
+  await tx.sixersReservationAdjustment.aggregate({
+    where: {
+      newTicketTierId: tier.id,
+      status: {
+        in: ["PENDING", "INVOICED"],
+      },
+    },
+    _sum: {
+      newQuantity: true,
+    },
+  });
+
+const remaining =
+  tier.capacity -
+  (reserved._sum.quantity || 0) -
+  (adjustmentHolds._sum.newQuantity || 0);
 
       if (quantity > remaining) {
         throw new Error(
