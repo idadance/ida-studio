@@ -267,13 +267,14 @@ if (selectedEventId) {
       locations: {
         include: {
           reservations: {
-            include: {
-              attendees: {
-                orderBy: {
-                  createdAt: "asc",
-                },
-              },
-            },
+  include: {
+    ticketTier: true,
+    attendees: {
+      orderBy: {
+        createdAt: "asc",
+      },
+    },
+  },
 
             orderBy: {
               createdAt: "desc",
@@ -747,48 +748,109 @@ const selectedPerformance =
 const exportEventAttendees = () => {
   if (!selectedEvent) return;
 
-  const location = selectedEvent.locations?.find(
-    (location) => location.studioCode === account,
-  );
+  const isTicketedEvent =
+    (selectedEvent.ticketTiers?.length ?? 0) > 0 ||
+    (selectedEvent.locations ?? []).some((location) =>
+      (location.reservations ?? []).some(
+        (reservation) => reservation.ticketTierId != null,
+      ),
+    );
 
-  if (!location) return;
+  let rows;
 
-  const rows = [
-    [
+  if (isTicketedEvent) {
+    rows = [[
+      "Order Number",
+      "Studio",
+      "Customer Name",
+      "Email",
+      "Ticket Type",
+      "Quantity",
+      "Total",
+      "Payment Method",
+      "Payment Status",
+      "Check Received",
+      "Order Date",
+    ]];
+
+    for (const location of selectedEvent.locations ?? []) {
+      for (const reservation of location.reservations ?? []) {
+        if (
+          reservation.status === "CANCELED" ||
+          reservation.status === "REFUNDED"
+        ) {
+          continue;
+        }
+
+        const isCheck = reservation.paymentMethod === "CHECK";
+
+        rows.push([
+          reservation.shopifyOrderNumber ?? "",
+          location.studioCode,
+          reservation.customerName,
+          reservation.customerEmail,
+          reservation.ticketTier?.name ?? "",
+          reservation.quantity,
+          Number(reservation.totalAmount ?? 0).toFixed(2),
+          isCheck ? "Check" : "Credit Card",
+          isCheck
+            ? reservation.checkReceivedAt
+              ? "Paid by Check"
+              : "Waiting for Check"
+            : reservation.status === "CONFIRMED"
+              ? "Paid"
+              : "Pending",
+          isCheck
+            ? reservation.checkReceivedAt ? "Yes" : "No"
+            : "",
+          reservation.createdAt
+            ? new Date(reservation.createdAt).toLocaleDateString("en-US")
+            : "",
+        ]);
+      }
+    }
+  } else {
+    const location = selectedEvent.locations?.find(
+      (location) => location.studioCode === account,
+    );
+
+    if (!location) return;
+
+    rows = [[
       "Dancer",
       "Grade",
       "Parent",
       "Email",
       "Payment Method",
       "Payment Status",
-    ],
-  ];
+    ]];
 
-  for (const reservation of location.reservations ?? []) {
-  if (reservation.status === "CANCELED") {
-    continue;
-  }
+    for (const reservation of location.reservations ?? []) {
+      if (
+        reservation.status === "CANCELED" ||
+        reservation.status === "REFUNDED"
+      ) {
+        continue;
+      }
 
-  let paymentMethod = "Credit Card";
-    let paymentStatus = "Paid";
+      const isCheck = reservation.paymentMethod === "CHECK";
 
-    if (reservation.paymentMethod === "CHECK") {
-      paymentMethod = "Check";
-      paymentStatus =
-        reservation.status === "CONFIRMED"
-          ? "Paid by Check"
-          : "Waiting for Check";
-    }
-
-    for (const attendee of reservation.attendees ?? []) {
-      rows.push([
-        attendee.name,
-        attendee.grade,
-        reservation.customerName,
-        reservation.customerEmail,
-        paymentMethod,
-        paymentStatus,
-      ]);
+      for (const attendee of reservation.attendees ?? []) {
+        rows.push([
+          attendee.name,
+          attendee.grade,
+          reservation.customerName,
+          reservation.customerEmail,
+          isCheck ? "Check" : "Credit Card",
+          isCheck
+            ? reservation.checkReceivedAt
+              ? "Paid by Check"
+              : "Waiting for Check"
+            : reservation.status === "CONFIRMED"
+              ? "Paid"
+              : "Pending",
+        ]);
+      }
     }
   }
 
@@ -811,12 +873,13 @@ const exportEventAttendees = () => {
   const link = document.createElement("a");
 
   link.href = url;
-  link.download = `${selectedEvent.name}-${account}-attendees.csv`;
+  link.download = isTicketedEvent
+    ? `${selectedEvent.name}-all-studios-orders.csv`
+    : `${selectedEvent.name}-${account}-attendees.csv`;
 
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
-
   URL.revokeObjectURL(url);
 };
 
