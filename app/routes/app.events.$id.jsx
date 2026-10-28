@@ -2049,7 +2049,7 @@ const [sixersSelectedQuantity, setSixersSelectedQuantity] =
       <Form
   method="post"
   onSubmit={(submitEvent) => {
-    const form = event.currentTarget;
+    const form = submitEvent.currentTarget;
     const formData = new FormData(form);
 
     const selectedTierId = String(
@@ -2076,7 +2076,7 @@ const [sixersSelectedQuantity, setSixersSelectedQuantity] =
       window.alert(
         "Please select a valid ticket change before continuing."
       );
-      event.preventDefault();
+      submitEvent.preventDefault();
       return;
     }
 
@@ -2085,7 +2085,7 @@ const [sixersSelectedQuantity, setSixersSelectedQuantity] =
         `Create this ticket adjustment for ${reservation.customerName}?\n\nThis will hold the additional tickets but will NOT create or send an invoice.`
       )
     ) {
-      event.preventDefault();
+      submitEvent.preventDefault();
     }
   }}
 >
