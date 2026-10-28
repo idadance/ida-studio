@@ -7,15 +7,22 @@ export async function loader() {
     },
     include: {
       ticketTiers: {
-        include: {
-          reservations: {
-            where: {
-              status: {
-                in: ["PENDING", "CONFIRMED"],
-              },
-            },
-          },
+  include: {
+    reservations: {
+      where: {
+        status: {
+          in: ["PENDING", "CONFIRMED"],
         },
+      },
+    },
+    incomingAdjustments: {
+      where: {
+        status: {
+          in: ["PENDING", "CREATING", "INVOICED", "SENDING", "SENT"],
+        },
+      },
+    },
+  },
         orderBy: {
           price: "asc",
         },
@@ -40,6 +47,37 @@ export async function loader() {
     },
   });
 
+    const activeAdjustments =
+    await prisma.sixersReservationAdjustment.findMany({
+      where: {
+        status: {
+          in: [
+            "PENDING",
+            "CREATING",
+            "INVOICED",
+            "SENDING",
+            "SENT",
+          ],
+        },
+      },
+      select: {
+        newTicketTierId: true,
+        newQuantity: true,
+      },
+    });
+
+  const adjustmentHolds = new Map();
+
+  for (const adjustment of activeAdjustments) {
+    const current =
+      adjustmentHolds.get(adjustment.newTicketTierId) || 0;
+
+    adjustmentHolds.set(
+      adjustment.newTicketTierId,
+      current + adjustment.newQuantity,
+    );
+  }
+
   const result = events.map((event) => ({
     id: event.id,
 name: event.name,
@@ -63,7 +101,12 @@ date: event.date,
         name: tier.name,
         price: tier.price,
         capacity: tier.capacity,
-        remaining: Math.max(0, tier.capacity - reserved),
+        remaining: Math.max(
+  0,
+  tier.capacity -
+    reserved -
+    (adjustmentHolds.get(tier.id) || 0),
+),
       };
     }),
 
