@@ -14,7 +14,20 @@ import {
 } from "../services/event.server";
 
 export const loader = async ({ request, params }) => {
-  await authenticate.admin(request);
+    const { session } = await authenticate.admin(request);
+
+  const studioCode =
+    session.shop === "ida-dance-store.myshopify.com"
+      ? "FW"
+      : session.shop === "ida-dance-store-pm.myshopify.com"
+        ? "PM"
+        : null;
+
+  if (!studioCode) {
+    throw new Response("Unrecognized Shopify store", {
+      status: 403,
+    });
+  }
 
   const event = await getEvent(params.id);
 
@@ -29,7 +42,8 @@ export const loader = async ({ request, params }) => {
   const paymentReviews =
     event.type === "TICKET_SALE"
       ? await prisma.sixersPaymentReview.findMany({
-          where: {
+                    where: {
+            shop: session.shop,
             reservationId: {
               in: event.ticketTiers.flatMap((tier) =>
                 tier.reservations.map((reservation) => reservation.id)
@@ -47,6 +61,7 @@ export const loader = async ({ request, params }) => {
             reservation: {
               eventLocation: {
                 eventId: event.id,
+                studioCode,
               },
             },
           },
@@ -54,11 +69,33 @@ export const loader = async ({ request, params }) => {
         })
       : [];
 
-  return {
+  const allSixersAdjustments =
+    event.type === "TICKET_SALE"
+      ? await prisma.sixersReservationAdjustment.findMany({
+          where: {
+            reservation: {
+              eventLocation: {
+                eventId: event.id,
+              },
+            },
+            status: {
+              in: ["PENDING", "CREATING", "INVOICED", "SENDING", "SENT"],
+            },
+          },
+          select: {
+            newTicketTierId: true,
+            newQuantity: true,
+            status: true,
+          },
+        })
+      : [];
+
+    return {
     event,
     capacitySummary: getEventCapacitySummary(event),
     paymentReviews,
     sixersAdjustments,
+    allSixersAdjustments,
   };
 };
 
@@ -922,6 +959,7 @@ export default function ManageEventPage() {
   capacitySummary,
   paymentReviews,
   sixersAdjustments,
+  allSixersAdjustments,
 } = useLoaderData();
   const navigation = useNavigation();
 
@@ -1115,13 +1153,13 @@ const [sixersSelectedQuantity, setSixersSelectedQuantity] =
 {event.status === "ARCHIVED" && (
   <Form
     method="post"
-    onSubmit={(submitEvent) => {
+    onSubmit={(event) => {
       const confirmed = window.confirm(
-        `PERMANENTLY delete "${submitEvent.currentTarget.dataset.eventName}"? This will delete the event and all of its associated reservations and attendee records. This cannot be undone.`,
+        `PERMANENTLY delete "${event.currentTarget.dataset.eventName}"? This will delete the event and all of its associated reservations and attendee records. This cannot be undone.`,
       );
 
       if (!confirmed) {
-        submitEvent.preventDefault();
+        event.preventDefault();
       }
     }}
     data-event-name={event.name}
@@ -1317,7 +1355,7 @@ const [sixersSelectedQuantity, setSixersSelectedQuantity] =
                 0
               );
 
-              const adjustmentHolds = sixersAdjustments
+              const adjustmentHolds = allSixersAdjustments
   .filter(
     (adjustment) =>
       adjustment.newTicketTierId === tier.id &&
@@ -2011,7 +2049,7 @@ const [sixersSelectedQuantity, setSixersSelectedQuantity] =
       <Form
   method="post"
   onSubmit={(submitEvent) => {
-    const form = submitEvent.currentTarget;
+    const form = event.currentTarget;
     const formData = new FormData(form);
 
     const selectedTierId = String(
@@ -2038,7 +2076,7 @@ const [sixersSelectedQuantity, setSixersSelectedQuantity] =
       window.alert(
         "Please select a valid ticket change before continuing."
       );
-      submitEvent.preventDefault();
+      event.preventDefault();
       return;
     }
 
@@ -2047,7 +2085,7 @@ const [sixersSelectedQuantity, setSixersSelectedQuantity] =
         `Create this ticket adjustment for ${reservation.customerName}?\n\nThis will hold the additional tickets but will NOT create or send an invoice.`
       )
     ) {
-      submitEvent.preventDefault();
+      event.preventDefault();
     }
   }}
 >
