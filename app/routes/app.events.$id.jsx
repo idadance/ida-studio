@@ -490,6 +490,101 @@ if (intent === "sendSixersAdjustmentInvoice") {
     return { success: true, intent: "receiveSixersCheck" };
   }
 
+  if (intent === "cancelUnpaidSixersCheck") {
+  const { default: prisma } = await import("../db.server");
+
+  const reservationId = String(
+    formData.get("reservationId") || ""
+  ).trim();
+
+  const verifiedUnpaid =
+    formData.get("verifiedUnpaid") === "yes";
+
+  const account =
+    session.shop === "ida-dance-store.myshopify.com"
+      ? "FW"
+      : session.shop === "ida-dance-store-pm.myshopify.com"
+        ? "PM"
+        : null;
+
+  if (!account || !reservationId || !verifiedUnpaid) {
+    throw new Response("Cancellation verification required.", {
+      status: 400,
+    });
+  }
+
+  const reservation = await prisma.eventReservation.findUnique({
+    where: { id: reservationId },
+    include: { eventLocation: true },
+  });
+
+  if (
+    !reservation ||
+    reservation.eventLocation?.eventId !== params.id ||
+    reservation.eventLocation?.studioCode !== account ||
+    !reservation.ticketTierId ||
+    reservation.paymentMethod !== "CHECK" ||
+       reservation.status !== "PENDING" ||
+    reservation.shopifyOrderId ||
+    (reservation.shopifyOrderNumber != null &&
+  !/^#?D\d+$/.test(reservation.shopifyOrderNumber)) ||
+    reservation.checkNumber ||
+    reservation.checkReceivedAt
+  ) {
+    throw new Response(
+      "This reservation is not eligible for unpaid check cancellation.",
+      { status: 400 }
+    );
+  }
+
+  const openReview = await prisma.sixersPaymentReview.findFirst({
+    where: {
+      reservationId,
+      status: "OPEN",
+    },
+  });
+
+  if (openReview) {
+    throw new Response(
+      "Resolve the Shopify payment review before cancellation.",
+      { status: 400 }
+    );
+  }
+
+  const canceled = await prisma.eventReservation.updateMany({
+    where: {
+      id: reservationId,
+      status: "PENDING",
+      paymentMethod: "CHECK",
+            shopifyOrderId: null,
+      shopifyOrderNumber: reservation.shopifyOrderNumber,
+      checkNumber: null,
+      checkReceivedAt: null,
+    },
+    data: {
+      status: "CANCELED",
+      notes: [
+        reservation.notes,
+        "Unpaid Sixers check reservation manually canceled. Shopify draft must be deleted separately.",
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    },
+  });
+
+  if (canceled.count !== 1) {
+    throw new Response(
+      "Reservation changed before cancellation. Please refresh.",
+      { status: 409 }
+    );
+  }
+
+  return {
+    success: true,
+    intent: "cancelUnpaidSixersCheck",
+  };
+}
+
     if (intent === "cancelUnpaidSixersCheckout") {
     const { default: prisma } = await import("../db.server");
 
@@ -2266,6 +2361,7 @@ const [sixersSelectedQuantity, setSixersSelectedQuantity] =
           {isSubmitting ? "Processing..." : "Create Adjustment"}
         </button>
       </Form>
+          
     )}
   </div>
 )}
@@ -2323,52 +2419,107 @@ const [sixersSelectedQuantity, setSixersSelectedQuantity] =
       </button>
     </Form>
   )}
-                 {reservation.paymentMethod === "CHECK" &&
+                {reservation.paymentMethod === "CHECK" &&
   reservation.status === "PENDING" && (
-    <Form method="post" style={{ marginTop: "12px" }}>
-      <input
-        type="hidden"
-        name="intent"
-        value="receiveSixersCheck"
-      />
+    <>
+      {/* Receive Check */}
+      <Form method="post" style={{ marginTop: "12px" }}>
+        <input
+          type="hidden"
+          name="intent"
+          value="receiveSixersCheck"
+        />
 
-      <input
-        type="hidden"
-        name="reservationId"
-        value={reservation.id}
-      />
+        <input
+          type="hidden"
+          name="reservationId"
+          value={reservation.id}
+        />
 
-      <label style={{ display: "block", marginBottom: "6px" }}>
-        Check Number
-      </label>
+        <label style={{ display: "block", marginBottom: "6px" }}>
+          Check Number
+        </label>
 
-      <input
-        type="text"
-        name="checkNumber"
-        required
-        placeholder="Enter check number"
-        style={{
-          display: "block",
-          width: "100%",
-          padding: "8px",
-          border: "1px solid #ccc",
-          borderRadius: "6px",
-          marginBottom: "8px",
-        }}
-      />
+        <input
+          type="text"
+          name="checkNumber"
+          required
+          placeholder="Enter check number"
+          style={{
+            display: "block",
+            width: "100%",
+            padding: "8px",
+            border: "1px solid #ccc",
+            borderRadius: "6px",
+            marginBottom: "8px",
+          }}
+        />
 
-      <button
-        type="submit"
-        disabled={isSubmitting}
-        style={{
-          padding: "10px 16px",
-          borderRadius: "6px",
-          cursor: isSubmitting ? "default" : "pointer",
-        }}
-      >
-        {isSubmitting ? "Processing..." : "Receive Check"}
-      </button>
-    </Form>
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          style={{
+            padding: "10px 16px",
+            borderRadius: "6px",
+            cursor: isSubmitting ? "default" : "pointer",
+          }}
+        >
+          {isSubmitting ? "Processing..." : "Receive Check"}
+        </button>
+      </Form>
+
+      {/* Cancel Unpaid Check */}
+      {!reservation.checkNumber &&
+        !reservation.checkReceivedAt &&
+        !reservation.shopifyOrderId && (
+          <Form
+            method="post"
+            style={{ marginTop: "10px" }}
+            onSubmit={(event) => {
+              if (
+                !window.confirm(
+                  `Cancel the unpaid check reservation for ${reservation.customerName} (${reservation.quantity} tickets)?\n\nThis will release the tickets. Verify that the Shopify draft has been deleted and no payment was received.`
+                )
+              ) {
+                event.preventDefault();
+              }
+            }}
+          >
+            <input
+              type="hidden"
+              name="intent"
+              value="cancelUnpaidSixersCheck"
+            />
+
+            <input
+              type="hidden"
+              name="reservationId"
+              value={reservation.id}
+            />
+
+            <input
+              type="hidden"
+              name="verifiedUnpaid"
+              value="yes"
+            />
+
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              style={{
+                padding: "10px 16px",
+                borderRadius: "6px",
+                border: "1px solid #b42318",
+                background: "white",
+                color: "#b42318",
+                cursor: isSubmitting ? "default" : "pointer",
+              }}
+            >
+              {isSubmitting ? "Processing..." : "Cancel Unpaid Check"}
+            </button>
+          </Form>
+        )}
+    </>
   )}
                   </div>
                 );
