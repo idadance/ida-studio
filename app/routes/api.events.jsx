@@ -15,13 +15,7 @@ export async function loader() {
         },
       },
     },
-    incomingAdjustments: {
-      where: {
-        status: {
-          in: ["PENDING", "CREATING", "INVOICED", "SENDING", "SENT"],
-        },
-      },
-    },
+    
   },
         orderBy: {
           price: "asc",
