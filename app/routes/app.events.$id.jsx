@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Form, useLoaderData, useNavigation } from "react-router";
 
 import { receiveSixersCheck } from "../services/sixersCheckPayment.server";
@@ -39,10 +40,25 @@ export const loader = async ({ request, params }) => {
         })
       : [];
 
+    const sixersAdjustments =
+    event.type === "TICKET_SALE"
+      ? await prisma.sixersReservationAdjustment.findMany({
+          where: {
+            reservation: {
+              eventLocation: {
+                eventId: event.id,
+              },
+            },
+          },
+          orderBy: { createdAt: "desc" },
+        })
+      : [];
+
   return {
     event,
     capacitySummary: getEventCapacitySummary(event),
     paymentReviews,
+    sixersAdjustments,
   };
 };
 
@@ -114,6 +130,193 @@ export const action = async ({ request, params }) => {
       intent: "updateRosterSheet",
     };
   }
+
+  if (intent === "createSixersAdjustment") {
+  const {
+    createSixersReservationAdjustment,
+  } = await import(
+    "../services/sixersReservationAdjustments.server"
+  );
+
+  const reservationId = String(
+    formData.get("reservationId") || ""
+  ).trim();
+
+  const newTicketTierId = String(
+    formData.get("newTicketTierId") || ""
+  ).trim();
+
+  const newQuantity = Number(
+    formData.get("newQuantity")
+  );
+
+  const account =
+    session.shop === "ida-dance-store.myshopify.com"
+      ? "FW"
+      : session.shop === "ida-dance-store-pm.myshopify.com"
+        ? "PM"
+        : null;
+
+  if (!account) {
+    throw new Response("Unrecognized Shopify store.", {
+      status: 403,
+    });
+  }
+
+  const { default: prisma } = await import("../db.server");
+
+  const reservation = await prisma.eventReservation.findUnique({
+    where: { id: reservationId },
+    include: { eventLocation: true },
+  });
+
+  if (
+    !reservation ||
+    reservation.eventLocation.eventId !== params.id ||
+    reservation.eventLocation.studioCode !== account
+  ) {
+    throw new Response(
+      "Reservation does not match this event and store.",
+      { status: 400 }
+    );
+  }
+
+  const adjustment = await createSixersReservationAdjustment({
+    reservationId,
+    newTicketTierId,
+    newQuantity,
+    account,
+  });
+
+  return {
+    success: true,
+    intent: "createSixersAdjustment",
+    adjustmentId: adjustment.id,
+    amountDue: adjustment.amountDue,
+  };
+}
+
+if (intent === "createSixersAdjustmentInvoice") {
+  const {
+    createSixersAdjustmentInvoice,
+  } = await import(
+    "../services/sixersReservationAdjustments.server"
+  );
+
+  const adjustmentId = String(
+    formData.get("adjustmentId") || ""
+  ).trim();
+
+  const account =
+    session.shop === "ida-dance-store.myshopify.com"
+      ? "FW"
+      : session.shop === "ida-dance-store-pm.myshopify.com"
+        ? "PM"
+        : null;
+
+  if (!account) {
+    throw new Response("Unrecognized Shopify store.", {
+      status: 403,
+    });
+  }
+
+  const { default: prisma } = await import("../db.server");
+
+  const adjustment =
+    await prisma.sixersReservationAdjustment.findUnique({
+      where: { id: adjustmentId },
+      include: {
+        reservation: {
+          include: { eventLocation: true },
+        },
+      },
+    });
+
+  if (
+    !adjustment ||
+    adjustment.reservation.eventLocation.eventId !== params.id ||
+    adjustment.reservation.eventLocation.studioCode !== account
+  ) {
+    throw new Response(
+      "Adjustment does not match this event and store.",
+      { status: 400 }
+    );
+  }
+
+  const invoice = await createSixersAdjustmentInvoice(
+    admin,
+    adjustmentId,
+    account
+  );
+
+  return {
+    success: true,
+    intent: "createSixersAdjustmentInvoice",
+    adjustmentId,
+    invoice,
+  };
+}
+
+if (intent === "sendSixersAdjustmentInvoice") {
+  const {
+    sendSixersAdjustmentInvoice,
+  } = await import(
+    "../services/sixersReservationAdjustments.server"
+  );
+
+  const adjustmentId = String(
+    formData.get("adjustmentId") || ""
+  ).trim();
+
+  const account =
+    session.shop === "ida-dance-store.myshopify.com"
+      ? "FW"
+      : session.shop === "ida-dance-store-pm.myshopify.com"
+        ? "PM"
+        : null;
+
+  if (!account) {
+    throw new Response("Unrecognized Shopify store.", {
+      status: 403,
+    });
+  }
+
+  const { default: prisma } = await import("../db.server");
+
+  const adjustment =
+    await prisma.sixersReservationAdjustment.findUnique({
+      where: { id: adjustmentId },
+      include: {
+        reservation: {
+          include: { eventLocation: true },
+        },
+      },
+    });
+
+  if (
+    !adjustment ||
+    adjustment.reservation.eventLocation.eventId !== params.id ||
+    adjustment.reservation.eventLocation.studioCode !== account
+  ) {
+    throw new Response(
+      "Adjustment does not match this event and store.",
+      { status: 400 }
+    );
+  }
+
+  const result = await sendSixersAdjustmentInvoice(
+    admin,
+    adjustmentId,
+    account
+  );
+
+  return {
+    success: true,
+    intent: "sendSixersAdjustmentInvoice",
+    adjustmentId,
+    result,
+  };
+}
 
     if (intent === "reconcileSixersPaidCheck") {
     const { default: prisma } = await import("../db.server");
@@ -714,10 +917,27 @@ if (intent === "delete") {
 };
 
 export default function ManageEventPage() {
-  const { event, capacitySummary, paymentReviews } = useLoaderData();
+  const {
+  event,
+  capacitySummary,
+  paymentReviews,
+  sixersAdjustments,
+} = useLoaderData();
   const navigation = useNavigation();
 
   const isSubmitting = navigation.state === "submitting";
+
+  const [editingSixersReservationId, setEditingSixersReservationId] =
+  useState(null);
+
+  const [sixersAdjustmentType, setSixersAdjustmentType] =
+  useState("add");
+
+  const [sixersSelectedTierId, setSixersSelectedTierId] =
+  useState(null);
+
+const [sixersSelectedQuantity, setSixersSelectedQuantity] =
+  useState(null);
 
   return (
     <s-page heading={event.name}>
@@ -895,13 +1115,13 @@ export default function ManageEventPage() {
 {event.status === "ARCHIVED" && (
   <Form
     method="post"
-    onSubmit={(event) => {
+    onSubmit={(submitEvent) => {
       const confirmed = window.confirm(
-        `PERMANENTLY delete "${event.currentTarget.dataset.eventName}"? This will delete the event and all of its associated reservations and attendee records. This cannot be undone.`,
+        `PERMANENTLY delete "${submitEvent.currentTarget.dataset.eventName}"? This will delete the event and all of its associated reservations and attendee records. This cannot be undone.`,
       );
 
       if (!confirmed) {
-        event.preventDefault();
+        submitEvent.preventDefault();
       }
     }}
     data-event-name={event.name}
@@ -1097,6 +1317,24 @@ export default function ManageEventPage() {
                 0
               );
 
+              const adjustmentHolds = sixersAdjustments
+  .filter(
+    (adjustment) =>
+      adjustment.newTicketTierId === tier.id &&
+      [
+        "PENDING",
+        "CREATING",
+        "INVOICED",
+        "SENDING",
+        "SENT",
+      ].includes(adjustment.status)
+  )
+  .reduce(
+    (total, adjustment) =>
+      total + adjustment.newQuantity,
+    0
+  );
+
             return (
               <div
                 key={tier.id}
@@ -1109,7 +1347,9 @@ export default function ManageEventPage() {
               >
                 <h3>{tier.name}</h3>
                 <p>
-                  <strong>{Math.max(0, tier.capacity - reserved)}</strong>
+                  <strong>
+  {Math.max(0, tier.capacity - reserved - adjustmentHolds)}
+</strong>
                   {" "}of {tier.capacity} tickets remaining
                 </p>
 
@@ -1614,6 +1854,383 @@ export default function ManageEventPage() {
                         </div>
                       )}
                     <div>Total: ${Number(reservation.totalAmount).toFixed(2)}</div>
+                   {reservation.status === "CONFIRMED" && (
+  <button
+    type="button"
+    onClick={() => {
+  setEditingSixersReservationId(
+    editingSixersReservationId === reservation.id
+      ? null
+      : reservation.id
+  );
+  setSixersAdjustmentType("add");
+  setSixersSelectedTierId(null);
+  setSixersSelectedQuantity(null);
+}}
+    style={{
+      marginTop: "12px",
+      padding: "10px 16px",
+      borderRadius: "6px",
+      background: "#fff",
+      border: "1px solid #333",
+      cursor: "pointer",
+    }}
+  >
+    {editingSixersReservationId === reservation.id
+      ? "Close Editor"
+      : "Edit Reservation"}
+  </button>
+)}
+{editingSixersReservationId === reservation.id && (
+  <div
+    style={{
+      marginTop: "12px",
+      padding: "16px",
+      border: "1px solid #ddd",
+      borderRadius: "8px",
+      background: "#fafafa",
+    }}
+  >
+    {sixersAdjustments
+  .filter(
+    (adjustment) =>
+      adjustment.reservationId === reservation.id
+  )
+  .map((adjustment) => (
+    <div
+      key={adjustment.id}
+      style={{
+        padding: "12px",
+        marginBottom: "14px",
+        background: "#fff",
+        border: "1px solid #ddd",
+        borderRadius: "8px",
+      }}
+    >
+      <strong>Ticket Adjustment</strong>
+
+      <div>
+        Amount Due: ${Number(adjustment.amountDue).toFixed(2)}
+      </div>
+
+      <div>
+        Status: {adjustment.status}
+      </div>
+
+      {adjustment.shopifyOrderNumber && (
+        <div>
+          Paid Shopify Order: {adjustment.shopifyOrderNumber}
+        </div>
+      )}
+
+      {adjustment.shopifyDraftOrderId && (
+        <div>Shopify Draft Invoice Created</div>
+      )}
+      {adjustment.status === "PENDING" && (
+  <Form
+    method="post"
+    style={{ marginTop: "12px" }}
+    onSubmit={(event) => {
+      if (
+        !window.confirm(
+          `Create a Shopify draft invoice for $${Number(
+            adjustment.amountDue
+          ).toFixed(2)}?\n\nThis will NOT email the customer.`
+        )
+      ) {
+        event.preventDefault();
+      }
+    }}
+  >
+    <input
+      type="hidden"
+      name="intent"
+      value="createSixersAdjustmentInvoice"
+    />
+    <input
+      type="hidden"
+      name="adjustmentId"
+      value={adjustment.id}
+    />
+
+    <button type="submit" disabled={isSubmitting}>
+      {isSubmitting ? "Creating..." : "Create Shopify Invoice"}
+    </button>
+  </Form>
+)}
+{adjustment.status === "INVOICED" &&
+  adjustment.shopifyDraftOrderId && (
+    <Form
+      method="post"
+      style={{ marginTop: "12px" }}
+      onSubmit={(event) => {
+        if (
+          !window.confirm(
+            `Send the $${Number(
+              adjustment.amountDue
+            ).toFixed(2)} Sixers ticket invoice to ${reservation.customerEmail}?\n\nThis WILL email the customer.`
+          )
+        ) {
+          event.preventDefault();
+        }
+      }}
+    >
+      <input
+        type="hidden"
+        name="intent"
+        value="sendSixersAdjustmentInvoice"
+      />
+      <input
+        type="hidden"
+        name="adjustmentId"
+        value={adjustment.id}
+      />
+
+      <button type="submit" disabled={isSubmitting}>
+        {isSubmitting ? "Sending..." : "Send Invoice to Customer"}
+      </button>
+    </Form>
+  )}
+    </div>
+  ))}
+    <strong>Edit Sixers Tickets</strong>
+
+    {sixersAdjustments.some(
+      (adjustment) =>
+        adjustment.reservationId === reservation.id &&
+        ["PENDING", "CREATING", "INVOICED", "SENDING", "SENT"].includes(
+          adjustment.status
+        )
+    ) ? (
+      <p>
+        This reservation already has an adjustment awaiting payment
+        or invoice processing. Please review that adjustment before
+        making another change.
+      </p>
+    ) : (
+      <Form
+  method="post"
+  onSubmit={(submitEvent) => {
+    const form = submitEvent.currentTarget;
+    const formData = new FormData(form);
+
+    const selectedTierId = String(
+      formData.get("newTicketTierId") || ""
+    );
+
+    const quantity = Number(formData.get("newQuantity"));
+
+    const selectedTier = event.ticketTiers.find(
+      (option) => option.id === selectedTierId
+    );
+
+    const isValid =
+      sixersAdjustmentType === "upgrade"
+        ? selectedTierId !== tier.id &&
+          selectedTier &&
+          Number(selectedTier.price) > Number(tier.price) &&
+          quantity === reservation.quantity
+        : selectedTierId === tier.id &&
+          Number.isSafeInteger(quantity) &&
+          quantity > reservation.quantity;
+
+    if (!isValid) {
+      window.alert(
+        "Please select a valid ticket change before continuing."
+      );
+      submitEvent.preventDefault();
+      return;
+    }
+
+    if (
+      !window.confirm(
+        `Create this ticket adjustment for ${reservation.customerName}?\n\nThis will hold the additional tickets but will NOT create or send an invoice.`
+      )
+    ) {
+      submitEvent.preventDefault();
+    }
+  }}
+>
+        <input
+          type="hidden"
+          name="intent"
+          value="createSixersAdjustment"
+        />
+        <input
+          type="hidden"
+          name="reservationId"
+          value={reservation.id}
+        />
+
+        <label style={{ display: "block", marginTop: "12px" }}>
+  Adjustment Type
+  <select
+    value={sixersAdjustmentType}
+    onChange={(event) => {
+  setSixersAdjustmentType(event.target.value);
+  setSixersSelectedTierId(null);
+  setSixersSelectedQuantity(null);
+}}
+    style={{
+      display: "block",
+      width: "100%",
+      padding: "10px",
+      marginTop: "5px",
+    }}
+  >
+    <option value="add">Add Tickets</option>
+    <option value="upgrade">Upgrade Tickets</option>
+  </select>
+</label>
+
+        <label style={{ display: "block", marginTop: "12px" }}>
+          Ticket Level
+         <select
+  name="newTicketTierId"
+  key={`${reservation.id}-${sixersAdjustmentType}`}
+  defaultValue={tier.id}
+  onChange={(event) =>
+  setSixersSelectedTierId(event.target.value)
+}
+  required
+  style={{
+              display: "block",
+              width: "100%",
+              padding: "10px",
+              marginTop: "5px",
+            }}
+          >
+            {event.ticketTiers
+  .filter(
+    (option) =>
+      sixersAdjustmentType === "upgrade" ||
+      option.id === tier.id
+  )
+  .map((option) => (
+    <option key={option.id} value={option.id}>
+      {option.name} — ${Number(option.price).toFixed(2)}
+    </option>
+  ))}
+          </select>
+        </label>
+
+        <label style={{ display: "block", marginTop: "12px" }}>
+          Total Tickets After Change
+          <input
+  type="number"
+  name="newQuantity"
+  key={`${reservation.id}-${sixersAdjustmentType}`}
+  onChange={(event) =>
+  setSixersSelectedQuantity(Number(event.target.value))
+}
+  min={
+    sixersAdjustmentType === "add"
+      ? reservation.quantity + 1
+      : reservation.quantity
+  }
+  max={
+    sixersAdjustmentType === "upgrade"
+      ? reservation.quantity
+      : undefined
+  }
+  defaultValue={
+    sixersAdjustmentType === "add"
+      ? reservation.quantity + 1
+      : reservation.quantity
+  }
+  readOnly={sixersAdjustmentType === "upgrade"}
+  required
+            style={{
+              display: "block",
+              width: "100%",
+              padding: "10px",
+              marginTop: "5px",
+              boxSizing: "border-box",
+            }}
+          />
+        </label>
+
+        <p>
+          Current reservation: {reservation.quantity} × {tier.name}.
+          Changing ticket levels keeps the same quantity.
+          Adding tickets keeps the same level.
+        </p>
+
+        <div
+  style={{
+    marginTop: "14px",
+    padding: "12px",
+    background: "#fff",
+    border: "1px solid #ddd",
+    borderRadius: "8px",
+  }}
+>
+  <strong>Payment Preview</strong>
+
+  {(() => {
+  const selectedTier =
+    event.ticketTiers.find(
+      (option) =>
+        option.id ===
+        (sixersAdjustmentType === "add"
+          ? tier.id
+          : sixersSelectedTierId || tier.id)
+    );
+
+  const quantity =
+    sixersAdjustmentType === "upgrade"
+      ? reservation.quantity
+      : sixersSelectedQuantity ??
+        reservation.quantity + 1;
+
+  const creditPrice = (price) =>
+    Math.round(Number(price) * 1.026 * 100) / 100;
+
+  const amountDue =
+    sixersAdjustmentType === "upgrade"
+      ? reservation.quantity *
+        (creditPrice(selectedTier?.price ?? tier.price) -
+          creditPrice(tier.price))
+      : (quantity - reservation.quantity) *
+        creditPrice(tier.price);
+
+  const valid =
+    sixersAdjustmentType === "upgrade"
+      ? selectedTier &&
+        selectedTier.id !== tier.id &&
+        Number(selectedTier.price) > Number(tier.price)
+      : Number.isSafeInteger(quantity) &&
+        quantity > reservation.quantity;
+
+  return (
+    <div style={{ marginTop: "10px" }}>
+      <div>
+        {sixersAdjustmentType === "upgrade"
+          ? "Upgrade difference"
+          : "Additional ticket charge"}
+      </div>
+
+      <strong style={{ fontSize: "22px" }}>
+        {valid ? `$${amountDue.toFixed(2)}` : "Select a valid change"}
+      </strong>
+
+      <div style={{ fontSize: "12px", marginTop: "5px" }}>
+        Includes the 2.6% credit card fee, rounded per ticket.
+      </div>
+    </div>
+  );
+})()}
+
+  
+</div>
+
+        <button type="submit" disabled={isSubmitting}>
+          {isSubmitting ? "Processing..." : "Create Adjustment"}
+        </button>
+      </Form>
+    )}
+  </div>
+)}
                     {reservation.paymentMethod === "CREDIT_CARD" &&
   reservation.status === "PENDING" &&
   !reservation.shopifyOrderId &&
