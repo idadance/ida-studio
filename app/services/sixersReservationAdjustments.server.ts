@@ -280,23 +280,7 @@ if (!["FW", "PM"].includes(reservationAccount)) {
       ? `Sixers Ticket Upgrade - ${adjustment.newQuantity} tickets`
       : `Sixers Additional Tickets - ${adjustment.newQuantity} tickets`;
 
-  // Claim this invoice before contacting Shopify.
-  // Only one request can change INVOICED to SENDING.
-  const claimed = await prisma.sixersReservationAdjustment.updateMany({
-    where: {
-      id: adjustmentId,
-      status: "INVOICED",
-    },
-    data: {
-      status: "SENDING",
-    },
-  });
-
-  if (claimed.count !== 1) {
-    throw new Error(
-      "This invoice is already being sent or has been sent.",
-    );
-  }
+  
 
     const response = await admin.graphql(
       `#graphql
@@ -470,6 +454,24 @@ export async function sendSixersAdjustmentInvoice(
     : `${adjustment.newQuantity} additional Sixers ticket${
         adjustment.newQuantity === 1 ? "" : "s"
       }`;
+
+        // Claim the invoice before sending it to Shopify.
+  // Prevent duplicate invoice emails.
+  const claimed = await prisma.sixersReservationAdjustment.updateMany({
+    where: {
+      id: adjustmentId,
+      status: "INVOICED",
+    },
+    data: {
+      status: "SENDING",
+    },
+  });
+
+  if (claimed.count !== 1) {
+    throw new Error(
+      "This invoice is already being sent or has been sent.",
+    );
+  }
 
   const response = await admin.graphql(
     `#graphql
