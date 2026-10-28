@@ -107,6 +107,15 @@ export async function createSixersReservationAdjustment({
         );
       }
 
+            if (
+        reservation.ticketTierId !== newTicketTierId &&
+        Number(targetTier.price) <= Number(reservation.ticketTier.price)
+      ) {
+        throw new Error(
+          "Ticket upgrades must be to a more expensive ticket tier.",
+        );
+      }
+
       const additionalQuantity =
         reservation.ticketTierId === newTicketTierId
           ? newQuantity - reservation.quantity
