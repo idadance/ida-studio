@@ -175,10 +175,6 @@ export const action = async ({ request, params }) => {
     }
   }
     if (intent === "cancelRefundedSixersReservation") {
-          throw new Response(
-      "Refund cancellation is disabled during verification testing.",
-      { status: 403 },
-    );
     const { default: prisma } = await import("../db.server");
     const { cancelVerifiedSixersRefund } = await import(
       "../services/sixersRefundCancellation.server"
