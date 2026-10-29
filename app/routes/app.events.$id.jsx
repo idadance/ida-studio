@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Form, useLoaderData, useNavigation } from "react-router";
+import { Form, useActionData, useLoaderData, useNavigation } from "react-router";
 
 import { receiveSixersCheck } from "../services/sixersCheckPayment.server";
 
@@ -104,6 +104,135 @@ export const action = async ({ request, params }) => {
 
   const formData = await request.formData();
   const intent = formData.get("intent");
+    if (intent === "verifySixersRefundOnly") {
+    const { default: prisma } = await import("../db.server");
+    const { verifySixersShopifyRefund } = await import(
+      "../services/sixersRefundCancellation.server"
+    );
+
+    const reservationId = String(
+      formData.get("reservationId") || "",
+    ).trim();
+
+    const account =
+      session.shop === "ida-dance-store.myshopify.com"
+        ? "FW"
+        : session.shop === "ida-dance-store-pm.myshopify.com"
+          ? "PM"
+          : null;
+
+    if (!account || !reservationId) {
+      throw new Response("Invalid refund verification request.", {
+        status: 400,
+      });
+    }
+
+    const reservation = await prisma.eventReservation.findUnique({
+      where: { id: reservationId },
+      include: { eventLocation: true },
+    });
+
+    if (
+      !reservation ||
+      reservation.eventLocation?.eventId !== params.id ||
+      reservation.eventLocation?.studioCode !== account
+    ) {
+      throw new Response(
+        "Reservation does not belong to this event or studio.",
+        { status: 400 },
+      );
+    }
+
+        try {
+      const { order } = await verifySixersShopifyRefund({
+        admin,
+        shop: session.shop,
+        reservationId,
+        account,
+      });
+
+      return {
+        success: true,
+        intent: "verifySixersRefundOnly",
+        reservationId,
+        verifiedOrder: order.name,
+        financialStatus: order.displayFinancialStatus,
+        message:
+          "Shopify full-refund verification passed. No tickets were canceled.",
+      };
+    } catch (error) {
+      console.error("Sixers refund verification failed:", error);
+
+      return {
+        success: false,
+        intent: "verifySixersRefundOnly",
+        reservationId,
+        message:
+          error instanceof Error
+            ? error.message
+            : "Unable to verify the Shopify refund. No tickets were canceled.",
+      };
+    }
+  }
+    if (intent === "cancelRefundedSixersReservation") {
+          throw new Response(
+      "Refund cancellation is disabled during verification testing.",
+      { status: 403 },
+    );
+    const { default: prisma } = await import("../db.server");
+    const { cancelVerifiedSixersRefund } = await import(
+      "../services/sixersRefundCancellation.server"
+    );
+
+    const reservationId = String(
+      formData.get("reservationId") || "",
+    ).trim();
+
+    const confirmedRefund =
+      formData.get("confirmedRefund") === "yes";
+
+    const account =
+      session.shop === "ida-dance-store.myshopify.com"
+        ? "FW"
+        : session.shop === "ida-dance-store-pm.myshopify.com"
+          ? "PM"
+          : null;
+
+    if (!account || !reservationId || !confirmedRefund) {
+      throw new Response(
+        "Refund cancellation confirmation is required.",
+        { status: 400 },
+      );
+    }
+
+    const reservation = await prisma.eventReservation.findUnique({
+      where: { id: reservationId },
+      include: { eventLocation: true },
+    });
+
+    if (
+      !reservation ||
+      reservation.eventLocation?.eventId !== params.id ||
+      reservation.eventLocation?.studioCode !== account
+    ) {
+      throw new Response(
+        "Reservation does not belong to this event or studio.",
+        { status: 400 },
+      );
+    }
+
+    const result = await cancelVerifiedSixersRefund({
+      admin,
+      shop: session.shop,
+      reservationId,
+      account,
+    });
+
+    return {
+      ...result,
+      intent: "cancelRefundedSixersReservation",
+    };
+  }
     if (intent === "updateFamilyTicketLimit") {
     const rawLimit = String(
       formData.get("maxTicketsPerFamily") ?? "",
@@ -1057,6 +1186,7 @@ export default function ManageEventPage() {
   allSixersAdjustments,
 } = useLoaderData();
   const navigation = useNavigation();
+  const actionData = useActionData();
 
   const isSubmitting = navigation.state === "submitting";
 
@@ -1977,6 +2107,121 @@ const [sixersSelectedQuantity, setSixersSelectedQuantity] =
                         Shopify Order: {reservation.shopifyOrderNumber}
                       </div>
                     )}
+                    {reservation.ticketTierId &&
+  reservation.paymentMethod === "CREDIT_CARD" &&
+  reservation.status === "CONFIRMED" &&
+  reservation.shopifyOrderId && (
+    <Form method="post" style={{ marginTop: "12px" }}>
+      <input
+        type="hidden"
+        name="intent"
+        value="verifySixersRefundOnly"
+      />
+      <input
+        type="hidden"
+        name="reservationId"
+        value={reservation.id}
+      />
+      <button
+        type="submit"
+        disabled={isSubmitting}
+        style={{
+          padding: "10px 16px",
+          borderRadius: "6px",
+          border: "1px solid #3da5be",
+          background: "white",
+          color: "#237b91",
+          cursor: isSubmitting ? "default" : "pointer",
+        }}
+      >
+        {isSubmitting
+          ? "Verifying..."
+          : "Verify Shopify Refund"}
+      </button>
+    </Form>
+    )}
+    {actionData?.intent === "verifySixersRefundOnly" &&
+  actionData?.reservationId === reservation.id && (
+    <div
+      style={{
+        marginTop: "10px",
+        padding: "12px",
+        border: `1px solid ${
+          actionData.success ? "#3da5be" : "#b42318"
+        }`,
+        borderRadius: "6px",
+        background: actionData.success ? "#f0fafc" : "#fff4f2",
+      }}
+    >
+      <strong>
+        {actionData.success
+          ? "Shopify Refund Verified"
+          : "Refund Verification Failed"}
+      </strong>
+
+      {actionData.success && (
+        <>
+          <div>Order: {actionData.verifiedOrder}</div>
+          <div>Status: {actionData.financialStatus}</div>
+        </>
+      )}
+
+      <div>{actionData.message}</div>
+    </div>
+  )}
+                    {false && reservation.ticketTierId &&
+  reservation.paymentMethod === "CREDIT_CARD" &&
+  reservation.status === "CONFIRMED" &&
+  reservation.shopifyOrderId && (
+    <Form
+      method="post"
+      style={{ marginTop: "12px" }}
+      onSubmit={(event) => {
+        if (
+          !window.confirm(
+            `Cancel ${reservation.customerName}'s ${reservation.quantity} Sixers ticket(s)?\n\nShopify must already show a FULL REFUND for order ${reservation.shopifyOrderNumber || reservation.shopifyOrderId}.\n\nThis action does NOT issue a refund. It will release the tickets in IDA Studio only after Shopify verifies the refund.\n\nContinue?`
+          )
+        ) {
+          event.preventDefault();
+        }
+      }}
+    >
+      <input
+        type="hidden"
+        name="intent"
+        value="cancelRefundedSixersReservation"
+      />
+
+      <input
+        type="hidden"
+        name="reservationId"
+        value={reservation.id}
+      />
+
+      <input
+        type="hidden"
+        name="confirmedRefund"
+        value="yes"
+      />
+
+      <button
+        type="submit"
+        disabled={isSubmitting}
+        style={{
+          padding: "10px 16px",
+          borderRadius: "6px",
+          border: "1px solid #b42318",
+          background: "white",
+          color: "#b42318",
+          cursor: isSubmitting ? "default" : "pointer",
+        }}
+      >
+        {isSubmitting
+          ? "Verifying Refund..."
+          : "Cancel Refunded Reservation"}
+      </button>
+    </Form>
+  )}
                     {reservation.paymentMethod === "CREDIT_CARD" &&
                       reservation.status === "PENDING" &&
                       Date.now() - new Date(reservation.createdAt).getTime() >
