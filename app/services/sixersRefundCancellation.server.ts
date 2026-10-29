@@ -217,6 +217,12 @@ export async function verifySixersShopifyRefund({
     order.totalRefundedSet?.shopMoney?.amount,
   );
 
+    if (order.displayFinancialStatus !== "REFUNDED") {
+    throw new Error(
+      `Shopify financial status is ${order.displayFinancialStatus}. A completed refund is required before tickets can be released.`,
+    );
+  }
+
   if (
     order.currencyCode !== "USD" ||
     order.totalPriceSet?.shopMoney?.currencyCode !== "USD" ||
