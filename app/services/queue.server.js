@@ -3,6 +3,74 @@ import { generateTicketAssets } from "./ticketGenerator.server";
 import {
   prepareCustomerFolder,
 } from "./googleDrive.server";
+import { receiveSixersCheck as receiveSixersCheckReservation } from "./sixersCheckPayment.server.ts";
+
+export async function listSixersChecksForQueue({
+  account,
+  prismaClient = prisma,
+}) {
+  if (account !== "FW" && account !== "PM") {
+    throw new Error("Invalid studio account.");
+  }
+
+  return prismaClient.eventReservation.findMany({
+    where: {
+      paymentMethod: "CHECK",
+      status: "PENDING",
+      eventLocation: {
+        studioCode: account,
+      },
+    },
+    include: {
+      attendees: {
+        orderBy: {
+          createdAt: "asc",
+        },
+      },
+      eventLocation: {
+        include: {
+          event: true,
+        },
+      },
+      ticketTier: {
+        include: {
+          event: true,
+        },
+      },
+    },
+    orderBy: {
+      createdAt: "asc",
+    },
+  });
+}
+
+export async function receiveSixersCheckFromQueue({
+  reservationId,
+  checkNumber,
+  account,
+  admin,
+  prismaClient = prisma,
+}) {
+  if (account !== "FW" && account !== "PM") {
+    throw new Error("Invalid studio account.");
+  }
+
+  if (!reservationId) {
+    throw new Error("Reservation ID is required.");
+  }
+
+  if (!checkNumber || !String(checkNumber).trim()) {
+    throw new Error("Check number is required.");
+  }
+
+  return receiveSixersCheckReservation({
+    reservationId,
+    checkNumber: String(checkNumber).trim(),
+    account,
+    admin,
+    prismaClient,
+  });
+}
 
 export async function receiveCheck({
   reservationId,

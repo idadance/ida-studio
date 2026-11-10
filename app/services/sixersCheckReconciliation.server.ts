@@ -1,6 +1,196 @@
 import prisma from "../db.server";
 import { safelyResolveSixersPaymentReview } from "./sixersPaymentReview.server";
 
+export async function verifySixersPaidOrderMatch({
+  reservation,
+  shop,
+  shopifyOrderId,
+  order,
+  prismaClient = prisma,
+}: {
+  reservation: any;
+  shop: string;
+  shopifyOrderId: string;
+  order: any;
+  prismaClient?: typeof prisma;
+}) {
+  const expectedShop =
+    reservation.eventLocation.studioCode === "FW"
+      ? "ida-dance-store.myshopify.com"
+      : reservation.eventLocation.studioCode === "PM"
+        ? "ida-dance-store-pm.myshopify.com"
+        : null;
+
+  if (!expectedShop || shop !== expectedShop) {
+    throw new Error("The Shopify store does not match the Sixers reservation.");
+  }
+
+  const orderReservationId = order.customAttributes?.find(
+    (attribute: { key: string; value: string }) =>
+      attribute.key === "Sixers Reservation ID"
+  )?.value;
+
+  if (orderReservationId !== reservation.id) {
+    throw new Error(
+      "The paid Shopify order does not match this Sixers reservation. Manual review required."
+    );
+  }
+
+  const expectedVariantId =
+    reservation.eventLocation.studioCode === "FW"
+      ? reservation.ticketTier.fwCheckVariantId
+      : reservation.ticketTier.pmCheckVariantId;
+
+  const orderItems = order.lineItems?.nodes || [];
+
+  if (
+    !expectedVariantId ||
+    orderItems.length !== 1 ||
+    orderItems[0].variant?.id !==
+      `gid://shopify/ProductVariant/${expectedVariantId}` ||
+    orderItems[0].quantity !== reservation.quantity
+  ) {
+    throw new Error(
+      "The paid Shopify order's ticket tier or quantity does not match the Sixers reservation. Manual review required."
+    );
+  }
+
+  const expectedCents = Math.round(reservation.totalAmount * 100);
+  const paidCents = Math.round(Number(order.totalPriceSet?.shopMoney?.amount) * 100);
+
+  if (
+    order.currencyCode !== "USD" ||
+    order.totalPriceSet?.shopMoney?.currencyCode !== "USD" ||
+    !Number.isFinite(paidCents) ||
+    paidCents !== expectedCents
+  ) {
+    throw new Error(
+      "The paid Shopify order amount does not match the Sixers reservation. Manual review required."
+    );
+  }
+
+  const verifiedOrderId = order.id.split("/").pop();
+
+  if (!verifiedOrderId || !shopifyOrderId.endsWith(`/${verifiedOrderId}`)) {
+    throw new Error(
+      "The paid Shopify order ID does not match the requested reconciliation target."
+    );
+  }
+
+  return verifiedOrderId;
+}
+
+export async function confirmSixersPaidReservation({
+  reservationId,
+  shop,
+  shopifyOrderId,
+  shopifyOrderNumber,
+  checkNumber,
+  admin,
+  prismaClient = prisma,
+}: {
+  reservationId: string;
+  shop: string;
+  shopifyOrderId: string;
+  shopifyOrderNumber: string;
+  checkNumber?: string;
+  admin: any;
+  prismaClient?: typeof prisma;
+}) {
+  const reservation = await prismaClient.eventReservation.findUnique({
+    where: { id: reservationId },
+    include: {
+      eventLocation: true,
+      ticketTier: { include: { event: true } },
+    },
+  });
+
+  if (!reservation) {
+    throw new Error("Invalid Sixers check reservation.");
+  }
+
+  if (reservation.status === "CONFIRMED") {
+    if (reservation.shopifyOrderId === shopifyOrderId.split("/").pop()) {
+      await safelyResolveSixersPaymentReview({
+        shop,
+        shopifyOrderId: shopifyOrderId.split("/").pop()!,
+        reservationId: reservation.id,
+        notes: `Verified existing paid Shopify order ${shopifyOrderNumber}. Reservation was already confirmed.`,
+      });
+
+      return {
+        success: true,
+        alreadyConfirmed: true,
+        reservationId: reservation.id,
+        shopifyOrderNumber: reservation.shopifyOrderNumber,
+      };
+    }
+
+    throw new Error(
+      "This reservation is already confirmed with a different Shopify order. Manual review required."
+    );
+  }
+
+  if (reservation.status !== "PENDING") {
+    throw new Error("This Sixers reservation is not awaiting payment.");
+  }
+
+  const verifiedOrderId = shopifyOrderId.split("/").pop();
+
+  const confirmation = await prismaClient.eventReservation.updateMany({
+    where: {
+      id: reservation.id,
+      status: "PENDING",
+      paymentMethod: "CHECK",
+      shopifyOrderId: { in: [null, verifiedOrderId] },
+    },
+    data: {
+      status: "CONFIRMED",
+      shopifyOrderId: verifiedOrderId,
+      shopifyOrderNumber: shopifyOrderNumber,
+      checkNumber: checkNumber?.trim() || reservation.checkNumber || null,
+      checkReceivedAt: reservation.checkReceivedAt ?? new Date(),
+      shopifyDraftStatus: "COMPLETED",
+    },
+  });
+
+  if (confirmation.count !== 1) {
+    const latest = await prismaClient.eventReservation.findUnique({
+      where: { id: reservation.id },
+    });
+
+    if (
+      latest?.status === "CONFIRMED" &&
+      latest.shopifyOrderId === verifiedOrderId
+    ) {
+      return {
+        success: true,
+        alreadyConfirmed: true,
+        reservationId: reservation.id,
+        shopifyOrderNumber: latest.shopifyOrderNumber,
+      };
+    }
+
+    throw new Error(
+      "The reservation changed during reconciliation. Manual review required."
+    );
+  }
+
+  await safelyResolveSixersPaymentReview({
+    shop,
+    shopifyOrderId: verifiedOrderId!,
+    reservationId: reservation.id,
+    notes: `Reconciled against verified paid Shopify order ${shopifyOrderNumber}.`,
+  });
+
+  return {
+    success: true,
+    alreadyConfirmed: false,
+    reservationId: reservation.id,
+    shopifyOrderNumber,
+  };
+}
+
 export async function reconcileSixersPaidCheck({
   reservationId,
   shop,
@@ -178,6 +368,12 @@ export async function reconcileSixersPaidCheck({
   if (reservation.status !== "PENDING") {
     throw new Error(
       "This Sixers reservation is not awaiting payment."
+    );
+  }
+
+  if (reservation.shopifyDraftStatus === "PROCESSING") {
+    throw new Error(
+      "This Sixers reservation is already being processed. Manual review required before retrying."
     );
   }
 

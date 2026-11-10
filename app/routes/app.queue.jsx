@@ -13,7 +13,11 @@ import prisma from "../db.server";
 
 import { getWaitingForCheckQueue } from "../services/productionDashboard.server";
 
-import { receiveCheck } from "../services/queue.server";
+import {
+  listSixersChecksForQueue,
+  receiveCheck,
+  receiveSixersCheckFromQueue,
+} from "../services/queue.server";
 
 function getAccountFromShop(shop) {
   if (
@@ -67,6 +71,11 @@ const requestedEventId =
   const photoSalesSelected =
   url.searchParams.get(
     "photoSales",
+  ) === "true";
+
+  const sixersSelected =
+  url.searchParams.get(
+    "sixers",
   ) === "true";
 
   const eventChecks =
@@ -139,6 +148,11 @@ const requestedEventId =
     },
   });
 
+  const sixersChecks =
+    await listSixersChecksForQueue({
+      account,
+    });
+
   const performances =
   await prisma.performance.findMany({
     where: {
@@ -195,7 +209,8 @@ const selectedPerformanceId =
     ? requestedPerformanceId
     : selectedEventId ||
     soloDuetSelected ||
-    photoSalesSelected
+    photoSalesSelected ||
+    sixersSelected
       ? null
       : performances[0]?.id ?? null;
 
@@ -207,18 +222,20 @@ return {
   events,
 
   selectedPerformanceId,
-selectedEventId,
-soloDuetSelected,
-photoSalesSelected,
+  selectedEventId,
+  soloDuetSelected,
+  photoSalesSelected,
+  sixersSelected,
 
   waiting:
     await getWaitingForCheckQueue(
       account,
     ),
 
-    eventChecks,
+  eventChecks,
   soloDuetChecks,
   photoChecks,
+  sixersChecks,
 };
 };
 
@@ -349,6 +366,32 @@ if (
 }
 
   if (
+  reservationType === "sixers"
+) {
+  if (!reservationId) {
+    throw new Response(
+      "Sixers reservation ID is required.",
+      {
+        status: 400,
+      },
+    );
+  }
+
+  await receiveSixersCheckFromQueue({
+    reservationId:
+      String(reservationId),
+    checkNumber:
+      String(checkNumber || "").trim(),
+    admin,
+    account,
+  });
+
+  return redirect(
+    "/app/queue?sixers=true",
+  );
+}
+
+  if (
     !reservationId ||
     !showId
   ) {
@@ -384,12 +427,14 @@ export default function QueuePage() {
   eventChecks,
   soloDuetChecks,
   photoChecks,
+  sixersChecks,
   performances,
   events,
   selectedPerformanceId,
   selectedEventId,
   soloDuetSelected,
   photoSalesSelected,
+  sixersSelected,
   account,
 } = useLoaderData();
 
@@ -466,6 +511,25 @@ export default function QueuePage() {
         },
       )
     : soloDuetChecks;
+
+  const filteredSixersChecks =
+    normalizedSearch
+      ? sixersChecks.filter((reservation) => {
+          const searchableText = [
+            reservation.customerName,
+            reservation.customerEmail,
+            reservation.eventLocation?.event?.name,
+            reservation.eventLocation?.name,
+            reservation.ticketTier?.name,
+            reservation.shopifyOrderNumber,
+          ]
+            .filter(Boolean)
+            .join(" ")
+            .toLowerCase();
+
+          return searchableText.includes(normalizedSearch);
+        })
+      : sixersChecks;
 
       const selectedEventChecks =
   selectedEventId
@@ -566,59 +630,43 @@ const filteredWaiting =
 
     <select
       value={
-  photoSalesSelected
-    ? "photo-sales"
-    : soloDuetSelected
-      ? "solo-duet"
-      : selectedEventId
-        ? `event:${selectedEventId}`
-        : selectedPerformanceId
-          ? `performance:${selectedPerformanceId}`
-          : ""
-}
+        sixersSelected
+          ? "sixers"
+          : photoSalesSelected
+            ? "photo-sales"
+            : soloDuetSelected
+              ? "solo-duet"
+              : selectedEventId
+                ? `event:${selectedEventId}`
+                : selectedPerformanceId
+                  ? `performance:${selectedPerformanceId}`
+                  : ""
+      }
       onChange={(event) => {
-        const value =
-          event.target.value;
+        const value = event.target.value;
 
-          if (value === "solo-duet") {
-  navigate(
-    "/app/queue?soloDuet=true",
-  );
-  return;
-}
-
-if (value === "photo-sales") {
-  navigate(
-    "/app/queue?photoSales=true",
-  );
-  return;
-}
-
-        if (
-          value.startsWith(
-            "event:",
-          )
-        ) {
-          navigate(
-            `/app/queue?event=${value.replace(
-              "event:",
-              "",
-            )}`,
-          );
+        if (value === "solo-duet") {
+          navigate("/app/queue?soloDuet=true");
           return;
         }
 
-        if (
-          value.startsWith(
-            "performance:",
-          )
-        ) {
-          navigate(
-            `/app/queue?performance=${value.replace(
-              "performance:",
-              "",
-            )}`,
-          );
+        if (value === "photo-sales") {
+          navigate("/app/queue?photoSales=true");
+          return;
+        }
+
+        if (value === "sixers") {
+          navigate("/app/queue?sixers=true");
+          return;
+        }
+
+        if (value.startsWith("event:")) {
+          navigate(`/app/queue?event=${value.replace("event:", "")}`);
+          return;
+        }
+
+        if (value.startsWith("performance:")) {
+          navigate(`/app/queue?performance=${value.replace("performance:", "")}`);
         }
       }}
       style={{
@@ -629,81 +677,65 @@ if (value === "photo-sales") {
       }}
     >
       <optgroup label="PERFORMANCES">
-        {performances.map(
-          (performance) => (
-            <option
-              key={
-                performance.id
-              }
-              value={`performance:${performance.id}`}
-            >
-              {
-                performance.name
-              }
-            </option>
-          ),
-        )}
+        {performances.map((performance) => (
+          <option key={performance.id} value={`performance:${performance.id}`}>
+            {performance.name}
+          </option>
+        ))}
       </optgroup>
 
       <optgroup label="EVENTS">
-        {events.map(
-          (event) => (
-            <option
-              key={event.id}
-              value={`event:${event.id}`}
-            >
-              {event.name}
-            </option>
-          ),
-        )}
+        {events.map((event) => (
+          <option key={event.id} value={`event:${event.id}`}>
+            {event.name}
+          </option>
+        ))}
       </optgroup>
+
       <optgroup label="SOLO / DUET">
-  <option value="solo-duet">
-    Solo/Duet Registration
-  </option>
-</optgroup>
-<optgroup label="PHOTO SALES">
-  <option value="photo-sales">
-    Senior REP Photos
-  </option>
-</optgroup>
+        <option value="solo-duet">Solo/Duet Registration</option>
+      </optgroup>
+
+      <optgroup label="PHOTO SALES">
+        <option value="photo-sales">Senior REP Photos</option>
+      </optgroup>
+
+      <optgroup label="SIXERS">
+        <option value="sixers">Sixers Ticket Checks</option>
+      </optgroup>
     </select>
   </label>
 </div>
 
-        <div
-          style={{
-            marginBottom: "20px",
-          }}
-        >
-          <label>
-            <div
-              style={{
-                marginBottom: "6px",
-                fontWeight: "600",
-              }}
-            >
-              Search Waiting for Checks
-            </div>
+<div
+  style={{
+    marginBottom: "20px",
+  }}
+>
+  <label>
+    <div
+      style={{
+        marginBottom: "6px",
+        fontWeight: "600",
+      }}
+    >
+      Search Waiting for Checks
+    </div>
 
-            <input
-              type="search"
-              value={searchTerm}
-              onChange={(event) =>
-                setSearchTerm(
-                  event.target.value,
-                )
-              }
-              placeholder="Search by customer, email, performance, or show"
-              style={{
-                width: "100%",
-                maxWidth: "620px",
-                padding: "10px 12px",
-                boxSizing: "border-box",
-              }}
-            />
-          </label>
-        </div>
+    <input
+      type="search"
+      value={searchTerm}
+      onChange={(event) => setSearchTerm(event.target.value)}
+      placeholder="Search by customer, email, performance, or show"
+      style={{
+        width: "100%",
+        maxWidth: "620px",
+        padding: "10px 12px",
+        boxSizing: "border-box",
+      }}
+    />
+  </label>
+</div>
 
         {photoSalesSelected ? (
   photoChecks.length === 0 ? (
@@ -830,6 +862,109 @@ if (value === "photo-sales") {
         </div>
       ))}
       
+    </div>
+  )
+) : sixersSelected ? (
+  filteredSixersChecks.length === 0 ? (
+    <p>
+      {searchTerm
+        ? "No matching Sixers reservations found."
+        : "🎉 No Sixers ticket reservations are currently waiting for checks."}
+    </p>
+  ) : (
+    <div
+      style={{
+        display: "grid",
+        gap: "16px",
+      }}
+    >
+      {filteredSixersChecks.map((reservation) => (
+        <div
+          key={reservation.id}
+          style={{
+            border: "1px solid #ddd",
+            borderRadius: "12px",
+            padding: "16px",
+          }}
+        >
+          <h3 style={{ marginTop: 0 }}>{reservation.customerName}</h3>
+
+          {reservation.customerEmail && <p>{reservation.customerEmail}</p>}
+
+          <p>
+            <strong>{reservation.eventLocation?.event?.name}</strong>
+          </p>
+
+          <p>{reservation.eventLocation?.name}</p>
+
+          <p>
+            🎟 {reservation.quantity} {reservation.quantity === 1 ? "Ticket" : "Tickets"}
+          </p>
+
+          <p>
+            💲 {Number(reservation.totalAmount || 0).toFixed(2)}
+          </p>
+
+          {reservation.ticketTier?.name && (
+            <p>
+              <strong>Tier:</strong> {reservation.ticketTier.name}
+            </p>
+          )}
+
+          <p>Studio: {reservation.eventLocation?.studioCode}</p>
+
+          <Form method="post">
+            <div style={{ marginBottom: "12px", maxWidth: "220px" }}>
+              <label
+                htmlFor={`sixers-check-number-${reservation.id}`}
+                style={{
+                  display: "block",
+                  marginBottom: "6px",
+                  fontWeight: "600",
+                }}
+              >
+                Check Number
+              </label>
+
+              <input
+                id={`sixers-check-number-${reservation.id}`}
+                name="checkNumber"
+                type="text"
+                inputMode="numeric"
+                placeholder="Enter check number"
+                required
+                style={{
+                  width: "100%",
+                  padding: "8px 10px",
+                  border: "1px solid #ccc",
+                  borderRadius: "6px",
+                }}
+              />
+            </div>
+
+            <input type="hidden" name="reservationId" value={reservation.id} />
+            <input type="hidden" name="reservationType" value="sixers" />
+
+            <s-button
+              type="submit"
+              variant="primary"
+              disabled={
+                navigation.state === "submitting" &&
+                submittingReservationId === reservation.id
+              }
+              loading={
+                navigation.state === "submitting" &&
+                submittingReservationId === reservation.id
+              }
+            >
+              {navigation.state === "submitting" &&
+              submittingReservationId === reservation.id
+                ? "Receiving Check..."
+                : "Receive Check"}
+            </s-button>
+          </Form>
+        </div>
+      ))}
     </div>
   )
 ) : soloDuetSelected ? (
