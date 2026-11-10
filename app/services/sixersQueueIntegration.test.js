@@ -9,14 +9,17 @@ import {
   listSixersChecksForQueue,
   receiveSixersCheckFromQueue,
 } from "./queue.server.js";
+import { getQueueSelectionValue } from "../utils/queueSelection.js";
 
 function makeSixersReservation({
   id,
   studioCode,
   customerName,
-  customerEmail,
+  customerEmail = "customer@example.com",
   status = "PENDING",
   paymentMethod = "CHECK",
+  eventName = "Sixers Gala",
+  eventType = "TICKET_SALE",
 }) {
   return {
     id,
@@ -28,10 +31,10 @@ function makeSixersReservation({
     totalAmount: 120,
     eventLocation: {
       studioCode,
-      event: { name: "Sixers Gala" },
+      event: { name: eventName, type: eventType },
       name: "Arena A",
     },
-    ticketTier: { name: "Lower Bowl" },
+    ticketTier: { name: "Lower Bowl", event: { type: eventType } },
     shopifyOrderNumber: `#${id}`,
   };
 }
@@ -67,18 +70,43 @@ function runQueueRouteHarness({ state, request, mode }) {
           findMany: async ({ where }) => {
             const rows = globalThis.__QUEUE_TEST_STATE__.reservations ?? [];
             if (where?.paymentMethod === "CHECK" && where?.status === "PENDING") {
-              return rows.filter((reservation) => {
+              let filtered = rows.filter((reservation) => {
                 const sameStudio = reservation.eventLocation?.studioCode === where.eventLocation?.studioCode;
                 return reservation.paymentMethod === "CHECK" && reservation.status === "PENDING" && sameStudio;
               });
+
+              if (where?.eventLocation?.event?.type?.not === "TICKET_SALE") {
+                filtered = filtered.filter((reservation) => reservation.eventLocation?.event?.type !== "TICKET_SALE");
+              }
+
+              if (where?.eventLocation?.event?.type === "TICKET_SALE") {
+                filtered = filtered.filter((reservation) => reservation.eventLocation?.event?.type === "TICKET_SALE");
+              }
+
+              return filtered;
             }
             return rows;
           },
         },
         soloDuetRegistration: { findMany: async () => [] },
         photoOrder: { findMany: async () => [] },
-        performance: { findMany: async () => [] },
-        event: { findMany: async () => [] },
+        performance: { findMany: async () => globalThis.__QUEUE_TEST_STATE__.performances ?? [] },
+        event: {
+          findMany: async ({ where }) => {
+            const rows = globalThis.__QUEUE_TEST_STATE__.events ?? [];
+            if (where?.status === "PUBLISHED") {
+              let filtered = rows.filter((event) => event.status === "PUBLISHED");
+              if (where?.type?.not === "TICKET_SALE") {
+                filtered = filtered.filter((event) => event.type !== "TICKET_SALE");
+              }
+              if (where?.type === "TICKET_SALE") {
+                filtered = filtered.filter((event) => event.type === "TICKET_SALE");
+              }
+              return filtered;
+            }
+            return rows;
+          },
+        },
       };
       export default prisma;
     `,
@@ -106,6 +134,43 @@ function runQueueRouteHarness({ state, request, mode }) {
     `,
   );
 
+  const utilsDir = join(appDir, "utils");
+  mkdirSync(utilsDir, { recursive: true });
+  writeFileSync(
+    join(utilsDir, "queueSelection.js"),
+    `
+      export function getQueueSelectionValue({
+        sixersSelected,
+        photoSalesSelected,
+        soloDuetSelected,
+        selectedEventId,
+        selectedPerformanceId,
+      }) {
+        if (sixersSelected) {
+          return "sixers";
+        }
+
+        if (photoSalesSelected) {
+          return "photo-sales";
+        }
+
+        if (soloDuetSelected) {
+          return "solo-duet";
+        }
+
+        if (selectedEventId) {
+          return "event:" + selectedEventId;
+        }
+
+        if (selectedPerformanceId) {
+          return "performance:" + selectedPerformanceId;
+        }
+
+        return "";
+      }
+    `,
+  );
+
   writeFileSync(
     join(servicesDir, "queue.server.js"),
     `
@@ -116,7 +181,8 @@ function runQueueRouteHarness({ state, request, mode }) {
           return (
             reservation.paymentMethod === "CHECK" &&
             reservation.status === "PENDING" &&
-            reservation.eventLocation?.studioCode === account
+            reservation.eventLocation?.studioCode === account &&
+            reservation.eventLocation?.event?.type === "TICKET_SALE"
           );
         });
       }
@@ -236,7 +302,7 @@ test("listSixersChecksForQueue includes only pending Sixers check reservations f
             customerEmail: "jamie@example.com",
             quantity: 2,
             totalAmount: 90,
-            eventLocation: { studioCode: "FW", event: { name: "Sixers Gala" } },
+            eventLocation: { studioCode: "FW", event: { name: "Sixers Gala", type: "TICKET_SALE" } },
           },
           {
             id: "res-2",
@@ -244,7 +310,7 @@ test("listSixersChecksForQueue includes only pending Sixers check reservations f
             customerEmail: "other@example.com",
             quantity: 1,
             totalAmount: 45,
-            eventLocation: { studioCode: "PM", event: { name: "Other Event" } },
+            eventLocation: { studioCode: "PM", event: { name: "Other Event", type: "STANDARD" } },
           },
         ];
       },
@@ -256,9 +322,9 @@ test("listSixersChecksForQueue includes only pending Sixers check reservations f
     prismaClient,
   });
 
-  assert.equal(reservations.length, 2);
+  assert.equal(reservations.length, 1);
   assert.equal(reservations[0].customerName, "Jamie Smith");
-  assert.equal(reservations[1].eventLocation.studioCode, "PM");
+  assert.equal(reservations[0].eventLocation.studioCode, "FW");
 });
 
 test("receiveSixersCheckFromQueue enforces the queue check-number guard before invoking the payment flow", async () => {
@@ -282,6 +348,105 @@ test("receiveSixersCheckFromQueue enforces the queue check-number guard before i
         admin: { graphql: async () => ({ json: async () => ({}) }) },
       }),
     /Invalid studio account/i,
+  );
+});
+
+test("loader excludes ticket-sale events from the general event list and keeps Sixers reservations isolated to the Sixers queue", async () => {
+  const state = {
+    shop: "ida-dance-store.myshopify.com",
+    admin: { graphql: async () => ({ json: async () => ({ data: {} }) }) },
+    waiting: [],
+    performances: [],
+    events: [
+      { id: "evt-standard", name: "IDA Halloween Party", status: "PUBLISHED", type: "STANDARD" },
+      { id: "evt-sixers", name: "Philadelphia 76ers Game", status: "PUBLISHED", type: "TICKET_SALE" },
+    ],
+    reservations: [
+      makeSixersReservation({ id: "standard-check", studioCode: "FW", customerName: "Halloween Guest", eventName: "IDA Halloween Party", eventType: "STANDARD" }),
+      makeSixersReservation({ id: "sixers-check", studioCode: "FW", customerName: "Sixers Guest", eventName: "Philadelphia 76ers Game", eventType: "TICKET_SALE" }),
+    ],
+  };
+
+  const result = runQueueRouteHarness({
+    state,
+    mode: "loader",
+    request: {
+      url: "https://example.com/app/queue?sixers=true",
+      init: undefined,
+    },
+  });
+
+  assert.deepEqual(
+    result.events.map((event) => event.name),
+    ["IDA Halloween Party"],
+  );
+  assert.equal(result.eventChecks.length, 1);
+  assert.equal(result.eventChecks[0].customerName, "Halloween Guest");
+  assert.equal(result.sixersChecks.length, 1);
+  assert.equal(result.sixersChecks[0].customerName, "Sixers Guest");
+});
+
+test("dropdown selection and rendered queue state prefer Sixers over other filters while excluding ticket-sale events from general events", async () => {
+  assert.equal(
+    getQueueSelectionValue({
+      sixersSelected: true,
+      photoSalesSelected: false,
+      soloDuetSelected: false,
+      selectedEventId: "evt-standard",
+      selectedPerformanceId: null,
+    }),
+    "sixers",
+  );
+
+  assert.equal(
+    getQueueSelectionValue({
+      sixersSelected: false,
+      photoSalesSelected: false,
+      soloDuetSelected: false,
+      selectedEventId: "evt-standard",
+      selectedPerformanceId: null,
+    }),
+    "event:evt-standard",
+  );
+
+  const state = {
+    shop: "ida-dance-store.myshopify.com",
+    admin: { graphql: async () => ({ json: async () => ({ data: {} }) }) },
+    waiting: [],
+    performances: [],
+    events: [
+      { id: "evt-standard", name: "IDA Halloween Party", status: "PUBLISHED", type: "STANDARD" },
+      { id: "evt-sixers", name: "Philadelphia 76ers Game", status: "PUBLISHED", type: "TICKET_SALE" },
+    ],
+    reservations: [
+      makeSixersReservation({ id: "standard-check", studioCode: "FW", customerName: "Halloween Guest", eventName: "IDA Halloween Party", eventType: "STANDARD" }),
+      makeSixersReservation({ id: "sixers-check", studioCode: "FW", customerName: "Sixers Guest", eventName: "Philadelphia 76ers Game", eventType: "TICKET_SALE" }),
+    ],
+  };
+
+  const result = runQueueRouteHarness({
+    state,
+    mode: "loader",
+    request: {
+      url: "https://example.com/app/queue?sixers=true",
+      init: undefined,
+    },
+  });
+
+  assert.deepEqual(result.events.map((event) => event.name), ["IDA Halloween Party"]);
+  assert.equal(result.eventChecks.length, 1);
+  assert.equal(result.eventChecks[0].customerName, "Halloween Guest");
+  assert.equal(result.sixersChecks.length, 1);
+  assert.equal(result.sixersChecks[0].customerName, "Sixers Guest");
+  assert.equal(
+    getQueueSelectionValue({
+      sixersSelected: true,
+      photoSalesSelected: false,
+      soloDuetSelected: false,
+      selectedEventId: "evt-standard",
+      selectedPerformanceId: null,
+    }),
+    "sixers",
   );
 });
 

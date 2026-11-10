@@ -18,6 +18,7 @@ import {
   receiveCheck,
   receiveSixersCheckFromQueue,
 } from "../services/queue.server";
+import { getQueueSelectionValue } from "../utils/queueSelection.js";
 
 function getAccountFromShop(shop) {
   if (
@@ -78,31 +79,40 @@ const requestedEventId =
     "sixers",
   ) === "true";
 
-  const eventChecks =
-  await prisma.eventReservation.findMany({
-    where: {
-      paymentMethod: "CHECK",
-      status: "PENDING",
-      eventLocation: {
-        studioCode: account,
-      },
-    },
-    include: {
-      attendees: {
-        orderBy: {
-          createdAt: "asc",
+  const eventChecks = (
+    await prisma.eventReservation.findMany({
+      where: {
+        paymentMethod: "CHECK",
+        status: "PENDING",
+        eventLocation: {
+          studioCode: account,
+          event: {
+            type: {
+              not: "TICKET_SALE",
+            },
+          },
         },
       },
-      eventLocation: {
-        include: {
-          event: true,
+      include: {
+        attendees: {
+          orderBy: {
+            createdAt: "asc",
+          },
+        },
+        eventLocation: {
+          include: {
+            event: true,
+          },
         },
       },
-    },
-    orderBy: {
-      createdAt: "asc",
-    },
-  });
+      orderBy: {
+        createdAt: "asc",
+      },
+    })
+  ).filter(
+    (reservation) =>
+      reservation.eventLocation?.event?.type !== "TICKET_SALE",
+  );
 
   const soloDuetChecks =
   await prisma.soloDuetRegistration.findMany({
@@ -170,25 +180,30 @@ const requestedEventId =
     },
   });
 
-const events =
+const events = (
   await prisma.event.findMany({
     where: {
-  status: "PUBLISHED",
-  name: {
-    not: "Solo/Duet Registration",
-  },
-},
+      status: "PUBLISHED",
+      name: {
+        not: "Solo/Duet Registration",
+      },
+      type: {
+        not: "TICKET_SALE",
+      },
+    },
 
     select: {
       id: true,
       name: true,
+      type: true,
       date: true,
     },
 
     orderBy: {
       date: "desc",
     },
-  });
+  })
+).filter((event) => event.type !== "TICKET_SALE");
 
   const selectedEventId =
   requestedEventId &&
@@ -629,19 +644,13 @@ const filteredWaiting =
     </div>
 
     <select
-      value={
-        sixersSelected
-          ? "sixers"
-          : photoSalesSelected
-            ? "photo-sales"
-            : soloDuetSelected
-              ? "solo-duet"
-              : selectedEventId
-                ? `event:${selectedEventId}`
-                : selectedPerformanceId
-                  ? `performance:${selectedPerformanceId}`
-                  : ""
-      }
+      value={getQueueSelectionValue({
+        sixersSelected,
+        photoSalesSelected,
+        soloDuetSelected,
+        selectedEventId,
+        selectedPerformanceId,
+      })}
       onChange={(event) => {
         const value = event.target.value;
 

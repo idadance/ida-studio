@@ -13,35 +13,43 @@ export async function listSixersChecksForQueue({
     throw new Error("Invalid studio account.");
   }
 
-  return prismaClient.eventReservation.findMany({
-    where: {
-      paymentMethod: "CHECK",
-      status: "PENDING",
-      eventLocation: {
-        studioCode: account,
-      },
-    },
-    include: {
-      attendees: {
-        orderBy: {
-          createdAt: "asc",
+  return (
+    await prismaClient.eventReservation.findMany({
+      where: {
+        paymentMethod: "CHECK",
+        status: "PENDING",
+        eventLocation: {
+          studioCode: account,
+          event: {
+            type: "TICKET_SALE",
+          },
         },
       },
-      eventLocation: {
-        include: {
-          event: true,
+      include: {
+        attendees: {
+          orderBy: {
+            createdAt: "asc",
+          },
+        },
+        eventLocation: {
+          include: {
+            event: true,
+          },
+        },
+        ticketTier: {
+          include: {
+            event: true,
+          },
         },
       },
-      ticketTier: {
-        include: {
-          event: true,
-        },
+      orderBy: {
+        createdAt: "asc",
       },
-    },
-    orderBy: {
-      createdAt: "asc",
-    },
-  });
+    })
+  ).filter(
+    (reservation) =>
+      reservation.eventLocation?.event?.type === "TICKET_SALE",
+  );
 }
 
 export async function receiveSixersCheckFromQueue({
