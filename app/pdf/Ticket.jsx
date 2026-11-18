@@ -1,3 +1,4 @@
+import React from "react"; // eslint-disable-line no-unused-vars -- Required by standalone classic JSX.
 import {
   Document,
   Page,
