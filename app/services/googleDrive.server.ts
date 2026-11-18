@@ -2,6 +2,7 @@ import { google } from "googleapis";
 import { Readable } from "node:stream";
 import prisma from "../db.server";
 import { getGoogleAuth } from "./google.server";
+import { escapeDriveQueryValue } from "./googleDriveQuery.js";
 
 import type {
   Performance,
@@ -121,7 +122,7 @@ export async function ensureCustomerFolder(
   const existing = await drive.files.list({
     q: `'${customersFolderId}' in parents
         and mimeType='application/vnd.google-apps.folder'
-        and name='${reservation.customerName}'
+        and name='${escapeDriveQueryValue(reservation.customerName)}'
         and trashed=false`,
     fields: "files(id,name)",
   });
