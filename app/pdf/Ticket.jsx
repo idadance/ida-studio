@@ -6,6 +6,7 @@ import {
   View,
   StyleSheet,
   Image,
+  Link,
 } from "@react-pdf/renderer";
 
 const styles = StyleSheet.create({
@@ -68,6 +69,22 @@ const styles = StyleSheet.create({
     fontSize: 32,
   },
 
+  programButton: {
+    backgroundColor: "#111111",
+    borderRadius: 16,
+    paddingVertical: 22,
+    paddingHorizontal: 48,
+    alignSelf: "center",
+    marginBottom: 24,
+  },
+
+  programButtonLabel: {
+    color: "#FFFFFF",
+    fontSize: 44,
+    fontWeight: "bold",
+    textAlign: "center",
+  },
+
   ticketNumber: {
     marginTop: 40,
     fontSize: 28,
@@ -100,12 +117,26 @@ innerBorder: {
 },
 });
 
+function getProgramUrl(value) {
+  const url = value?.trim();
+  if (!url) return undefined;
+  const authority = url.match(/^https?:\/\/([^/?#]+)/i)?.[1];
+  if (!authority || authority.includes("@") || /[\s\\]/.test(url) || !URL.canParse(url)) {
+    console.warn("Generations ticket PDF: invalid performance program URL; omitting the program button.");
+    return undefined;
+  }
+  return new URL(url).href;
+}
+
 export default function Ticket({
   ticket,
   qrCode,
 }) {
   const isGenerations =
     ticket.performance.organization === "GENERATIONS";
+  const programUrl = isGenerations
+    ? getProgramUrl(ticket.performance.programUrl) // eslint-disable-line react/prop-types -- Supplied by server-side ticket loaders.
+    : undefined;
 
   return (
     <Document>
@@ -221,6 +252,12 @@ export default function Ticket({
 </View>
 
         <View style={styles.qrSection}>
+
+          {programUrl && (
+            <Link src={programUrl} style={styles.programButton}>
+              <Text style={styles.programButtonLabel}>VIEW DIGITAL PROGRAM</Text>
+            </Link>
+          )}
 
             <Text
   style={{

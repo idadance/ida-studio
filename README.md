@@ -77,6 +77,10 @@ For more information on the Shopify Dev MCP please read [the documentation](http
 
 ## Deployment
 
+Set the performance's **Digital Program URL** in the admin to add a tappable
+**VIEW DIGITAL PROGRAM** button to newly generated Generations ticket PDFs. If
+the URL is missing or invalid, the PDF keeps the existing QR and omits the button.
+
 ### Application Storage
 
 This template uses [Prisma](https://www.prisma.io/) to store session data, by default using an [SQLite](https://www.sqlite.org/index.html) database.
