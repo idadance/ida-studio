@@ -37,7 +37,7 @@ export default function SelfCheckInPage() {
     processingRef.current = false;
   }
 
-  function scheduleReset() {
+  function scheduleReset(delay = 5000) {
     if (resetTimerRef.current) {
       clearTimeout(
         resetTimerRef.current,
@@ -47,7 +47,7 @@ export default function SelfCheckInPage() {
     resetTimerRef.current =
       setTimeout(() => {
         resetKiosk();
-      }, 5000);
+      }, delay);
   }
 
   useEffect(() => {
@@ -278,7 +278,11 @@ export default function SelfCheckInPage() {
 
       setResult(data);
 
-      scheduleReset();
+      scheduleReset(
+        data.result === "CHECKED_IN"
+          ? 750
+          : 5000,
+      );
     } catch (error) {
       console.error(
         "Group check-in failed:",

@@ -32,6 +32,14 @@ Press P to open the URL to your app. Once you click install, you can start devel
 
 Local development is powered by [the Shopify CLI](https://shopify.dev/docs/apps/tools/cli). It logs into your account, connects to an app, provides environment variables, updates remote config, creates a tunnel and provides commands to generate extensions.
 
+### Shared QR check-in scanner
+
+The shared `/checkin` scanner resets 750 ms after a successful
+`/api/checkin-group` result (`CHECKED_IN`). Unsuccessful results and lookup or
+network errors retain the 5,000 ms reset. Scans remain locked during ticket
+lookup, group quantity selection, submission, and the result delay.
+This timing applies to all events using this scanner, not only Generations.
+
 ### Authenticating and querying data
 
 To authenticate and query data you can use the `shopify` const that is exported from `/app/shopify.server.js`:
